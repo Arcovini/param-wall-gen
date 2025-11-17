@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { BlockGenerator } from './BlockGenerator';
+import { WallGenerator } from './WallGenerator';
 
 /**
  * WallRenderer - Main rendering engine for the parametric wall system
@@ -11,7 +11,7 @@ export class WallRenderer {
   private camera: THREE.PerspectiveCamera;
   private renderer: THREE.WebGLRenderer;
   private controls: OrbitControls;
-  private blockGenerator: BlockGenerator;
+  private wallGenerator: WallGenerator;
   private animationId: number | null = null;
   private canvas: HTMLCanvasElement;
 
@@ -82,8 +82,8 @@ export class WallRenderer {
     this.directionalLight.position.set(5, 5, 5);
     this.scene.add(this.directionalLight);
 
-    // Initialize block generator
-    this.blockGenerator = new BlockGenerator();
+    // Initialize wall generator
+    this.wallGenerator = new WallGenerator();
 
     // Handle window resize
     window.addEventListener('resize', this.handleResize.bind(this));
@@ -93,17 +93,31 @@ export class WallRenderer {
   }
 
   /**
-   * Creates a textured block with specified dimensions
+   * Creates a wall grid with specified dimensions
    */
-  createBlock(blockWidth: number, blockHeight: number, blockLength: number, cementThickness: number): void {
-    this.blockGenerator.createBlock(blockWidth, blockHeight, blockLength, cementThickness, this.scene);
+  createWall(
+    wallWidth: number,
+    wallHeight: number,
+    blockWidth: number,
+    blockHeight: number,
+    blockLength: number,
+    cementThickness: number
+  ): void {
+    this.wallGenerator.createWall(wallWidth, wallHeight, blockWidth, blockHeight, blockLength, cementThickness, this.scene);
   }
 
   /**
-   * Updates block dimensions
+   * Updates wall and block dimensions
    */
-  updateBlock(blockWidth: number, blockHeight: number, blockLength: number, cementThickness: number): void {
-    this.blockGenerator.updateBlock(blockWidth, blockHeight, blockLength, cementThickness);
+  updateWall(
+    wallWidth: number,
+    wallHeight: number,
+    blockWidth: number,
+    blockHeight: number,
+    blockLength: number,
+    cementThickness: number
+  ): void {
+    this.wallGenerator.updateWall(wallWidth, wallHeight, blockWidth, blockHeight, blockLength, cementThickness);
   }
 
   /**

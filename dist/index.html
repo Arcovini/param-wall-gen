@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Three.js Cube - Isometric View</title>
+  <script type="module" crossorigin src="/assets/index-B8x9wC2j.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-BPXvLN67.css">
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div id="controls">
+    <div class="controls-content">
+      <h2>Wall Configurator</h2>
+
+      <div class="control-section">
+        <div class="section-title">Visualization Mode</div>
+
+        <div class="control-group">
+          <label class="toggle-switch">
+            <input type="checkbox" id="wireframe-toggle">
+            <span class="slider"></span>
+          </label>
+          <div class="toggle-labels">
+            <span id="label-rendered" class="active">Rendered</span>
+            <span id="label-wireframe">Wireframe</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="control-section">
+        <div class="section-title">WallParams</div>
+
+        <div class="subsection">
+          <div class="subsection-title">blockSize</div>
+
+          <div class="control-group">
+            <label for="block-width">w (Width)</label>
+            <input type="number" id="block-width" min="0.1" step="0.01" value="0.39">
+          </div>
+
+          <div class="control-group">
+            <label for="block-height">h (Height)</label>
+            <input type="number" id="block-height" min="0.1" step="0.01" value="0.14">
+          </div>
+
+          <div class="control-group">
+            <label for="block-length">l (Length/Depth)</label>
+            <input type="number" id="block-length" min="0" step="0.01" value="0.19">
+          </div>
+
+          <div class="control-group">
+            <label for="cement-thickness">cementThickness</label>
+            <input type="number" id="cement-thickness" min="0" step="0.01" value="0.02">
+          </div>
+        </div>
+
+        <div class="subsection">
+          <div class="subsection-title">wallSize</div>
+
+          <div class="control-group">
+            <label for="wall-width">w (Width)</label>
+            <input type="number" id="wall-width" min="0.1" step="0.1" value="4">
+          </div>
+
+          <div class="control-group">
+            <label for="wall-height">h (Height)</label>
+            <input type="number" id="wall-height" min="0.1" step="0.1" value="3">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="info-panel">
+    <strong>Camera Controls:</strong>
+    <div>
+      • Left button: Rotate<br>
+      • Right button: Pan<br>
+      • Scroll: Zoom
+    </div>
+  </div>
+
+</body>
+</html>

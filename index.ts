@@ -40,8 +40,12 @@ function init(): void {
   const defaultBlockLength = 0.19;
   const defaultCementThickness = 0.02;
 
-  // Create initial block
-  renderer.createBlock(defaultBlockWidth, defaultBlockHeight, defaultBlockLength, defaultCementThickness);
+  // Default wall parameters
+  const defaultWallWidth = 4.0;
+  const defaultWallHeight = 3.0;
+
+  // Create initial wall
+  renderer.createWall(defaultWallWidth, defaultWallHeight, defaultBlockWidth, defaultBlockHeight, defaultBlockLength, defaultCementThickness);
 
   // Wire up wireframe toggle
   const wireframeToggle = document.getElementById('wireframe-toggle') as HTMLInputElement;
@@ -70,20 +74,30 @@ function init(): void {
   const blockLengthInput = document.getElementById('block-length') as HTMLInputElement;
   const cementThicknessInput = document.getElementById('cement-thickness') as HTMLInputElement;
 
-  function updateBlock(): void {
+  // Wire up wall parameter controls
+  const wallWidthInput = document.getElementById('wall-width') as HTMLInputElement;
+  const wallHeightInput = document.getElementById('wall-height') as HTMLInputElement;
+
+  function updateWall(): void {
     const blockWidth = parseFloat(blockWidthInput?.value) || defaultBlockWidth;
     const blockHeight = parseFloat(blockHeightInput?.value) || defaultBlockHeight;
     const blockLength = parseFloat(blockLengthInput?.value) || defaultBlockLength;
     const cementThickness = parseFloat(cementThicknessInput?.value) || defaultCementThickness;
+    const wallWidth = parseFloat(wallWidthInput?.value) || defaultWallWidth;
+    const wallHeight = parseFloat(wallHeightInput?.value) || defaultWallHeight;
 
-    renderer.updateBlock(blockWidth, blockHeight, blockLength, cementThickness);
+    renderer.updateWall(wallWidth, wallHeight, blockWidth, blockHeight, blockLength, cementThickness);
   }
 
   // Event listeners for block parameters
-  blockWidthInput?.addEventListener('input', updateBlock);
-  blockHeightInput?.addEventListener('input', updateBlock);
-  blockLengthInput?.addEventListener('input', updateBlock);
-  cementThicknessInput?.addEventListener('input', updateBlock);
+  blockWidthInput?.addEventListener('input', updateWall);
+  blockHeightInput?.addEventListener('input', updateWall);
+  blockLengthInput?.addEventListener('input', updateWall);
+  cementThicknessInput?.addEventListener('input', updateWall);
+
+  // Event listeners for wall parameters
+  wallWidthInput?.addEventListener('input', updateWall);
+  wallHeightInput?.addEventListener('input', updateWall);
 }
 
 // ===== PUBLIC API =====

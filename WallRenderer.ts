@@ -98,12 +98,12 @@ export class WallRenderer {
   createWall(
     wallWidth: number,
     wallHeight: number,
+    wallLength: number,
     blockWidth: number,
     blockHeight: number,
-    blockLength: number,
     cementThickness: number
   ): void {
-    this.wallGenerator.createWall(wallWidth, wallHeight, blockWidth, blockHeight, blockLength, cementThickness, this.scene);
+    this.wallGenerator.createWall(wallWidth, wallHeight, wallLength, blockWidth, blockHeight, cementThickness, this.scene);
   }
 
   /**
@@ -112,12 +112,12 @@ export class WallRenderer {
   updateWall(
     wallWidth: number,
     wallHeight: number,
+    wallLength: number,
     blockWidth: number,
     blockHeight: number,
-    blockLength: number,
     cementThickness: number
   ): void {
-    this.wallGenerator.updateWall(wallWidth, wallHeight, blockWidth, blockHeight, blockLength, cementThickness);
+    this.wallGenerator.updateWall(wallWidth, wallHeight, wallLength, blockWidth, blockHeight, cementThickness);
   }
 
   /**

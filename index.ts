@@ -5,34 +5,42 @@
  * It manages resources, provides a clean interface, and re-exports types.
  */
 
-import { WallRenderer } from './WallRenderer';
+import { SceneRenderer } from './core/SceneRenderer';
+import { WallGenerator } from './wall/WallGenerator';
+import { SceneUtils } from './utils/SceneUtils';
 
 // ===== TYPE RE-EXPORTS =====
 // Re-export types for external consumption
 export type { BuildMasonryWallParams } from './types';
 
-// ===== SINGLETON INSTANCE =====
-let rendererInstance: WallRenderer | null = null;
+// ===== SINGLETON INSTANCES =====
+let sceneRenderer: SceneRenderer | null = null;
+let wallGenerator: WallGenerator | null = null;
 
 /**
- * Initializes and returns the singleton WallRenderer instance
+ * Initializes and returns the singleton SceneRenderer instance
  */
-function getRenderer(): WallRenderer {
-  if (!rendererInstance) {
+function getSceneRenderer(): SceneRenderer {
+  if (!sceneRenderer) {
     const container = document.getElementById('canvas-container') as HTMLElement;
     if (!container) {
       throw new Error('Container element with id "canvas-container" not found');
     }
-    rendererInstance = new WallRenderer(container);
+    sceneRenderer = new SceneRenderer(container);
   }
-  return rendererInstance;
+  return sceneRenderer;
 }
 
 /**
  * Initializes the application and wires up UI controls
  */
 function init(): void {
-  const renderer = getRenderer();
+  // 1. Initialize pure rendering engine
+  const renderer = getSceneRenderer();
+  const scene = renderer.getScene();
+
+  // 2. Initialize wall generator with scene access
+  wallGenerator = new WallGenerator();
 
   // Default block parameters
   const defaultBlockWidth = 0.39;
@@ -44,10 +52,22 @@ function init(): void {
   const defaultWallHeight = 3.0;
   const defaultWallLength = 0.2;
 
-  // Create initial wall
-  renderer.createWall(defaultWallWidth, defaultWallHeight, defaultWallLength, defaultBlockWidth, defaultBlockHeight, defaultCementThickness);
+  // 3. Create initial wall (directly via WallGenerator)
+  wallGenerator.createWall(
+    defaultWallWidth,
+    defaultWallHeight,
+    defaultWallLength,
+    defaultBlockWidth,
+    defaultBlockHeight,
+    defaultCementThickness,
+    scene
+  );
 
-  // Wire up wireframe toggle
+  // 4. Create floor at ground level
+  const floor = SceneUtils.createFloor(10, 10, 0);
+  scene.add(floor);
+
+  // 5. Wire up wireframe toggle
   const wireframeToggle = document.getElementById('wireframe-toggle') as HTMLInputElement;
   const labelRendered = document.getElementById('label-rendered');
   const labelWireframe = document.getElementById('label-wireframe');
@@ -55,7 +75,7 @@ function init(): void {
   if (wireframeToggle && labelRendered && labelWireframe) {
     wireframeToggle.addEventListener('change', () => {
       const isWireframe = wireframeToggle.checked;
-      renderer.setWireframeMode(isWireframe);
+      SceneUtils.setWireframeMode(scene, isWireframe);
 
       // Update labels
       if (isWireframe) {
@@ -86,7 +106,8 @@ function init(): void {
     const wallHeight = parseFloat(wallHeightInput?.value) || defaultWallHeight;
     const wallLength = parseFloat(wallLengthInput?.value) || defaultWallLength;
 
-    renderer.updateWall(wallWidth, wallHeight, wallLength, blockWidth, blockHeight, cementThickness);
+    // Directly update wall via WallGenerator
+    wallGenerator!.updateWall(wallWidth, wallHeight, wallLength, blockWidth, blockHeight, cementThickness);
   }
 
   // Event listeners for block parameters
@@ -102,20 +123,24 @@ function init(): void {
 
 // ===== PUBLIC API =====
 /**
- * Gets the singleton WallRenderer instance
+ * Gets the singleton SceneRenderer instance
  * Use this for advanced control over the rendering system
  */
-export function getWallRenderer(): WallRenderer {
-  return getRenderer();
+export function getRenderer(): SceneRenderer {
+  return getSceneRenderer();
 }
 
 /**
  * Disposes of all resources and cleans up
  */
 export function dispose(): void {
-  if (rendererInstance) {
-    rendererInstance.dispose();
-    rendererInstance = null;
+  if (wallGenerator) {
+    wallGenerator.dispose();
+    wallGenerator = null;
+  }
+  if (sceneRenderer) {
+    sceneRenderer.dispose();
+    sceneRenderer = null;
   }
 }
 

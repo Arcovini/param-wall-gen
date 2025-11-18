@@ -1,17 +1,16 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { WallGenerator } from './WallGenerator';
 
 /**
- * WallRenderer - Main rendering engine for the parametric wall system
- * Handles scene management, texturization, lighting, and visualization
+ * SceneRenderer - Pure rendering engine for Three.js applications
+ * Handles ONLY rendering infrastructure: scene, camera, renderer, lights, controls
+ * Domain logic (walls, blocks, etc.) should be managed externally
  */
-export class WallRenderer {
+export class SceneRenderer {
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
   private renderer: THREE.WebGLRenderer;
   private controls: OrbitControls;
-  private wallGenerator: WallGenerator;
   private animationId: number | null = null;
   private canvas: HTMLCanvasElement;
 
@@ -39,14 +38,14 @@ export class WallRenderer {
     this.camera.position.set(5, 5, 5);
     this.camera.lookAt(0, 0, 0);
 
-    // Initialize renderer - let Three.js create the canvas (Safari-compatible)
+    // Initialize renderer
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       alpha: false,
       powerPreference: "high-performance"
     });
 
-    // Configure renderer (like working example)
+    // Configure renderer
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -82,62 +81,11 @@ export class WallRenderer {
     this.directionalLight.position.set(5, 5, 5);
     this.scene.add(this.directionalLight);
 
-    // Initialize wall generator
-    this.wallGenerator = new WallGenerator();
-
     // Handle window resize
     window.addEventListener('resize', this.handleResize.bind(this));
 
     // Start animation loop
     this.animate();
-  }
-
-  /**
-   * Creates a wall grid with specified dimensions
-   */
-  createWall(
-    wallWidth: number,
-    wallHeight: number,
-    wallLength: number,
-    blockWidth: number,
-    blockHeight: number,
-    cementThickness: number
-  ): void {
-    this.wallGenerator.createWall(wallWidth, wallHeight, wallLength, blockWidth, blockHeight, cementThickness, this.scene);
-  }
-
-  /**
-   * Updates wall and block dimensions
-   */
-  updateWall(
-    wallWidth: number,
-    wallHeight: number,
-    wallLength: number,
-    blockWidth: number,
-    blockHeight: number,
-    cementThickness: number
-  ): void {
-    this.wallGenerator.updateWall(wallWidth, wallHeight, wallLength, blockWidth, blockHeight, cementThickness);
-  }
-
-  /**
-   * Toggles wireframe visualization mode
-   */
-  setWireframeMode(enabled: boolean): void {
-    // Apply wireframe mode to all meshes in the scene
-    this.scene.traverse((object) => {
-      if (object instanceof THREE.Mesh && object.material) {
-        const material = object.material as THREE.MeshStandardMaterial;
-        material.wireframe = enabled;
-      }
-    });
-
-    // Update background color
-    if (enabled) {
-      this.scene.background = new THREE.Color(0xffffff);
-    } else {
-      this.scene.background = new THREE.Color(0xf5f5f5);
-    }
   }
 
   /**
@@ -209,6 +157,27 @@ export class WallRenderer {
   }
 
   /**
+   * Gets the Three.js scene for external object management
+   */
+  getScene(): THREE.Scene {
+    return this.scene;
+  }
+
+  /**
+   * Gets the camera for advanced usage
+   */
+  getCamera(): THREE.PerspectiveCamera {
+    return this.camera;
+  }
+
+  /**
+   * Gets the renderer for advanced usage
+   */
+  getRenderer(): THREE.WebGLRenderer {
+    return this.renderer;
+  }
+
+  /**
    * Cleans up resources
    */
   dispose(): void {
@@ -237,26 +206,5 @@ export class WallRenderer {
 
     // Dispose renderer
     this.renderer.dispose();
-  }
-
-  /**
-   * Gets the Three.js scene (for advanced usage)
-   */
-  getScene(): THREE.Scene {
-    return this.scene;
-  }
-
-  /**
-   * Gets the camera (for advanced usage)
-   */
-  getCamera(): THREE.PerspectiveCamera {
-    return this.camera;
-  }
-
-  /**
-   * Gets the renderer (for advanced usage)
-   */
-  getRenderer(): THREE.WebGLRenderer {
-    return this.renderer;
   }
 }

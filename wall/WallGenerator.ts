@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { applyPlacement } from '../WallPlacement';
 
 /**
  * WallGenerator - Generates a grid of blocks to fill wall dimensions
@@ -9,6 +10,7 @@ export class WallGenerator {
   private textureLoader: THREE.TextureLoader;
   private brickMaterial: THREE.MeshStandardMaterial;
   private cementMaterial: THREE.MeshStandardMaterial;
+  private wallGroup: THREE.Group | null = null;
 
   // Arrays to store all meshes in the grid
   private frontBlockMeshes: THREE.Mesh[] = [];
@@ -65,12 +67,20 @@ export class WallGenerator {
     blockWidth: number,
     blockHeight: number,
     cementThickness: number,
-    scene: THREE.Scene
+    scene: THREE.Scene,
+    positionX: number = 0,
+    positionY: number = 0,
+    positionZ: number = 0,
+    yawDegrees: number = 0
   ): void {
     this.scene = scene;
 
     // Clear previous wall
     this.clearWall();
+
+    // Create a new group to hold all wall meshes
+    this.wallGroup = new THREE.Group();
+    this.scene.add(this.wallGroup);
 
     // Calculate grid dimensions (truncate to integer)
     const blocksHorizontal = Math.floor(wallWidth / (blockWidth + cementThickness));
@@ -89,6 +99,9 @@ export class WallGenerator {
 
     // Create edge planes to bridge front and back (using actual dimensions)
     this.createEdgePlanes(actualWallWidth, actualWallHeight, wallLength);
+
+    // Apply placement transformations to the wall group
+    applyPlacement(this.wallGroup, { x: positionX, y: positionY, z: positionZ }, yawDegrees);
   }
 
   /**
@@ -130,7 +143,7 @@ export class WallGenerator {
           blockMesh.rotation.y = Math.PI;
         }
 
-        this.scene!.add(blockMesh);
+        this.wallGroup!.add(blockMesh);
         targetArray.push(blockMesh);
 
         // Determine if this is an edge block
@@ -147,7 +160,7 @@ export class WallGenerator {
           if (invertNormals) {
             topCementMesh.rotation.y = Math.PI;
           }
-          this.scene!.add(topCementMesh);
+          this.wallGroup!.add(topCementMesh);
           this.cementMeshes.push(topCementMesh);
         }
 
@@ -161,7 +174,7 @@ export class WallGenerator {
           if (invertNormals) {
             rightCementMesh.rotation.y = Math.PI;
           }
-          this.scene!.add(rightCementMesh);
+          this.wallGroup!.add(rightCementMesh);
           this.cementMeshes.push(rightCementMesh);
         }
 
@@ -179,7 +192,7 @@ export class WallGenerator {
           if (invertNormals) {
             cornerCementMesh.rotation.y = Math.PI;
           }
-          this.scene!.add(cornerCementMesh);
+          this.wallGroup!.add(cornerCementMesh);
           this.cementMeshes.push(cornerCementMesh);
         }
       }
@@ -198,7 +211,7 @@ export class WallGenerator {
     topEdgeMesh.scale.z = -1; // Flip normal
     topEdgeMesh.castShadow = true;
     topEdgeMesh.receiveShadow = true;
-    this.scene!.add(topEdgeMesh);
+    this.wallGroup!.add(topEdgeMesh);
     this.edgeMeshes.push(topEdgeMesh);
 
     // Bottom edge plane
@@ -209,7 +222,7 @@ export class WallGenerator {
     bottomEdgeMesh.scale.z = -1; // Flip normal
     bottomEdgeMesh.castShadow = true;
     bottomEdgeMesh.receiveShadow = true;
-    this.scene!.add(bottomEdgeMesh);
+    this.wallGroup!.add(bottomEdgeMesh);
     this.edgeMeshes.push(bottomEdgeMesh);
 
     // Left edge plane
@@ -220,7 +233,7 @@ export class WallGenerator {
     leftEdgeMesh.scale.z = -1; // Flip normal
     leftEdgeMesh.castShadow = true;
     leftEdgeMesh.receiveShadow = true;
-    this.scene!.add(leftEdgeMesh);
+    this.wallGroup!.add(leftEdgeMesh);
     this.edgeMeshes.push(leftEdgeMesh);
 
     // Right edge plane
@@ -231,7 +244,7 @@ export class WallGenerator {
     rightEdgeMesh.scale.z = -1; // Flip normal
     rightEdgeMesh.castShadow = true;
     rightEdgeMesh.receiveShadow = true;
-    this.scene!.add(rightEdgeMesh);
+    this.wallGroup!.add(rightEdgeMesh);
     this.edgeMeshes.push(rightEdgeMesh);
   }
 
@@ -244,10 +257,14 @@ export class WallGenerator {
     wallLength: number,
     blockWidth: number,
     blockHeight: number,
-    cementThickness: number
+    cementThickness: number,
+    positionX: number = 0,
+    positionY: number = 0,
+    positionZ: number = 0,
+    yawDegrees: number = 0
   ): void {
     if (this.scene) {
-      this.createWall(wallWidth, wallHeight, wallLength, blockWidth, blockHeight, cementThickness, this.scene);
+      this.createWall(wallWidth, wallHeight, wallLength, blockWidth, blockHeight, cementThickness, this.scene, positionX, positionY, positionZ, yawDegrees);
     }
   }
 
@@ -257,30 +274,32 @@ export class WallGenerator {
   private clearWall(): void {
     if (!this.scene) return;
 
-    // Remove and dispose all front block meshes
+    // Remove wall group from scene if it exists
+    if (this.wallGroup) {
+      this.scene.remove(this.wallGroup);
+      this.wallGroup = null;
+    }
+
+    // Dispose all front block meshes
     this.frontBlockMeshes.forEach(mesh => {
-      this.scene!.remove(mesh);
       mesh.geometry.dispose();
     });
     this.frontBlockMeshes = [];
 
-    // Remove and dispose all back block meshes
+    // Dispose all back block meshes
     this.backBlockMeshes.forEach(mesh => {
-      this.scene!.remove(mesh);
       mesh.geometry.dispose();
     });
     this.backBlockMeshes = [];
 
-    // Remove and dispose all cement meshes
+    // Dispose all cement meshes
     this.cementMeshes.forEach(mesh => {
-      this.scene!.remove(mesh);
       mesh.geometry.dispose();
     });
     this.cementMeshes = [];
 
-    // Remove and dispose all edge meshes
+    // Dispose all edge meshes
     this.edgeMeshes.forEach(mesh => {
-      this.scene!.remove(mesh);
       mesh.geometry.dispose();
     });
     this.edgeMeshes = [];

@@ -52,6 +52,12 @@ function init(): void {
   const defaultWallHeight = 3.0;
   const defaultWallLength = 0.2;
 
+  // Default placement parameters
+  const defaultPositionX = 0;
+  const defaultPositionY = 1.5;
+  const defaultPositionZ = 0;
+  const defaultYawDegrees = 0;
+
   // 3. Create initial wall (directly via WallGenerator)
   wallGenerator.createWall(
     defaultWallWidth,
@@ -60,7 +66,11 @@ function init(): void {
     defaultBlockWidth,
     defaultBlockHeight,
     defaultCementThickness,
-    scene
+    scene,
+    defaultPositionX,
+    defaultPositionY,
+    defaultPositionZ,
+    defaultYawDegrees
   );
 
   // 4. Create floor at ground level
@@ -98,6 +108,12 @@ function init(): void {
   const wallHeightInput = document.getElementById('wall-height') as HTMLInputElement;
   const wallLengthInput = document.getElementById('wall-length') as HTMLInputElement;
 
+  // Wire up placement parameter controls
+  const positionXInput = document.getElementById('position-x') as HTMLInputElement;
+  const positionYInput = document.getElementById('position-y') as HTMLInputElement;
+  const positionZInput = document.getElementById('position-z') as HTMLInputElement;
+  const rotationYawInput = document.getElementById('rotation-yaw') as HTMLInputElement;
+
   function updateWall(): void {
     const blockWidth = parseFloat(blockWidthInput?.value) || defaultBlockWidth;
     const blockHeight = parseFloat(blockHeightInput?.value) || defaultBlockHeight;
@@ -105,9 +121,13 @@ function init(): void {
     const wallWidth = parseFloat(wallWidthInput?.value) || defaultWallWidth;
     const wallHeight = parseFloat(wallHeightInput?.value) || defaultWallHeight;
     const wallLength = parseFloat(wallLengthInput?.value) || defaultWallLength;
+    const positionX = parseFloat(positionXInput?.value) || defaultPositionX;
+    const positionY = parseFloat(positionYInput?.value) || defaultPositionY;
+    const positionZ = parseFloat(positionZInput?.value) || defaultPositionZ;
+    const yawDegrees = parseFloat(rotationYawInput?.value) || defaultYawDegrees;
 
     // Directly update wall via WallGenerator
-    wallGenerator!.updateWall(wallWidth, wallHeight, wallLength, blockWidth, blockHeight, cementThickness);
+    wallGenerator!.updateWall(wallWidth, wallHeight, wallLength, blockWidth, blockHeight, cementThickness, positionX, positionY, positionZ, yawDegrees);
   }
 
   // Event listeners for block parameters
@@ -119,6 +139,12 @@ function init(): void {
   wallWidthInput?.addEventListener('input', updateWall);
   wallHeightInput?.addEventListener('input', updateWall);
   wallLengthInput?.addEventListener('input', updateWall);
+
+  // Event listeners for placement parameters
+  positionXInput?.addEventListener('input', updateWall);
+  positionYInput?.addEventListener('input', updateWall);
+  positionZInput?.addEventListener('input', updateWall);
+  rotationYawInput?.addEventListener('input', updateWall);
 }
 
 // ===== PUBLIC API =====

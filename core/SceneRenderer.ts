@@ -56,6 +56,8 @@ export class SceneRenderer {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.5;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     // Set size with validation
     this.setSafeSize(window.innerWidth - 320, window.innerHeight);
@@ -91,6 +93,15 @@ export class SceneRenderer {
     spotLight.castShadow = true;
     spotLight.shadow.bias = -0.0001;
     this.scene.add(spotLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    directionalLight.position.set(-5, 10, 5);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = 2048;
+    directionalLight.shadow.mapSize.height = 2048;
+    directionalLight.shadow.bias = -0.0001;
+    directionalLight.shadow.radius = 4;
+    this.scene.add(directionalLight);
 
     // Generate Procedural Environment
     this.generateEnvironment();

@@ -122,6 +122,8 @@ export class WallGenerator {
 
         const blockMesh = new THREE.Mesh(blockGeometry, this.brickMaterial);
         blockMesh.position.set(x, y, zPosition);
+        blockMesh.castShadow = true;
+        blockMesh.receiveShadow = true;
 
         // Invert normals for back plane by rotating 180 degrees around Y axis
         if (invertNormals) {
@@ -140,6 +142,8 @@ export class WallGenerator {
           const topCementGeometry = new THREE.PlaneGeometry(blockWidth, cementThickness);
           const topCementMesh = new THREE.Mesh(topCementGeometry, this.cementMaterial);
           topCementMesh.position.set(x, y + blockHeight / 2 + cementThickness / 2, zPosition);
+          topCementMesh.castShadow = true;
+          topCementMesh.receiveShadow = true;
           if (invertNormals) {
             topCementMesh.rotation.y = Math.PI;
           }
@@ -152,6 +156,8 @@ export class WallGenerator {
           const rightCementGeometry = new THREE.PlaneGeometry(cementThickness, blockHeight);
           const rightCementMesh = new THREE.Mesh(rightCementGeometry, this.cementMaterial);
           rightCementMesh.position.set(x + blockWidth / 2 + cementThickness / 2, y, zPosition);
+          rightCementMesh.castShadow = true;
+          rightCementMesh.receiveShadow = true;
           if (invertNormals) {
             rightCementMesh.rotation.y = Math.PI;
           }
@@ -168,6 +174,8 @@ export class WallGenerator {
             y + blockHeight / 2 + cementThickness / 2,
             zPosition
           );
+          cornerCementMesh.castShadow = true;
+          cornerCementMesh.receiveShadow = true;
           if (invertNormals) {
             cornerCementMesh.rotation.y = Math.PI;
           }
@@ -188,6 +196,8 @@ export class WallGenerator {
     topEdgeMesh.position.set(0, wallHeight / 2, -wallLength / 2);
     topEdgeMesh.rotation.x = Math.PI / 2;
     topEdgeMesh.scale.z = -1; // Flip normal
+    topEdgeMesh.castShadow = true;
+    topEdgeMesh.receiveShadow = true;
     this.scene!.add(topEdgeMesh);
     this.edgeMeshes.push(topEdgeMesh);
 
@@ -197,6 +207,8 @@ export class WallGenerator {
     bottomEdgeMesh.position.set(0, -wallHeight / 2, -wallLength / 2);
     bottomEdgeMesh.rotation.x = -Math.PI / 2;
     bottomEdgeMesh.scale.z = -1; // Flip normal
+    bottomEdgeMesh.castShadow = true;
+    bottomEdgeMesh.receiveShadow = true;
     this.scene!.add(bottomEdgeMesh);
     this.edgeMeshes.push(bottomEdgeMesh);
 
@@ -206,6 +218,8 @@ export class WallGenerator {
     leftEdgeMesh.position.set(-wallWidth / 2, 0, -wallLength / 2);
     leftEdgeMesh.rotation.y = Math.PI / 2;
     leftEdgeMesh.scale.z = -1; // Flip normal
+    leftEdgeMesh.castShadow = true;
+    leftEdgeMesh.receiveShadow = true;
     this.scene!.add(leftEdgeMesh);
     this.edgeMeshes.push(leftEdgeMesh);
 
@@ -215,6 +229,8 @@ export class WallGenerator {
     rightEdgeMesh.position.set(wallWidth / 2, 0, -wallLength / 2);
     rightEdgeMesh.rotation.y = -Math.PI / 2;
     rightEdgeMesh.scale.z = -1; // Flip normal
+    rightEdgeMesh.castShadow = true;
+    rightEdgeMesh.receiveShadow = true;
     this.scene!.add(rightEdgeMesh);
     this.edgeMeshes.push(rightEdgeMesh);
   }

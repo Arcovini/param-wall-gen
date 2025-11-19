@@ -106,8 +106,11 @@ export class WallGenerator {
     // Create back plane grid (at z = -wallLength, with inverted normals)
     this.createPlaneGrid(blocksHorizontal, rowsToShow, actualWallWidth, fullWallHeight, blockWidth, blockHeight, cementThickness, -wallLength, true);
 
-    // Create edge planes to bridge front and back (using completed dimensions)
-    this.createEdgePlanes(actualWallWidth, completedWallHeight, wallLength, fullWallHeight);
+    // Create top and bottom caps for the wall
+    this.createWallCaps(actualWallWidth, completedWallHeight, wallLength, fullWallHeight);
+
+    // Create row-based side edges (left and right)
+    this.createRowSideEdges(rowsToShow, actualWallWidth, fullWallHeight, wallLength, blockHeight, cementThickness);
 
     // Apply placement transformations to the wall group
     applyPlacement(this.wallGroup, { x: positionX, y: positionY, z: positionZ }, yawDegrees);
@@ -209,13 +212,12 @@ export class WallGenerator {
   }
 
   /**
-   * Creates cement edge planes to bridge the front and back planes
+   * Creates top and bottom caps for the wall
    */
-  private createEdgePlanes(wallWidth: number, completedWallHeight: number, wallLength: number, fullWallHeight: number): void {
+  private createWallCaps(wallWidth: number, completedWallHeight: number, wallLength: number, fullWallHeight: number): void {
     // Calculate edge positions based on bottom-up construction
     const bottomY = -fullWallHeight / 2;
     const topY = bottomY + completedWallHeight;
-    const centerY = bottomY + completedWallHeight / 2;
 
     // Top edge plane
     const topEdgeGeometry = new THREE.PlaneGeometry(wallWidth, wallLength);
@@ -238,28 +240,48 @@ export class WallGenerator {
     bottomEdgeMesh.receiveShadow = true;
     this.wallGroup!.add(bottomEdgeMesh);
     this.edgeMeshes.push(bottomEdgeMesh);
+  }
 
-    // Left edge plane
-    const leftEdgeGeometry = new THREE.PlaneGeometry(wallLength, completedWallHeight);
-    const leftEdgeMesh = new THREE.Mesh(leftEdgeGeometry, this.cementMaterial);
-    leftEdgeMesh.position.set(-wallWidth / 2, centerY, -wallLength / 2);
-    leftEdgeMesh.rotation.y = Math.PI / 2;
-    leftEdgeMesh.scale.z = -1; // Flip normal
-    leftEdgeMesh.castShadow = true;
-    leftEdgeMesh.receiveShadow = true;
-    this.wallGroup!.add(leftEdgeMesh);
-    this.edgeMeshes.push(leftEdgeMesh);
+  /**
+   * Creates side edges for each row
+   */
+  private createRowSideEdges(
+    rowsToShow: number,
+    wallWidth: number,
+    fullWallHeight: number,
+    wallLength: number,
+    blockHeight: number,
+    cementThickness: number
+  ): void {
+    const materials = {
+      block: this.brickMaterial,
+      cement: this.cementMaterial
+    };
 
-    // Right edge plane
-    const rightEdgeGeometry = new THREE.PlaneGeometry(wallLength, completedWallHeight);
-    const rightEdgeMesh = new THREE.Mesh(rightEdgeGeometry, this.cementMaterial);
-    rightEdgeMesh.position.set(wallWidth / 2, centerY, -wallLength / 2);
-    rightEdgeMesh.rotation.y = -Math.PI / 2;
-    rightEdgeMesh.scale.z = -1; // Flip normal
-    rightEdgeMesh.castShadow = true;
-    rightEdgeMesh.receiveShadow = true;
-    this.wallGroup!.add(rightEdgeMesh);
-    this.edgeMeshes.push(rightEdgeMesh);
+    for (let row = 0; row < rowsToShow; row++) {
+      // Calculate Y position for this row (same formula as in createPlaneGrid)
+      const rowY = row * (blockHeight + cementThickness) - (fullWallHeight / 2) + (blockHeight / 2);
+
+      // Determine if this row should have a top cement joint
+      // Logic matches createPlaneGrid: if (!isLastRow)
+      const isLastRow = row === rowsToShow - 1;
+      const hasTopCement = !isLastRow;
+
+      // Create single mesh for this row's side caps
+      const rowSideMesh = RowGenerator.createRowSideMesh(
+        row,
+        rowY,
+        wallWidth,
+        wallLength,
+        blockHeight,
+        cementThickness,
+        materials,
+        hasTopCement
+      );
+
+      this.wallGroup!.add(rowSideMesh);
+      this.edgeMeshes.push(rowSideMesh);
+    }
   }
 
   /**

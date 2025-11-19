@@ -59,7 +59,7 @@ function init(): void {
   const defaultYawDegrees = 0;
 
   // Default task parameters
-  const defaultCompletionPercentage = 50; // 50% completion
+  const defaultCompletionPercentage = 10; // 50% completion
 
   // 3. Create initial wall (directly via WallGenerator)
   wallGenerator.createWall(

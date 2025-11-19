@@ -67,22 +67,40 @@ export class SceneUtils {
   static createFloor(
     width: number,
     depth: number,
-    yPosition: number = 0,
-    texturePath?: string
+    yPosition: number = 0
   ): THREE.Mesh {
     const geometry = new THREE.PlaneGeometry(width, depth);
 
-    const material = new THREE.MeshStandardMaterial({
-      color: 0xFFFFFF,
-      roughness: 0.9,
-      metalness: 0.1,
+    // Load textures
+    const textureLoader = new THREE.TextureLoader();
+    const texturePath = '/textures/floor/';
+
+    const baseColor = textureLoader.load(texturePath + 'DefaultMaterial_baseColor.png');
+    const normalMap = textureLoader.load(texturePath + 'DefaultMaterial_normal.png');
+    const ormMap = textureLoader.load(texturePath + 'DefaultMaterial_occlusionRoughnessMetallic.png');
+
+    // Configure textures
+    [baseColor, normalMap, ormMap].forEach(texture => {
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(4, 4);
+      texture.colorSpace = THREE.SRGBColorSpace;
     });
 
-    // Load texture if provided
-    if (texturePath) {
-      const textureLoader = new THREE.TextureLoader();
-      material.map = textureLoader.load(texturePath);
-    }
+    // Normal map and ORM map should be linear
+    normalMap.colorSpace = THREE.LinearSRGBColorSpace;
+    ormMap.colorSpace = THREE.LinearSRGBColorSpace;
+
+    const material = new THREE.MeshStandardMaterial({
+      map: baseColor,
+      normalMap: normalMap,
+      roughnessMap: ormMap,
+      metalnessMap: ormMap,
+      aoMap: ormMap,
+      roughness: 1.0, // Let texture control roughness
+      metalness: 1.0, // Let texture control metalness
+      color: 0xFFFFFF,
+    });
 
     const floor = new THREE.Mesh(geometry, material);
     floor.rotation.x = -Math.PI / 2; // Rotate to horizontal

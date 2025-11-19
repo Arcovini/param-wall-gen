@@ -21,7 +21,7 @@ export class SceneRenderer {
   private canvas: HTMLCanvasElement;
 
   // Lighting
-  private ambientLight: THREE.AmbientLight;
+
 
   constructor(container: HTMLElement) {
     // Check WebGL support
@@ -83,16 +83,9 @@ export class SceneRenderer {
     this.controls.update();
 
     // Initialize lighting
-    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    this.scene.add(this.ambientLight);
 
-    const spotLight = new THREE.SpotLight(0xffffff, 2);
-    spotLight.position.set(0, 15, 0);
-    spotLight.angle = 0.3;
-    spotLight.penumbra = 1;
-    spotLight.castShadow = true;
-    spotLight.shadow.bias = -0.0001;
-    this.scene.add(spotLight);
+
+
 
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
     directionalLight.position.set(-5, 10, 5);
@@ -120,8 +113,8 @@ export class SceneRenderer {
       window.innerWidth - 320,
       window.innerHeight
     );
-    n8aoPass.configuration.aoRadius = 2.0;
-    n8aoPass.configuration.intensity = 5.0;
+    n8aoPass.configuration.aoRadius = 3.0;
+    n8aoPass.configuration.intensity = 7.0;
     this.composer.addPass(n8aoPass);
 
     // Bloom Pass

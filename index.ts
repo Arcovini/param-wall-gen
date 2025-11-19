@@ -54,9 +54,12 @@ function init(): void {
 
   // Default placement parameters
   const defaultPositionX = 0;
-  const defaultPositionY = 1.5;
+  const defaultPositionY = 1.43;
   const defaultPositionZ = 0;
   const defaultYawDegrees = 0;
+
+  // Default task parameters
+  const defaultCompletionPercentage = 50; // 50% completion
 
   // 3. Create initial wall (directly via WallGenerator)
   wallGenerator.createWall(
@@ -70,7 +73,8 @@ function init(): void {
     defaultPositionX,
     defaultPositionY,
     defaultPositionZ,
-    defaultYawDegrees
+    defaultYawDegrees,
+    defaultCompletionPercentage / 100 // Convert percentage to 0-1 range
   );
 
   // 4. Create floor at ground level
@@ -114,6 +118,9 @@ function init(): void {
   const positionZInput = document.getElementById('position-z') as HTMLInputElement;
   const rotationYawInput = document.getElementById('rotation-yaw') as HTMLInputElement;
 
+  // Wire up task parameter controls
+  const completionInput = document.getElementById('completion') as HTMLInputElement;
+
   function updateWall(): void {
     const blockWidth = parseFloat(blockWidthInput?.value) || defaultBlockWidth;
     const blockHeight = parseFloat(blockHeightInput?.value) || defaultBlockHeight;
@@ -125,9 +132,11 @@ function init(): void {
     const positionY = parseFloat(positionYInput?.value) || defaultPositionY;
     const positionZ = parseFloat(positionZInput?.value) || defaultPositionZ;
     const yawDegrees = parseFloat(rotationYawInput?.value) || defaultYawDegrees;
+    const completionPercentage = parseFloat(completionInput?.value) || defaultCompletionPercentage;
+    const completion = completionPercentage / 100; // Convert percentage to 0-1 range
 
     // Directly update wall via WallGenerator
-    wallGenerator!.updateWall(wallWidth, wallHeight, wallLength, blockWidth, blockHeight, cementThickness, positionX, positionY, positionZ, yawDegrees);
+    wallGenerator!.updateWall(wallWidth, wallHeight, wallLength, blockWidth, blockHeight, cementThickness, positionX, positionY, positionZ, yawDegrees, completion);
   }
 
   // Event listeners for block parameters
@@ -145,6 +154,9 @@ function init(): void {
   positionYInput?.addEventListener('input', updateWall);
   positionZInput?.addEventListener('input', updateWall);
   rotationYawInput?.addEventListener('input', updateWall);
+
+  // Event listeners for task parameters
+  completionInput?.addEventListener('input', updateWall);
 }
 
 // ===== PUBLIC API =====

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { applyPlacement } from '../WallPlacement';
+import { RowGenerator } from '../RowGenerator';
 
 /**
  * WallGenerator - Generates a grid of blocks to fill wall dimensions
@@ -71,7 +72,8 @@ export class WallGenerator {
     positionX: number = 0,
     positionY: number = 0,
     positionZ: number = 0,
-    yawDegrees: number = 0
+    yawDegrees: number = 0,
+    completion: number = 1.0
   ): void {
     this.scene = scene;
 
@@ -86,19 +88,26 @@ export class WallGenerator {
     const blocksHorizontal = Math.floor(wallWidth / (blockWidth + cementThickness));
     const blocksVertical = Math.floor(wallHeight / (blockHeight + cementThickness));
 
+    // Calculate how many rows to show based on completion percentage
+    const rowsToShow = RowGenerator.getVisibleRows(blocksVertical, completion);
+
     // Calculate actual wall dimensions based on blocks that fit
     // Don't include cement thickness after the last block
     const actualWallWidth = blocksHorizontal * blockWidth + (blocksHorizontal - 1) * cementThickness;
-    const actualWallHeight = blocksVertical * blockHeight + (blocksVertical - 1) * cementThickness;
+    const fullWallHeight = blocksVertical * blockHeight + (blocksVertical - 1) * cementThickness;
+    const completedWallHeight = rowsToShow > 0
+      ? rowsToShow * blockHeight + (rowsToShow - 1) * cementThickness
+      : 0;
 
     // Create front plane grid (at z = 0)
-    this.createPlaneGrid(blocksHorizontal, blocksVertical, actualWallWidth, actualWallHeight, blockWidth, blockHeight, cementThickness, 0, false);
+    // Pass fullWallHeight for positioning so wall builds from bottom
+    this.createPlaneGrid(blocksHorizontal, rowsToShow, actualWallWidth, fullWallHeight, blockWidth, blockHeight, cementThickness, 0, false);
 
     // Create back plane grid (at z = -wallLength, with inverted normals)
-    this.createPlaneGrid(blocksHorizontal, blocksVertical, actualWallWidth, actualWallHeight, blockWidth, blockHeight, cementThickness, -wallLength, true);
+    this.createPlaneGrid(blocksHorizontal, rowsToShow, actualWallWidth, fullWallHeight, blockWidth, blockHeight, cementThickness, -wallLength, true);
 
-    // Create edge planes to bridge front and back (using actual dimensions)
-    this.createEdgePlanes(actualWallWidth, actualWallHeight, wallLength);
+    // Create edge planes to bridge front and back (using completed dimensions)
+    this.createEdgePlanes(actualWallWidth, completedWallHeight, wallLength, fullWallHeight);
 
     // Apply placement transformations to the wall group
     applyPlacement(this.wallGroup, { x: positionX, y: positionY, z: positionZ }, yawDegrees);
@@ -202,11 +211,16 @@ export class WallGenerator {
   /**
    * Creates cement edge planes to bridge the front and back planes
    */
-  private createEdgePlanes(wallWidth: number, wallHeight: number, wallLength: number): void {
+  private createEdgePlanes(wallWidth: number, completedWallHeight: number, wallLength: number, fullWallHeight: number): void {
+    // Calculate edge positions based on bottom-up construction
+    const bottomY = -fullWallHeight / 2;
+    const topY = bottomY + completedWallHeight;
+    const centerY = bottomY + completedWallHeight / 2;
+
     // Top edge plane
     const topEdgeGeometry = new THREE.PlaneGeometry(wallWidth, wallLength);
     const topEdgeMesh = new THREE.Mesh(topEdgeGeometry, this.cementMaterial);
-    topEdgeMesh.position.set(0, wallHeight / 2, -wallLength / 2);
+    topEdgeMesh.position.set(0, topY, -wallLength / 2);
     topEdgeMesh.rotation.x = Math.PI / 2;
     topEdgeMesh.scale.z = -1; // Flip normal
     topEdgeMesh.castShadow = true;
@@ -217,7 +231,7 @@ export class WallGenerator {
     // Bottom edge plane
     const bottomEdgeGeometry = new THREE.PlaneGeometry(wallWidth, wallLength);
     const bottomEdgeMesh = new THREE.Mesh(bottomEdgeGeometry, this.cementMaterial);
-    bottomEdgeMesh.position.set(0, -wallHeight / 2, -wallLength / 2);
+    bottomEdgeMesh.position.set(0, bottomY, -wallLength / 2);
     bottomEdgeMesh.rotation.x = -Math.PI / 2;
     bottomEdgeMesh.scale.z = -1; // Flip normal
     bottomEdgeMesh.castShadow = true;
@@ -226,9 +240,9 @@ export class WallGenerator {
     this.edgeMeshes.push(bottomEdgeMesh);
 
     // Left edge plane
-    const leftEdgeGeometry = new THREE.PlaneGeometry(wallLength, wallHeight);
+    const leftEdgeGeometry = new THREE.PlaneGeometry(wallLength, completedWallHeight);
     const leftEdgeMesh = new THREE.Mesh(leftEdgeGeometry, this.cementMaterial);
-    leftEdgeMesh.position.set(-wallWidth / 2, 0, -wallLength / 2);
+    leftEdgeMesh.position.set(-wallWidth / 2, centerY, -wallLength / 2);
     leftEdgeMesh.rotation.y = Math.PI / 2;
     leftEdgeMesh.scale.z = -1; // Flip normal
     leftEdgeMesh.castShadow = true;
@@ -237,9 +251,9 @@ export class WallGenerator {
     this.edgeMeshes.push(leftEdgeMesh);
 
     // Right edge plane
-    const rightEdgeGeometry = new THREE.PlaneGeometry(wallLength, wallHeight);
+    const rightEdgeGeometry = new THREE.PlaneGeometry(wallLength, completedWallHeight);
     const rightEdgeMesh = new THREE.Mesh(rightEdgeGeometry, this.cementMaterial);
-    rightEdgeMesh.position.set(wallWidth / 2, 0, -wallLength / 2);
+    rightEdgeMesh.position.set(wallWidth / 2, centerY, -wallLength / 2);
     rightEdgeMesh.rotation.y = -Math.PI / 2;
     rightEdgeMesh.scale.z = -1; // Flip normal
     rightEdgeMesh.castShadow = true;
@@ -261,10 +275,11 @@ export class WallGenerator {
     positionX: number = 0,
     positionY: number = 0,
     positionZ: number = 0,
-    yawDegrees: number = 0
+    yawDegrees: number = 0,
+    completion: number = 1.0
   ): void {
     if (this.scene) {
-      this.createWall(wallWidth, wallHeight, wallLength, blockWidth, blockHeight, cementThickness, this.scene, positionX, positionY, positionZ, yawDegrees);
+      this.createWall(wallWidth, wallHeight, wallLength, blockWidth, blockHeight, cementThickness, this.scene, positionX, positionY, positionZ, yawDegrees, completion);
     }
   }
 

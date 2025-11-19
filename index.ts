@@ -8,6 +8,7 @@
 import { SceneRenderer } from './core/SceneRenderer';
 import { WallGenerator } from './wall/WallGenerator';
 import { SceneUtils } from './utils/SceneUtils';
+import { OpeningUI, OpeningData } from './ui/OpeningUI';
 
 // ===== TYPE RE-EXPORTS =====
 // Re-export types for external consumption
@@ -83,21 +84,22 @@ function init(): void {
 
   // 5. Wire up wireframe toggle
   const wireframeToggle = document.getElementById('wireframe-toggle') as HTMLInputElement;
-  const labelRendered = document.getElementById('label-rendered');
   const labelWireframe = document.getElementById('label-wireframe');
 
-  if (wireframeToggle && labelRendered && labelWireframe) {
+  if (wireframeToggle) {
     wireframeToggle.addEventListener('change', () => {
       const isWireframe = wireframeToggle.checked;
       SceneUtils.setWireframeMode(scene, isWireframe);
 
-      // Update labels
-      if (isWireframe) {
-        labelRendered.classList.remove('active');
-        labelWireframe.classList.add('active');
-      } else {
-        labelRendered.classList.add('active');
-        labelWireframe.classList.remove('active');
+      // Update label style if it exists
+      if (labelWireframe) {
+        if (isWireframe) {
+          labelWireframe.style.fontWeight = 'bold';
+          labelWireframe.style.color = '#333';
+        } else {
+          labelWireframe.style.fontWeight = 'normal';
+          labelWireframe.style.color = '#666';
+        }
       }
     });
   }
@@ -157,6 +159,34 @@ function init(): void {
 
   // Event listeners for task parameters
   completionInput?.addEventListener('input', updateWall);
+
+  // Initialize OpeningUI
+  const openingUI = new OpeningUI('openings-container', (openings: OpeningData[]) => {
+    console.log('Openings updated:', openings);
+    // TODO: Pass openings to WallGenerator
+    // wallGenerator!.updateOpenings(openings); 
+    updateWall();
+  });
+
+  const addOpeningBtn = document.getElementById('add-opening-btn');
+  if (addOpeningBtn) {
+    addOpeningBtn.addEventListener('click', () => {
+      openingUI.addOpening();
+    });
+  }
+
+  // Wire up collapsible WallParams
+  const wallParamsTitle = document.getElementById('wall-params-title');
+  if (wallParamsTitle) {
+    wallParamsTitle.addEventListener('click', () => {
+      const section = wallParamsTitle.closest('.control-section');
+      if (section) {
+        section.classList.toggle('collapsed');
+      }
+    });
+  }
+
+
 }
 
 // ===== PUBLIC API =====

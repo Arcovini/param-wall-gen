@@ -1,35 +1,48 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Three.js Cube - Isometric View</title>
   <link rel="stylesheet" href="/style.css">
 </head>
+
 <body>
-  <div id="canvas-container"></div>
+  <div id="canvas-container">
+    <div class="canvas-overlay">
+      <div class="control-group wireframe-group">
+        <label class="toggle-switch">
+          <input type="checkbox" id="wireframe-toggle">
+          <span class="slider"></span>
+        </label>
+        <div class="toggle-labels">
+          <span id="label-wireframe">Wireframe</span>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div id="controls">
     <div class="controls-content">
       <h2>Wall Configurator</h2>
 
       <div class="control-section">
-        <div class="section-title">Visualization Mode</div>
+        <div class="section-title" id="task-title">
+          Task
+        </div>
 
         <div class="control-group">
-          <label class="toggle-switch">
-            <input type="checkbox" id="wireframe-toggle">
-            <span class="slider"></span>
-          </label>
-          <div class="toggle-labels">
-            <span id="label-rendered" class="active">Rendered</span>
-            <span id="label-wireframe">Wireframe</span>
-          </div>
+          <label for="completion">Percentage of wall completion</label>
+          <input type="number" id="completion" min="0" max="100" step="5" value="50">
         </div>
       </div>
 
       <div class="control-section">
-        <div class="section-title">WallParams</div>
+        <div class="section-title" id="wall-params-title">
+          WallParams
+          <span class="chevron">▼</span>
+        </div>
 
         <div class="subsection">
           <div class="subsection-title">blockSize</div>
@@ -93,13 +106,20 @@
           </div>
         </div>
 
-        <div class="subsection">
-          <div class="subsection-title">task</div>
 
-          <div class="control-group">
-            <label for="completion">Percentage of wall completion</label>
-            <input type="number" id="completion" min="0" max="100" step="5" value="50">
-          </div>
+      </div>
+
+      <div class="control-section">
+        <div class="section-title" id="openings-title">
+          Openings
+        </div>
+
+        <div class="control-group">
+          <button id="add-opening-btn" class="action-button">Add Opening</button>
+        </div>
+
+        <div id="openings-container">
+          <!-- Dynamic opening subsections will be added here -->
         </div>
       </div>
     </div>
@@ -116,4 +136,5 @@
 
   <script type="module" src="/index.ts"></script>
 </body>
+
 </html>

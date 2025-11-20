@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import type { BuildMasonryWallParams } from './types';
 import { WallGenerator } from './wall/WallGenerator';
 import { OpeningGenerator } from './OpeningGenerator';
+import { InfillGenerator } from './InfillGenerator';
 import { Brush, Evaluator, SUBTRACTION, ADDITION } from 'three-bvh-csg';
 
 // Create a single instance of WallGenerator to reuse resources (textures, materials)
@@ -69,6 +70,24 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
     yawDegrees,
     task.completion
   );
+
+  // Add top infill (encunhamento) if wall is 100% complete
+  if (task.completion >= 1.0) {
+    const infillGenerator = new InfillGenerator();
+    const actualWallWidth = wallGroup.userData.actualWallWidth || wallWidth;
+
+    const infillMesh = infillGenerator.createTopInfill(
+      actualWallWidth,
+      wallHeight,
+      wallLength,
+      blockHeight,
+      cementThickness
+    );
+
+    if (infillMesh) {
+      wallGroup.add(infillMesh);
+    }
+  }
 
   // Generate openings and perform CSG subtraction
   const openingGenerator = new OpeningGenerator();

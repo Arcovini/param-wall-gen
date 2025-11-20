@@ -114,7 +114,7 @@ export class WallGenerator {
       // Create Row (Single Watertight Mesh)
       const rowGeometry = RowGenerator.createRow(
         this.blockGenerator,
-        wallWidth,
+        actualWallWidth,
         wallLength,
         blockWidth,
         blockHeight,
@@ -251,6 +251,9 @@ export class WallGenerator {
 
     // Apply placement transformations to the wall group
     applyPlacement(wallGroup, { x: positionX, y: positionY, z: positionZ }, yawDegrees);
+
+    // Store calculated dimensions in userData for other generators to use
+    wallGroup.userData.actualWallWidth = actualWallWidth;
 
     return wallGroup;
   }

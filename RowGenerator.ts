@@ -56,7 +56,7 @@ export class RowGenerator {
    */
   static createRow(
     blockGenerator: BlockGenerator,
-    wallWidth: number,
+    actualWallWidth: number,
     wallLength: number,
     blockWidth: number,
     blockHeight: number,
@@ -65,13 +65,11 @@ export class RowGenerator {
     invertNormals: boolean // Kept for compatibility, but we build full 3D row now
   ): THREE.BufferGeometry {
 
-    const blocksHorizontal = Math.floor(wallWidth / (blockWidth + cementThickness));
-    const actualRowWidth = blocksHorizontal > 0
-      ? blocksHorizontal * blockWidth + (blocksHorizontal - 1) * cementThickness
-      : 0;
-
-    const halfRowWidth = actualRowWidth / 2;
+    const halfRowWidth = actualWallWidth / 2;
     const halfWallLength = wallLength / 2;
+
+    // Calculate how many blocks fit (reverse calculation for loop count)
+    const blocksHorizontal = Math.round(actualWallWidth / (blockWidth + cementThickness));
 
     // Geometry data
     const vertices: number[] = [];

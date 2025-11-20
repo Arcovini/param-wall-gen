@@ -43,7 +43,7 @@ export class UIController {
     positionY: 1.43,
     positionZ: 0,
     yawDegrees: 0,
-    completionPercentage: 10
+    completionPercentage: 100
   };
 
   constructor(onUpdate: () => void, scene: THREE.Scene) {
@@ -195,7 +195,7 @@ export class UIController {
 
   // Getters for Params
   public getWallParams() {
-    return {
+    const params = {
       blockWidth: parseFloat(this.blockWidthInput?.value || '0') || this.defaults.blockWidth,
       blockHeight: parseFloat(this.blockHeightInput?.value || '0') || this.defaults.blockHeight,
       cementThickness: parseFloat(this.cementThicknessInput?.value || '0') || this.defaults.cementThickness,
@@ -208,6 +208,8 @@ export class UIController {
       yawDegrees: parseFloat(this.rotationYawInput?.value || '0') || this.defaults.yawDegrees,
       completionPercentage: parseFloat(this.completionInput?.value || '0') || this.defaults.completionPercentage
     };
+    console.log("UIController Params:", params);
+    return params;
   }
 
   public getOpenings() {

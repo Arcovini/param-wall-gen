@@ -17,6 +17,7 @@
     "n8ao": "^1.10.1",
     "postprocessing": "^6.38.0",
     "three": "^0.160.0",
+    "three-bvh-csg": "^0.0.17",
     "three-stdlib": "^2.36.1"
   }
 }

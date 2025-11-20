@@ -12,8 +12,15 @@ export class SceneUtils {
     // Apply wireframe mode to all meshes in the scene
     scene.traverse((object) => {
       if (object instanceof THREE.Mesh && object.material) {
-        const material = object.material as THREE.MeshStandardMaterial;
-        material.wireframe = enabled;
+        if (Array.isArray(object.material)) {
+          object.material.forEach((mat) => {
+            if (mat instanceof THREE.Material) {
+              (mat as any).wireframe = enabled;
+            }
+          });
+        } else if (object.material instanceof THREE.Material) {
+          (object.material as any).wireframe = enabled;
+        }
       }
     });
 

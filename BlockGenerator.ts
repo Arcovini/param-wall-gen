@@ -14,9 +14,9 @@ export class BlockGenerator {
     this.textureLoader = new THREE.TextureLoader();
 
     // Load textures once in constructor
-    this.baseColorTexture = this.textureLoader.load('textures/masonry/brick_baseColor.png');
-    this.normalTexture = this.textureLoader.load('textures/masonry/brick_normal.png');
-    this.ormTexture = this.textureLoader.load('textures/masonry/brick_occlusionRoughnessMetallic.png');
+    this.baseColorTexture = this.textureLoader.load('/textures/masonry/brick_baseColor.png');
+    this.normalTexture = this.textureLoader.load('/textures/masonry/brick_normal.png');
+    this.ormTexture = this.textureLoader.load('/textures/masonry/brick_occlusionRoughnessMetallic.png');
 
     // Configure textures
     [this.baseColorTexture, this.normalTexture, this.ormTexture].forEach(texture => {
@@ -66,6 +66,12 @@ export class BlockGenerator {
    */
   createCementMesh(width: number, height: number): THREE.Mesh {
     const geometry = new THREE.PlaneGeometry(width, height);
+
+    // Ensure UV2 exists for consistency with other meshes during merging
+    if (!geometry.attributes.uv2) {
+      geometry.setAttribute('uv2', geometry.attributes.uv);
+    }
+
     const mesh = new THREE.Mesh(geometry, this.cementMaterial);
     mesh.castShadow = true;
     mesh.receiveShadow = true;

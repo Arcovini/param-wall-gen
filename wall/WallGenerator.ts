@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { applyPlacement } from '../WallPlacement';
 import { RowGenerator } from '../RowGenerator';
 import { BlockGenerator } from '../BlockGenerator';
+import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 /**
  * WallGenerator - Generates a grid of blocks to fill wall dimensions
@@ -85,6 +86,11 @@ export class WallGenerator {
     // Calculate how many rows to show based on completion percentage
     const rowsToShow = RowGenerator.getVisibleRows(blocksVertical, completion);
 
+    console.log("WallGenerator:", {
+      wallWidth, wallHeight, blockHeight, cementThickness,
+      blocksVertical, completion, rowsToShow
+    });
+
     // Calculate actual wall dimensions based on blocks that fit
     // Don't include cement thickness after the last block
     const actualWallWidth = blocksHorizontal > 0
@@ -95,6 +101,8 @@ export class WallGenerator {
       ? rowsToShow * blockHeight + (rowsToShow - 1) * cementThickness
       : 0;
 
+    const allRowGeometries: THREE.BufferGeometry[] = [];
+
     // Generate Rows
     for (let row = 0; row < rowsToShow; row++) {
       const isLastRow = row === rowsToShow - 1;
@@ -103,64 +111,139 @@ export class WallGenerator {
       // Center of the row
       const rowY = row * (blockHeight + cementThickness) - (fullWallHeight / 2) + (blockHeight / 2);
 
-      // 1. Front Row (z = 0)
-      const frontRow = RowGenerator.createRow(
+      // Create Row (Single Watertight Mesh)
+      const rowGeometry = RowGenerator.createRow(
         this.blockGenerator,
         wallWidth,
-        blockWidth,
-        blockHeight,
-        cementThickness,
-        isLastRow,
-        false // No normal inversion
-      );
-      frontRow.position.set(0, rowY, 0);
-      wallGroup.add(frontRow);
-
-      // 2. Back Row (z = -wallLength)
-      const backRow = RowGenerator.createRow(
-        this.blockGenerator,
-        wallWidth,
-        blockWidth,
-        blockHeight,
-        cementThickness,
-        isLastRow,
-        true // Invert normals
-      );
-      backRow.position.set(0, rowY, -wallLength);
-      wallGroup.add(backRow);
-
-      // 3. Side Edges for this row
-      // Note: RowGenerator.createRowSideMesh creates a mesh centered at (0,0,0) locally?
-      // No, looking at createRowSideMesh, it uses rowY passed in to set absolute Y positions.
-      // But if we want to attach it to the row, it should be relative.
-      // However, createRowSideMesh returns a single mesh for the row.
-      // Let's attach it to the wallGroup and use the absolute Y calculated inside it, 
-      // OR (better) attach it to the wallGroup and position it.
-      // The current createRowSideMesh implementation uses `rowY` to set vertex positions.
-      // So we just add it to wallGroup at (0,0,0).
-
-      const hasTopCement = !isLastRow;
-      const materials = {
-        block: this.blockGenerator.getBrickMaterial(),
-        cement: this.blockGenerator.getCementMaterial()
-      };
-
-      const sideEdges = RowGenerator.createRowSideMesh(
-        row,
-        rowY,
-        actualWallWidth, // Use actual width so caps align with blocks
         wallLength,
+        blockWidth,
         blockHeight,
         cementThickness,
-        materials,
-        hasTopCement
+        isLastRow,
+        false // unused
       );
-      // sideEdges vertices are already positioned at rowY
-      wallGroup.add(sideEdges);
+
+      // Translate to correct Y position
+      rowGeometry.translate(0, rowY, 0);
+      allRowGeometries.push(rowGeometry);
     }
 
     // Create top and bottom caps for the wall
-    this.createWallCaps(wallGroup, actualWallWidth, completedWallHeight, wallLength, fullWallHeight);
+    // Actually, the rows are now closed boxes.
+    // Stacking closed boxes is fine.
+    // The bottom of Row 0 is closed.
+    // The top of Row N is closed.
+    // So we don't need extra wall caps anymore!
+    // The side caps are also included in the row.
+
+    // Merge all geometries
+    // Filter out empty geometries
+    const validGeometries = allRowGeometries.filter(g => g.attributes.position && g.attributes.position.count > 0);
+
+    // Manual Merge to ensure correct Grouping
+    // BufferGeometryUtils.mergeGeometries can be unpredictable with groups order.
+    // We will manually merge attributes and consolidate indices into two groups.
+
+    const finalGeometry = new THREE.BufferGeometry();
+
+    if (validGeometries.length > 0) {
+      const positions: number[] = [];
+      const normals: number[] = [];
+      const uvs: number[] = [];
+      const uv2s: number[] = [];
+
+      const globalBlockIndices: number[] = [];
+      const globalCementIndices: number[] = [];
+
+      let vertexOffset = 0;
+
+      validGeometries.forEach(geom => {
+        // 1. Append Attributes
+        const posAttr = geom.attributes.position;
+        const normAttr = geom.attributes.normal;
+        const uvAttr = geom.attributes.uv;
+        const uv2Attr = geom.attributes.uv2;
+
+        for (let i = 0; i < posAttr.count; i++) {
+          positions.push(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i));
+          normals.push(normAttr.getX(i), normAttr.getY(i), normAttr.getZ(i));
+          uvs.push(uvAttr.getX(i), uvAttr.getY(i));
+          if (uv2Attr) {
+            uv2s.push(uv2Attr.getX(i), uv2Attr.getY(i));
+          } else {
+            uv2s.push(uvAttr.getX(i), uvAttr.getY(i)); // Fallback
+          }
+        }
+
+        // 2. Append Indices (with offset) separated by Material Group
+        const indexAttr = geom.index;
+        if (indexAttr) {
+          const indices = indexAttr.array;
+          const groups = geom.groups;
+
+          // If no groups, assume it's all block (Material 0) - shouldn't happen with RowGenerator
+          if (groups.length === 0) {
+            for (let i = 0; i < indexAttr.count; i++) {
+              globalBlockIndices.push(indices[i] + vertexOffset);
+            }
+          } else {
+            groups.forEach(group => {
+              const start = group.start;
+              const count = group.count;
+              const materialIndex = group.materialIndex;
+
+              const targetIndices = materialIndex === 0 ? globalBlockIndices : globalCementIndices;
+
+              for (let i = start; i < start + count; i++) {
+                targetIndices.push(indices[i] + vertexOffset);
+              }
+            });
+          }
+        }
+
+        vertexOffset += posAttr.count;
+
+        // Debug log for first few rows
+        if (validGeometries.indexOf(geom) < 3) {
+          console.log(`Row ${validGeometries.indexOf(geom)}:`, {
+            vertices: posAttr.count,
+            groups: geom.groups.length,
+            blockIndices: geom.groups.find(g => g.materialIndex === 0)?.count || 0,
+            cementIndices: geom.groups.find(g => g.materialIndex === 1)?.count || 0
+          });
+        }
+      });
+
+      console.log("Final Merge Stats:", {
+        totalVertices: positions.length / 3,
+        totalBlockIndices: globalBlockIndices.length,
+        totalCementIndices: globalCementIndices.length,
+        vertexOffset: vertexOffset
+      });
+
+      // 3. Set Attributes to Final Geometry
+      finalGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      finalGeometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+      finalGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      finalGeometry.setAttribute('uv2', new THREE.Float32BufferAttribute(uv2s, 2));
+
+      // 4. Set Final Indices and Groups
+      const finalIndices = [...globalBlockIndices, ...globalCementIndices];
+      finalGeometry.setIndex(finalIndices);
+
+      finalGeometry.addGroup(0, globalBlockIndices.length, 0); // Group 0: Blocks
+      finalGeometry.addGroup(globalBlockIndices.length, globalCementIndices.length, 1); // Group 1: Cement
+    }
+
+    // Create Single Mesh with Multi-Material
+    const blockMaterial = this.blockGenerator.getBrickMaterial();
+    const cementMaterial = this.blockGenerator.getCementMaterial();
+
+    const wallMesh = new THREE.Mesh(finalGeometry, [blockMaterial, cementMaterial]);
+    wallMesh.castShadow = true;
+    wallMesh.receiveShadow = true;
+    wallMesh.name = "WallMesh";
+    wallGroup.add(wallMesh);
 
     // Apply placement transformations to the wall group
     applyPlacement(wallGroup, { x: positionX, y: positionY, z: positionZ }, yawDegrees);
@@ -169,33 +252,36 @@ export class WallGenerator {
   }
 
   /**
-   * Creates top and bottom caps for the wall
+   * Creates top and bottom caps for the wall and adds them to cement geometries
    */
-  private createWallCaps(group: THREE.Group, wallWidth: number, completedWallHeight: number, wallLength: number, fullWallHeight: number): void {
+  private addWallCaps(cementGeometries: THREE.BufferGeometry[], wallWidth: number, completedWallHeight: number, wallLength: number, fullWallHeight: number): void {
     // Calculate edge positions based on bottom-up construction
     const bottomY = -fullWallHeight / 2;
     const topY = bottomY + completedWallHeight;
-    const cementMaterial = this.blockGenerator.getCementMaterial();
 
     // Top edge plane
     const topEdgeGeometry = new THREE.PlaneGeometry(wallWidth, wallLength);
-    const topEdgeMesh = new THREE.Mesh(topEdgeGeometry, cementMaterial);
-    topEdgeMesh.position.set(0, topY, -wallLength / 2);
-    topEdgeMesh.rotation.x = Math.PI / 2;
-    topEdgeMesh.scale.z = -1; // Flip normal
-    topEdgeMesh.castShadow = true;
-    topEdgeMesh.receiveShadow = true;
-    group.add(topEdgeMesh);
+    if (!topEdgeGeometry.attributes.uv2) topEdgeGeometry.setAttribute('uv2', topEdgeGeometry.attributes.uv);
+
+    // Plane lies on XY. Normal +Z.
+    // Rotate -PI/2 around X -> Plane lies on XZ. Normal +Y.
+    topEdgeGeometry.rotateX(-Math.PI / 2);
+
+    // Position
+    topEdgeGeometry.translate(0, topY, -wallLength / 2);
+    cementGeometries.push(topEdgeGeometry);
 
     // Bottom edge plane
     const bottomEdgeGeometry = new THREE.PlaneGeometry(wallWidth, wallLength);
-    const bottomEdgeMesh = new THREE.Mesh(bottomEdgeGeometry, cementMaterial);
-    bottomEdgeMesh.position.set(0, bottomY, -wallLength / 2);
-    bottomEdgeMesh.rotation.x = -Math.PI / 2;
-    bottomEdgeMesh.scale.z = -1; // Flip normal
-    bottomEdgeMesh.castShadow = true;
-    bottomEdgeMesh.receiveShadow = true;
-    group.add(bottomEdgeMesh);
+    if (!bottomEdgeGeometry.attributes.uv2) bottomEdgeGeometry.setAttribute('uv2', bottomEdgeGeometry.attributes.uv);
+
+    // We want normal pointing DOWN (-Y).
+    // Rotate PI/2 around X -> Plane lies on XZ. Normal -Y.
+    bottomEdgeGeometry.rotateX(Math.PI / 2);
+
+    // Position
+    bottomEdgeGeometry.translate(0, bottomY, -wallLength / 2);
+    cementGeometries.push(bottomEdgeGeometry);
   }
 
   /**

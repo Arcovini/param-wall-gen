@@ -61,6 +61,12 @@ export class OpeningGenerator {
 
     // Re-creating geometry with correct mapping
     const geometryCorrect = new THREE.BoxGeometry(params.size.l, params.size.h, params.size.w);
+
+    // Ensure uv2 exists for CSG compatibility
+    if (!geometryCorrect.attributes.uv2) {
+      geometryCorrect.setAttribute('uv2', geometryCorrect.attributes.uv);
+    }
+
     const meshCorrect = new THREE.Mesh(geometryCorrect, this.material);
 
     meshCorrect.position.set(

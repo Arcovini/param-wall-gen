@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import type { BuildMasonryWallParams } from './types';
 import { WallGenerator } from './wall/WallGenerator';
 import { OpeningGenerator } from './OpeningGenerator';
+import { Brush, Evaluator, SUBTRACTION, ADDITION } from 'three-bvh-csg';
 
 // Create a single instance of WallGenerator to reuse resources (textures, materials)
 // This significantly improves performance by avoiding recompilation/reloading on every update
@@ -69,28 +70,78 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
     task.completion
   );
 
-  // Generate openings
-  // Create a temporary instance of OpeningGenerator
-  // In a real scenario, we might want to manage this instance better, but for now it's fine
+  // Generate openings and perform CSG subtraction
   const openingGenerator = new OpeningGenerator();
 
   if (openings && openings.length > 0) {
+    const evaluator = new Evaluator();
+    evaluator.attributes = ['position', 'normal', 'uv', 'uv2']; // Preserve attributes including uv2
+
+    // 1. Create a combined brush for all openings
+    let combinedOpeningBrush: Brush | null = null;
+
     openings.forEach(opening => {
       const openingMesh = openingGenerator.createOpeningMesh(opening);
-      // Add opening to the wall group
-      // Note: The wall group has already been transformed by applyPlacement in generateWallGroup
-      // So if we add children to it, they will be transformed relative to the wall group.
-      // However, the opening positions are likely in world coordinates or relative to the wall's origin BEFORE transformation?
-      // If opening positions are relative to the wall's local origin (bottom-center or similar), then adding them to wallGroup is correct.
-      // If opening positions are absolute world coordinates, we shouldn't add them to the transformed wallGroup directly without inverse transform.
 
-      // Assumption: Opening positions are relative to the wall's origin (0,0,0) before placement.
-      // The wallGroup returned by generateWallGroup has placement applied.
-      // So if we add to wallGroup, the opening will move WITH the wall.
-      // This is likely the desired behavior.
+      // Create a Brush from the opening mesh
+      const openingBrush = new Brush(openingMesh.geometry, openingMesh.material);
+      openingBrush.position.copy(openingMesh.position);
+      openingBrush.rotation.copy(openingMesh.rotation);
+      openingBrush.scale.copy(openingMesh.scale);
+      openingBrush.updateMatrixWorld();
 
-      wallGroup.add(openingMesh);
+      if (!combinedOpeningBrush) {
+        combinedOpeningBrush = openingBrush;
+      } else {
+        // Union with existing openings
+        combinedOpeningBrush = evaluator.evaluate(combinedOpeningBrush, openingBrush, ADDITION);
+      }
     });
+
+    // 2. Subtract combined opening brush from wall mesh
+    if (combinedOpeningBrush) {
+      const wallMesh = wallGroup.getObjectByName("WallMesh") as THREE.Mesh;
+
+      if (wallMesh) {
+        try {
+          console.log("Starting CSG Subtraction...");
+          const wallBrush = new Brush(wallMesh.geometry, wallMesh.material);
+          wallBrush.updateMatrixWorld();
+
+          // Set opening brush material to match blocks (or main material)
+          let blockMaterial: THREE.Material;
+          if (Array.isArray(wallMesh.material) && wallMesh.material.length > 0) {
+            blockMaterial = wallMesh.material[0];
+          } else if (wallMesh.material instanceof THREE.Material) {
+            blockMaterial = wallMesh.material;
+          } else {
+            // Fallback
+            blockMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
+          }
+
+          (combinedOpeningBrush as Brush).material = blockMaterial;
+
+          const result = evaluator.evaluate(wallBrush, combinedOpeningBrush as Brush, SUBTRACTION);
+          console.log("CSG Subtraction complete. Result geometry groups:", result.geometry.groups);
+
+          wallMesh.geometry.dispose();
+          wallMesh.geometry = result.geometry;
+
+          // Re-assign materials if needed
+          // The result mesh usually has materials set by the evaluator, but here we are just swapping geometry
+          // on the existing mesh. The existing mesh has [Block, Cement].
+          // The result geometry will have groups pointing to 0 and 1 (if we are lucky) or maybe more.
+          // Since combinedOpeningBrush uses blockMaterial (which is index 0), the new faces should use index 0.
+          // We need to ensure the mesh keeps its multi-material array.
+
+        } catch (error) {
+          console.error("CSG Operation failed:", error);
+          // Continue without subtraction to avoid crashing the app
+        }
+      } else {
+        console.warn("WallMesh not found for CSG");
+      }
+    }
   }
 
   // We can dispose the generator's material if we don't cache it, 

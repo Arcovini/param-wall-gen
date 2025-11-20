@@ -9,10 +9,13 @@ import { SceneRenderer } from './core/SceneRenderer';
 import { WallGenerator } from './wall/WallGenerator';
 import { SceneUtils } from './utils/SceneUtils';
 import { OpeningUI, OpeningData } from './ui/OpeningUI';
+import { buildMasonryWall } from './buildMasonryWall';
+import { getTestScenario } from './test-scenarios';
+import type { BuildMasonryWallParams } from './types';
 
 // ===== TYPE RE-EXPORTS =====
 // Re-export types for external consumption
-export type { BuildMasonryWallParams } from './types';
+export type { BuildMasonryWallParams };
 
 // ===== SINGLETON INSTANCES =====
 let sceneRenderer: SceneRenderer | null = null;
@@ -40,8 +43,8 @@ function init(): void {
   const renderer = getSceneRenderer();
   const scene = renderer.getScene();
 
-  // 2. Initialize wall generator with scene access
-  wallGenerator = new WallGenerator();
+  // Track the current wall group
+  let currentWallGroup: THREE.Group | null = null;
 
   // Default block parameters
   const defaultBlockWidth = 0.39;
@@ -61,22 +64,6 @@ function init(): void {
 
   // Default task parameters
   const defaultCompletionPercentage = 10; // 50% completion
-
-  // 3. Create initial wall (directly via WallGenerator)
-  wallGenerator.createWall(
-    defaultWallWidth,
-    defaultWallHeight,
-    defaultWallLength,
-    defaultBlockWidth,
-    defaultBlockHeight,
-    defaultCementThickness,
-    scene,
-    defaultPositionX,
-    defaultPositionY,
-    defaultPositionZ,
-    defaultYawDegrees,
-    defaultCompletionPercentage / 100 // Convert percentage to 0-1 range
-  );
 
   // 4. Create floor at ground level
   const floor = SceneUtils.createFloor(10, 10, 0);
@@ -137,8 +124,47 @@ function init(): void {
     const completionPercentage = parseFloat(completionInput?.value) || defaultCompletionPercentage;
     const completion = completionPercentage / 100; // Convert percentage to 0-1 range
 
-    // Directly update wall via WallGenerator
-    wallGenerator!.updateWall(wallWidth, wallHeight, wallLength, blockWidth, blockHeight, cementThickness, positionX, positionY, positionZ, yawDegrees, completion);
+    // Remove previous wall if exists
+    if (currentWallGroup) {
+      scene.remove(currentWallGroup);
+      currentWallGroup = null;
+    }
+
+    // Construct parameters for buildMasonryWall
+    const params: BuildMasonryWallParams = {
+      wall: {
+        // Map UI inputs to WallParams
+        size: {
+          l: wallLength, // Depth
+          w: wallWidth,  // Horizontal Width
+          h: wallHeight  // Vertical Height
+        },
+        blockSize: {
+          l: blockWidth, // Horizontal
+          w: 0, // Unused
+          h: blockHeight // Vertical
+        },
+        cementThickness: cementThickness,
+        placement: {
+          parent: null,
+          position: { x: positionX, y: positionY, z: positionZ },
+          direction: { yaw: yawDegrees * (Math.PI / 180) } // Convert to radians for params
+        },
+        materials: {
+          masonry: { albedo: '', metalness: 0, roughness: 0 },
+          lintel: { albedo: '', metalness: 0, roughness: 0 },
+          infill: { albedo: '', metalness: 0, roughness: 0 }
+        }
+      },
+      openings: [], // TODO: Pass openings from UI
+      task: {
+        completion: completion
+      }
+    };
+
+    // Generate new wall
+    currentWallGroup = buildMasonryWall(params);
+    scene.add(currentWallGroup);
   }
 
   // Event listeners for block parameters
@@ -163,8 +189,7 @@ function init(): void {
   // Initialize OpeningUI
   const openingUI = new OpeningUI('openings-container', (openings: OpeningData[]) => {
     console.log('Openings updated:', openings);
-    // TODO: Pass openings to WallGenerator
-    // wallGenerator!.updateOpenings(openings); 
+    // TODO: Pass openings to params
     updateWall();
   });
 
@@ -174,6 +199,78 @@ function init(): void {
       openingUI.addOpening();
     });
   }
+
+  // ===== TEST BUTTONS FUNCTIONALITY =====
+  const testButtons = document.querySelectorAll('.test-button');
+  const testDescription = document.getElementById('test-description');
+
+  // Function to update active button state
+  function setActiveTestButton(testNumber: number | null) {
+    testButtons.forEach((btn) => {
+      const button = btn as HTMLElement;
+      const testNum = button.getAttribute('data-test');
+      if (testNum && testNum !== 'clear') {
+        if (parseInt(testNum) === testNumber) {
+          button.classList.add('active');
+        } else {
+          button.classList.remove('active');
+        }
+      }
+    });
+  }
+
+  // Function to load test scenario
+  function loadTestScenario(testNumber: number) {
+    const wallHeight = parseFloat(wallHeightInput?.value) || defaultWallHeight;
+    const scenario = getTestScenario(testNumber, wallHeight);
+
+    // Update test description
+    if (testDescription) {
+      testDescription.innerHTML = `<strong>${scenario.name}</strong><br>${scenario.description}`;
+    }
+
+    // Clear existing openings in UI
+    openingUI.clearAll();
+
+    // Add test scenario openings to UI
+    scenario.openings.forEach((opening: any) => {
+      openingUI.addOpening({
+        x: opening.placement.position.x,
+        y: opening.placement.position.y,
+        z: opening.placement.position.z,
+        width: opening.size.l,
+        height: opening.size.h,
+        length: opening.size.w,
+      });
+    });
+
+    // Set active button
+    setActiveTestButton(testNumber);
+
+    // Update wall
+    updateWall();
+  }
+
+  // Wire up test buttons (Test 1-5)
+  testButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const testNum = button.getAttribute('data-test');
+
+      if (testNum === 'clear') {
+        // Clear all openings
+        openingUI.clearAll();
+        setActiveTestButton(null);
+        if (testDescription) {
+          testDescription.innerHTML = '';
+        }
+        updateWall();
+      } else if (testNum) {
+        // Load test scenario
+        const testNumber = parseInt(testNum);
+        loadTestScenario(testNumber);
+      }
+    });
+  });
 
   // Wire up collapsible WallParams
   const wallParamsTitle = document.getElementById('wall-params-title');
@@ -186,7 +283,8 @@ function init(): void {
     });
   }
 
-
+  // Initial build
+  updateWall();
 }
 
 // ===== PUBLIC API =====

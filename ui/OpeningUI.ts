@@ -28,16 +28,16 @@ export class OpeningUI {
   /**
    * Adds a new opening to the UI and state
    */
-  public addOpening(): void {
+  public addOpening(data?: Partial<Omit<OpeningData, 'id'>>): void {
     const id = `opening-${Date.now()}`;
     const opening: OpeningData = {
       id,
-      x: 0,
-      y: 0,
-      z: 0,
-      width: 1.0,
-      height: 1.0,
-      length: 0.2
+      x: data?.x ?? 0,
+      y: data?.y ?? 0,
+      z: data?.z ?? 0,
+      width: data?.width ?? 1.0,
+      height: data?.height ?? 1.0,
+      length: data?.length ?? 0.2
     };
 
     this.openings.push(opening);
@@ -160,5 +160,24 @@ export class OpeningUI {
    */
   public getOpenings(): OpeningData[] {
     return this.openings;
+  }
+
+  /**
+   * Clears all openings from UI and state
+   */
+  public clearAll(): void {
+    // Remove all opening elements from DOM
+    this.openings.forEach((opening) => {
+      const element = document.getElementById(opening.id);
+      if (element) {
+        element.remove();
+      }
+    });
+
+    // Clear state array
+    this.openings = [];
+
+    // Notify listeners
+    this.onUpdate(this.openings);
   }
 }

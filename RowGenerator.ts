@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { BlockGenerator } from './BlockGenerator';
 
 /**
  * RowGenerator - Handles row-by-row wall construction calculations
@@ -106,13 +107,101 @@ export class RowGenerator {
     if (totalRows === 0) return 0;
     return (rowIndex + 1) / totalRows;
   }
+
+  /**
+   * Creates a complete row of blocks and cement joints
+   * 
+   * @param blockGenerator - Instance of BlockGenerator to create meshes
+   * @param wallWidth - Total width of the wall (used to calculate max blocks)
+   * @param blockWidth - Width of a single block
+   * @param blockHeight - Height of a single block
+   * @param cementThickness - Thickness of cement joints
+   * @param isLastRow - Whether this is the last row (affects top cement)
+   * @param invertNormals - Whether to invert normals (for back face)
+   * @returns THREE.Group containing all meshes for this row
+   */
+  static createRow(
+    blockGenerator: BlockGenerator,
+    wallWidth: number,
+    blockWidth: number,
+    blockHeight: number,
+    cementThickness: number,
+    isLastRow: boolean,
+    invertNormals: boolean
+  ): THREE.Group {
+    const rowGroup = new THREE.Group();
+
+    // Calculate blocks per row
+    const blocksHorizontal = Math.floor(wallWidth / (blockWidth + cementThickness));
+
+    // Calculate actual width of the row content
+    // Don't include cement thickness after the last block
+    const actualRowWidth = blocksHorizontal > 0
+      ? blocksHorizontal * blockWidth + (blocksHorizontal - 1) * cementThickness
+      : 0;
+
+    // Center the row horizontally
+    // The row's local origin (0,0) will be at the center of the row
+
+    for (let col = 0; col < blocksHorizontal; col++) {
+      // Calculate x position relative to row center using actualRowWidth
+      const x = col * (blockWidth + cementThickness) - (actualRowWidth / 2) + (blockWidth / 2);
+
+      // 1. Create Block
+      const blockMesh = blockGenerator.createBlockMesh(blockWidth, blockHeight);
+      blockMesh.position.set(x, 0, 0); // y=0 because rowGroup will be positioned vertically
+      if (invertNormals) {
+        blockMesh.rotation.y = Math.PI;
+      }
+      rowGroup.add(blockMesh);
+
+      const isLastColumn = col === blocksHorizontal - 1;
+
+      // 2. Add Top Cement (if not last row)
+      if (!isLastRow) {
+        const topCement = blockGenerator.createCementMesh(blockWidth, cementThickness);
+        topCement.position.set(x, blockHeight / 2 + cementThickness / 2, 0);
+        if (invertNormals) {
+          topCement.rotation.y = Math.PI;
+        }
+        rowGroup.add(topCement);
+      }
+
+      // 3. Add Right Cement (if not last column)
+      if (!isLastColumn) {
+        const rightCement = blockGenerator.createCementMesh(cementThickness, blockHeight);
+        rightCement.position.set(x + blockWidth / 2 + cementThickness / 2, 0, 0);
+        if (invertNormals) {
+          rightCement.rotation.y = Math.PI;
+        }
+        rowGroup.add(rightCement);
+      }
+
+      // 4. Add Corner Cement (if not last row AND not last column)
+      if (!isLastRow && !isLastColumn) {
+        const cornerCement = blockGenerator.createCementMesh(cementThickness, cementThickness);
+        cornerCement.position.set(
+          x + blockWidth / 2 + cementThickness / 2,
+          blockHeight / 2 + cementThickness / 2,
+          0
+        );
+        if (invertNormals) {
+          cornerCement.rotation.y = Math.PI;
+        }
+        rowGroup.add(cornerCement);
+      }
+    }
+
+    return rowGroup;
+  }
+
   /**
    * Creates a single mesh containing all side caps for a specific row
    * Uses BufferGeometry groups to support multiple materials (Block and Cement)
    *
    * @param rowIndex - The index of the row being generated
    * @param rowY - The Y position of the center of the row (block center)
-   * @param wallWidth - Total width of the wall
+   * @param rowWidth - The actual width of the row (to place caps correctly)
    * @param wallLength - Length (depth) of the wall
    * @param blockHeight - Height of the block
    * @param cementThickness - Thickness of the cement
@@ -123,14 +212,14 @@ export class RowGenerator {
   static createRowSideMesh(
     rowIndex: number,
     rowY: number,
-    wallWidth: number,
+    rowWidth: number,
     wallLength: number,
     blockHeight: number,
     cementThickness: number,
     materials: { block: THREE.Material; cement: THREE.Material },
     hasTopCement: boolean
   ): THREE.Mesh {
-    const halfWallWidth = wallWidth / 2;
+    const halfWallWidth = rowWidth / 2;
 
     const vertices: number[] = [];
     const normals: number[] = [];
@@ -144,6 +233,13 @@ export class RowGenerator {
     const zBack = -wallLength;
 
     // Y positions
+    // Note: rowY is passed in, but if we are building a row group, we might want this relative to 0
+    // However, this method is static and likely called by WallGenerator which knows the Y
+    // Let's keep it as is for now, but WallGenerator will need to position it.
+    // Actually, if this mesh is added to the WallGroup directly (as it was), rowY is absolute.
+    // If we want to add it to the RowGroup, rowY should be 0.
+    // The plan says "Rows compose the Wall". So this side mesh should probably be part of the RowGroup.
+    // If so, rowY should be 0 (local to the row).
     const yBlockBottom = rowY - blockHeight / 2;
     const yBlockTop = rowY + blockHeight / 2;
     const yCementTop = yBlockTop + cementThickness;

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { applyPlacement } from '../WallPlacement';
 import { RowGenerator } from '../RowGenerator';
+import { BlockGenerator } from '../BlockGenerator';
 
 /**
  * WallGenerator - Generates a grid of blocks to fill wall dimensions
@@ -8,58 +9,15 @@ import { RowGenerator } from '../RowGenerator';
  */
 export class WallGenerator {
   private scene: THREE.Scene | null = null;
-  private textureLoader: THREE.TextureLoader;
-  private brickMaterial: THREE.MeshStandardMaterial;
-  private cementMaterial: THREE.MeshStandardMaterial;
   private wallGroup: THREE.Group | null = null;
-
-  // Arrays to store all meshes in the grid
-  private frontBlockMeshes: THREE.Mesh[] = [];
-  private backBlockMeshes: THREE.Mesh[] = [];
-  private cementMeshes: THREE.Mesh[] = [];
-  private edgeMeshes: THREE.Mesh[] = [];
-
-  // Cached textures (loaded once, reused for all blocks)
-  private baseColorTexture: THREE.Texture;
-  private normalTexture: THREE.Texture;
-  private ormTexture: THREE.Texture;
+  private blockGenerator: BlockGenerator;
 
   constructor() {
-    this.textureLoader = new THREE.TextureLoader();
-
-    // Load textures once (same as BlockGenerator)
-    this.baseColorTexture = this.textureLoader.load('textures/masonry/brick_baseColor.png');
-    this.normalTexture = this.textureLoader.load('textures/masonry/brick_normal.png');
-    this.ormTexture = this.textureLoader.load('textures/masonry/brick_occlusionRoughnessMetallic.png');
-
-    // Configure textures
-    [this.baseColorTexture, this.normalTexture, this.ormTexture].forEach(texture => {
-      texture.wrapS = THREE.RepeatWrapping;
-      texture.wrapT = THREE.RepeatWrapping;
-      texture.repeat.set(1, 1);
-    });
-
-    // Create brick material (shared by all blocks)
-    this.brickMaterial = new THREE.MeshStandardMaterial({
-      map: this.baseColorTexture,
-      normalMap: this.normalTexture,
-      aoMap: this.ormTexture,
-      roughnessMap: this.ormTexture,
-      metalnessMap: this.ormTexture,
-      roughness: 0.8,
-      metalness: 0.2,
-    });
-
-    // Create cement material (shared by all joints)
-    this.cementMaterial = new THREE.MeshStandardMaterial({
-      color: 0xcccccc,
-      roughness: 0.9,
-      metalness: 0.1,
-    });
+    this.blockGenerator = new BlockGenerator();
   }
 
   /**
-   * Creates a 3D wall with front plane, back plane, and edge planes
+   * Creates a 3D wall and adds it to the scene
    */
   createWall(
     wallWidth: number,
@@ -80,9 +38,45 @@ export class WallGenerator {
     // Clear previous wall
     this.clearWall();
 
-    // Create a new group to hold all wall meshes
-    this.wallGroup = new THREE.Group();
+    // Generate the wall group
+    this.wallGroup = this.generateWallGroup(
+      wallWidth,
+      wallHeight,
+      wallLength,
+      blockWidth,
+      blockHeight,
+      cementThickness,
+      positionX,
+      positionY,
+      positionZ,
+      yawDegrees,
+      completion
+    );
+
+    // Add to scene
     this.scene.add(this.wallGroup);
+  }
+
+  /**
+   * Generates a wall group without adding it to the scene
+   * Useful for external consumers like buildMasonryWall
+   */
+  generateWallGroup(
+    wallWidth: number,
+    wallHeight: number,
+    wallLength: number,
+    blockWidth: number,
+    blockHeight: number,
+    cementThickness: number,
+    positionX: number = 0,
+    positionY: number = 0,
+    positionZ: number = 0,
+    yawDegrees: number = 0,
+    completion: number = 1.0
+  ): THREE.Group {
+    // Create a new group to hold all wall meshes
+    const wallGroup = new THREE.Group();
+    this.wallGroup = wallGroup;
 
     // Calculate grid dimensions (truncate to integer)
     const blocksHorizontal = Math.floor(wallWidth / (blockWidth + cementThickness));
@@ -93,195 +87,115 @@ export class WallGenerator {
 
     // Calculate actual wall dimensions based on blocks that fit
     // Don't include cement thickness after the last block
-    const actualWallWidth = blocksHorizontal * blockWidth + (blocksHorizontal - 1) * cementThickness;
+    const actualWallWidth = blocksHorizontal > 0
+      ? blocksHorizontal * blockWidth + (blocksHorizontal - 1) * cementThickness
+      : 0;
     const fullWallHeight = blocksVertical * blockHeight + (blocksVertical - 1) * cementThickness;
     const completedWallHeight = rowsToShow > 0
       ? rowsToShow * blockHeight + (rowsToShow - 1) * cementThickness
       : 0;
 
-    // Create front plane grid (at z = 0)
-    // Pass fullWallHeight for positioning so wall builds from bottom
-    this.createPlaneGrid(blocksHorizontal, rowsToShow, actualWallWidth, fullWallHeight, blockWidth, blockHeight, cementThickness, 0, false);
-
-    // Create back plane grid (at z = -wallLength, with inverted normals)
-    this.createPlaneGrid(blocksHorizontal, rowsToShow, actualWallWidth, fullWallHeight, blockWidth, blockHeight, cementThickness, -wallLength, true);
-
-    // Create top and bottom caps for the wall
-    this.createWallCaps(actualWallWidth, completedWallHeight, wallLength, fullWallHeight);
-
-    // Create row-based side edges (left and right)
-    this.createRowSideEdges(rowsToShow, actualWallWidth, fullWallHeight, wallLength, blockHeight, cementThickness);
-
-    // Apply placement transformations to the wall group
-    applyPlacement(this.wallGroup, { x: positionX, y: positionY, z: positionZ }, yawDegrees);
-  }
-
-  /**
-   * Creates a plane grid of blocks at a specific z position
-   */
-  private createPlaneGrid(
-    blocksHorizontal: number,
-    blocksVertical: number,
-    wallWidth: number,
-    wallHeight: number,
-    blockWidth: number,
-    blockHeight: number,
-    cementThickness: number,
-    zPosition: number,
-    invertNormals: boolean
-  ): void {
-    const targetArray = invertNormals ? this.backBlockMeshes : this.frontBlockMeshes;
-
-    for (let row = 0; row < blocksVertical; row++) {
-      for (let col = 0; col < blocksHorizontal; col++) {
-        // Calculate block position (centered at origin)
-        const x = col * (blockWidth + cementThickness) - (wallWidth / 2) + (blockWidth / 2);
-        const y = row * (blockHeight + cementThickness) - (wallHeight / 2) + (blockHeight / 2);
-
-        // Create brick block
-        const blockGeometry = new THREE.PlaneGeometry(blockWidth, blockHeight);
-        // Ensure UV2 exists for aoMap
-        if (!blockGeometry.attributes.uv2) {
-          blockGeometry.setAttribute('uv2', blockGeometry.attributes.uv);
-        }
-
-        const blockMesh = new THREE.Mesh(blockGeometry, this.brickMaterial);
-        blockMesh.position.set(x, y, zPosition);
-        blockMesh.castShadow = true;
-        blockMesh.receiveShadow = true;
-
-        // Invert normals for back plane by rotating 180 degrees around Y axis
-        if (invertNormals) {
-          blockMesh.rotation.y = Math.PI;
-        }
-
-        this.wallGroup!.add(blockMesh);
-        targetArray.push(blockMesh);
-
-        // Determine if this is an edge block
-        const isLastColumn = col === blocksHorizontal - 1;
-        const isLastRow = row === blocksVertical - 1;
-
-        // Add top cement joint (if not last row)
-        if (!isLastRow) {
-          const topCementGeometry = new THREE.PlaneGeometry(blockWidth, cementThickness);
-          const topCementMesh = new THREE.Mesh(topCementGeometry, this.cementMaterial);
-          topCementMesh.position.set(x, y + blockHeight / 2 + cementThickness / 2, zPosition);
-          topCementMesh.castShadow = true;
-          topCementMesh.receiveShadow = true;
-          if (invertNormals) {
-            topCementMesh.rotation.y = Math.PI;
-          }
-          this.wallGroup!.add(topCementMesh);
-          this.cementMeshes.push(topCementMesh);
-        }
-
-        // Add right cement joint (if not last column)
-        if (!isLastColumn) {
-          const rightCementGeometry = new THREE.PlaneGeometry(cementThickness, blockHeight);
-          const rightCementMesh = new THREE.Mesh(rightCementGeometry, this.cementMaterial);
-          rightCementMesh.position.set(x + blockWidth / 2 + cementThickness / 2, y, zPosition);
-          rightCementMesh.castShadow = true;
-          rightCementMesh.receiveShadow = true;
-          if (invertNormals) {
-            rightCementMesh.rotation.y = Math.PI;
-          }
-          this.wallGroup!.add(rightCementMesh);
-          this.cementMeshes.push(rightCementMesh);
-        }
-
-        // Add corner cement joint (if not last row AND not last column)
-        if (!isLastRow && !isLastColumn) {
-          const cornerCementGeometry = new THREE.PlaneGeometry(cementThickness, cementThickness);
-          const cornerCementMesh = new THREE.Mesh(cornerCementGeometry, this.cementMaterial);
-          cornerCementMesh.position.set(
-            x + blockWidth / 2 + cementThickness / 2,
-            y + blockHeight / 2 + cementThickness / 2,
-            zPosition
-          );
-          cornerCementMesh.castShadow = true;
-          cornerCementMesh.receiveShadow = true;
-          if (invertNormals) {
-            cornerCementMesh.rotation.y = Math.PI;
-          }
-          this.wallGroup!.add(cornerCementMesh);
-          this.cementMeshes.push(cornerCementMesh);
-        }
-      }
-    }
-  }
-
-  /**
-   * Creates top and bottom caps for the wall
-   */
-  private createWallCaps(wallWidth: number, completedWallHeight: number, wallLength: number, fullWallHeight: number): void {
-    // Calculate edge positions based on bottom-up construction
-    const bottomY = -fullWallHeight / 2;
-    const topY = bottomY + completedWallHeight;
-
-    // Top edge plane
-    const topEdgeGeometry = new THREE.PlaneGeometry(wallWidth, wallLength);
-    const topEdgeMesh = new THREE.Mesh(topEdgeGeometry, this.cementMaterial);
-    topEdgeMesh.position.set(0, topY, -wallLength / 2);
-    topEdgeMesh.rotation.x = Math.PI / 2;
-    topEdgeMesh.scale.z = -1; // Flip normal
-    topEdgeMesh.castShadow = true;
-    topEdgeMesh.receiveShadow = true;
-    this.wallGroup!.add(topEdgeMesh);
-    this.edgeMeshes.push(topEdgeMesh);
-
-    // Bottom edge plane
-    const bottomEdgeGeometry = new THREE.PlaneGeometry(wallWidth, wallLength);
-    const bottomEdgeMesh = new THREE.Mesh(bottomEdgeGeometry, this.cementMaterial);
-    bottomEdgeMesh.position.set(0, bottomY, -wallLength / 2);
-    bottomEdgeMesh.rotation.x = -Math.PI / 2;
-    bottomEdgeMesh.scale.z = -1; // Flip normal
-    bottomEdgeMesh.castShadow = true;
-    bottomEdgeMesh.receiveShadow = true;
-    this.wallGroup!.add(bottomEdgeMesh);
-    this.edgeMeshes.push(bottomEdgeMesh);
-  }
-
-  /**
-   * Creates side edges for each row
-   */
-  private createRowSideEdges(
-    rowsToShow: number,
-    wallWidth: number,
-    fullWallHeight: number,
-    wallLength: number,
-    blockHeight: number,
-    cementThickness: number
-  ): void {
-    const materials = {
-      block: this.brickMaterial,
-      cement: this.cementMaterial
-    };
-
+    // Generate Rows
     for (let row = 0; row < rowsToShow; row++) {
-      // Calculate Y position for this row (same formula as in createPlaneGrid)
+      const isLastRow = row === rowsToShow - 1;
+
+      // Calculate Y position for this row
+      // Center of the row
       const rowY = row * (blockHeight + cementThickness) - (fullWallHeight / 2) + (blockHeight / 2);
 
-      // Determine if this row should have a top cement joint
-      // Logic matches createPlaneGrid: if (!isLastRow)
-      const isLastRow = row === rowsToShow - 1;
-      const hasTopCement = !isLastRow;
+      // 1. Front Row (z = 0)
+      const frontRow = RowGenerator.createRow(
+        this.blockGenerator,
+        wallWidth,
+        blockWidth,
+        blockHeight,
+        cementThickness,
+        isLastRow,
+        false // No normal inversion
+      );
+      frontRow.position.set(0, rowY, 0);
+      wallGroup.add(frontRow);
 
-      // Create single mesh for this row's side caps
-      const rowSideMesh = RowGenerator.createRowSideMesh(
+      // 2. Back Row (z = -wallLength)
+      const backRow = RowGenerator.createRow(
+        this.blockGenerator,
+        wallWidth,
+        blockWidth,
+        blockHeight,
+        cementThickness,
+        isLastRow,
+        true // Invert normals
+      );
+      backRow.position.set(0, rowY, -wallLength);
+      wallGroup.add(backRow);
+
+      // 3. Side Edges for this row
+      // Note: RowGenerator.createRowSideMesh creates a mesh centered at (0,0,0) locally?
+      // No, looking at createRowSideMesh, it uses rowY passed in to set absolute Y positions.
+      // But if we want to attach it to the row, it should be relative.
+      // However, createRowSideMesh returns a single mesh for the row.
+      // Let's attach it to the wallGroup and use the absolute Y calculated inside it, 
+      // OR (better) attach it to the wallGroup and position it.
+      // The current createRowSideMesh implementation uses `rowY` to set vertex positions.
+      // So we just add it to wallGroup at (0,0,0).
+
+      const hasTopCement = !isLastRow;
+      const materials = {
+        block: this.blockGenerator.getBrickMaterial(),
+        cement: this.blockGenerator.getCementMaterial()
+      };
+
+      const sideEdges = RowGenerator.createRowSideMesh(
         row,
         rowY,
-        wallWidth,
+        actualWallWidth, // Use actual width so caps align with blocks
         wallLength,
         blockHeight,
         cementThickness,
         materials,
         hasTopCement
       );
-
-      this.wallGroup!.add(rowSideMesh);
-      this.edgeMeshes.push(rowSideMesh);
+      // sideEdges vertices are already positioned at rowY
+      wallGroup.add(sideEdges);
     }
+
+    // Create top and bottom caps for the wall
+    this.createWallCaps(wallGroup, actualWallWidth, completedWallHeight, wallLength, fullWallHeight);
+
+    // Apply placement transformations to the wall group
+    applyPlacement(wallGroup, { x: positionX, y: positionY, z: positionZ }, yawDegrees);
+
+    return wallGroup;
+  }
+
+  /**
+   * Creates top and bottom caps for the wall
+   */
+  private createWallCaps(group: THREE.Group, wallWidth: number, completedWallHeight: number, wallLength: number, fullWallHeight: number): void {
+    // Calculate edge positions based on bottom-up construction
+    const bottomY = -fullWallHeight / 2;
+    const topY = bottomY + completedWallHeight;
+    const cementMaterial = this.blockGenerator.getCementMaterial();
+
+    // Top edge plane
+    const topEdgeGeometry = new THREE.PlaneGeometry(wallWidth, wallLength);
+    const topEdgeMesh = new THREE.Mesh(topEdgeGeometry, cementMaterial);
+    topEdgeMesh.position.set(0, topY, -wallLength / 2);
+    topEdgeMesh.rotation.x = Math.PI / 2;
+    topEdgeMesh.scale.z = -1; // Flip normal
+    topEdgeMesh.castShadow = true;
+    topEdgeMesh.receiveShadow = true;
+    group.add(topEdgeMesh);
+
+    // Bottom edge plane
+    const bottomEdgeGeometry = new THREE.PlaneGeometry(wallWidth, wallLength);
+    const bottomEdgeMesh = new THREE.Mesh(bottomEdgeGeometry, cementMaterial);
+    bottomEdgeMesh.position.set(0, bottomY, -wallLength / 2);
+    bottomEdgeMesh.rotation.x = -Math.PI / 2;
+    bottomEdgeMesh.scale.z = -1; // Flip normal
+    bottomEdgeMesh.castShadow = true;
+    bottomEdgeMesh.receiveShadow = true;
+    group.add(bottomEdgeMesh);
   }
 
   /**
@@ -314,32 +228,17 @@ export class WallGenerator {
     // Remove wall group from scene if it exists
     if (this.wallGroup) {
       this.scene.remove(this.wallGroup);
+
+      // Dispose of geometries in the group
+      this.wallGroup.traverse((object) => {
+        if (object instanceof THREE.Mesh) {
+          object.geometry.dispose();
+          // Materials are managed by BlockGenerator, so we don't dispose them here
+        }
+      });
+
       this.wallGroup = null;
     }
-
-    // Dispose all front block meshes
-    this.frontBlockMeshes.forEach(mesh => {
-      mesh.geometry.dispose();
-    });
-    this.frontBlockMeshes = [];
-
-    // Dispose all back block meshes
-    this.backBlockMeshes.forEach(mesh => {
-      mesh.geometry.dispose();
-    });
-    this.backBlockMeshes = [];
-
-    // Dispose all cement meshes
-    this.cementMeshes.forEach(mesh => {
-      mesh.geometry.dispose();
-    });
-    this.cementMeshes = [];
-
-    // Dispose all edge meshes
-    this.edgeMeshes.forEach(mesh => {
-      mesh.geometry.dispose();
-    });
-    this.edgeMeshes = [];
   }
 
   /**
@@ -347,14 +246,6 @@ export class WallGenerator {
    */
   dispose(): void {
     this.clearWall();
-
-    // Dispose materials
-    this.brickMaterial.dispose();
-    this.cementMaterial.dispose();
-
-    // Dispose textures
-    this.baseColorTexture.dispose();
-    this.normalTexture.dispose();
-    this.ormTexture.dispose();
+    this.blockGenerator.dispose();
   }
 }

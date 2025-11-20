@@ -1,36 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Three.js Cube - Isometric View</title>
-  <script type="module" crossorigin src="/assets/index-Cm7zAAcR.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-BPXvLN67.css">
+  <script type="module" crossorigin src="/assets/index-D-x2f72-.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-i25B5gBN.css">
 </head>
+
 <body>
-  <div id="canvas-container"></div>
+  <div id="canvas-container">
+    <div class="canvas-overlay">
+      <div class="control-group wireframe-group">
+        <label class="toggle-switch">
+          <input type="checkbox" id="wireframe-toggle">
+          <span class="slider"></span>
+        </label>
+        <div class="toggle-labels">
+          <span id="label-wireframe">Wireframe</span>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div id="controls">
     <div class="controls-content">
       <h2>Wall Configurator</h2>
 
-      <div class="control-section">
-        <div class="section-title">Visualization Mode</div>
+      <!-- Tests Section -->
+      <div class="control-section" id="tests-section">
+        <div class="section-title">
+          Tests
+        </div>
 
-        <div class="control-group">
-          <label class="toggle-switch">
-            <input type="checkbox" id="wireframe-toggle">
-            <span class="slider"></span>
-          </label>
-          <div class="toggle-labels">
-            <span id="label-rendered" class="active">Rendered</span>
-            <span id="label-wireframe">Wireframe</span>
-          </div>
+        <div class="test-buttons-container">
+          <button class="test-button" data-test="1">Test 1</button>
+          <button class="test-button" data-test="2">Test 2</button>
+          <button class="test-button" data-test="3">Test 3</button>
+          <button class="test-button" data-test="4">Test 4</button>
+          <button class="test-button" data-test="5">Test 5</button>
+          <button class="test-button clear-button" data-test="clear">Clear</button>
+        </div>
+
+        <div id="test-description" class="test-description">
+          <!-- Test description will appear here -->
         </div>
       </div>
 
       <div class="control-section">
-        <div class="section-title">WallParams</div>
+        <div class="section-title" id="task-title">
+          Task
+        </div>
+
+        <div class="control-group">
+          <label for="completion">Percentage of wall completion</label>
+          <input type="number" id="completion" min="0" max="100" step="5" value="50">
+        </div>
+      </div>
+
+      <div class="control-section">
+        <div class="section-title" id="wall-params-title">
+          WallParams
+          <span class="chevron">▼</span>
+        </div>
 
         <div class="subsection">
           <div class="subsection-title">blockSize</div>
@@ -69,6 +102,46 @@
             <input type="number" id="wall-length" min="0.1" step="0.1" value="0.2">
           </div>
         </div>
+
+        <div class="subsection">
+          <div class="subsection-title">placement</div>
+
+          <div class="control-group">
+            <label for="position-x">x (Position)</label>
+            <input type="number" id="position-x" step="0.1" value="0">
+          </div>
+
+          <div class="control-group">
+            <label for="position-y">y (Position)</label>
+            <input type="number" id="position-y" step="0.1" value="0">
+          </div>
+
+          <div class="control-group">
+            <label for="position-z">z (Position)</label>
+            <input type="number" id="position-z" step="0.1" value="0">
+          </div>
+
+          <div class="control-group">
+            <label for="rotation-yaw">yaw (Degrees)</label>
+            <input type="number" id="rotation-yaw" step="1" value="0">
+          </div>
+        </div>
+
+
+      </div>
+
+      <div class="control-section">
+        <div class="section-title" id="openings-title">
+          Openings
+        </div>
+
+        <div class="control-group">
+          <button id="add-opening-btn" class="action-button">Add Opening</button>
+        </div>
+
+        <div id="openings-container">
+          <!-- Dynamic opening subsections will be added here -->
+        </div>
       </div>
     </div>
   </div>
@@ -83,4 +156,5 @@
   </div>
 
 </body>
+
 </html>

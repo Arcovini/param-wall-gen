@@ -11,6 +11,9 @@ export class UIController {
   private wireframeToggle: HTMLInputElement | null;
   private labelWireframe: HTMLElement | null;
 
+  private placeholderToggle: HTMLInputElement | null;
+  private labelPlaceholder: HTMLElement | null;
+
   private blockWidthInput: HTMLInputElement | null;
   private blockHeightInput: HTMLInputElement | null;
   private cementThicknessInput: HTMLInputElement | null;
@@ -40,7 +43,7 @@ export class UIController {
     wallHeight: 3.0,
     wallLength: 0.2,
     positionX: 0,
-    positionY: 1.43,
+    positionY: 1.5,
     positionZ: 0,
     yawDegrees: 0,
     completionPercentage: 100
@@ -58,6 +61,9 @@ export class UIController {
     // Select Elements
     this.wireframeToggle = document.getElementById('wireframe-toggle') as HTMLInputElement;
     this.labelWireframe = document.getElementById('label-wireframe');
+
+    this.placeholderToggle = document.getElementById('placeholder-toggle') as HTMLInputElement;
+    this.labelPlaceholder = document.getElementById('label-placeholder');
 
     this.blockWidthInput = document.getElementById('block-width') as HTMLInputElement;
     this.blockHeightInput = document.getElementById('block-height') as HTMLInputElement;
@@ -99,6 +105,25 @@ export class UIController {
             this.labelWireframe.style.color = '#666';
           }
         }
+      });
+    }
+
+    // Placeholder Toggle
+    if (this.placeholderToggle) {
+      this.placeholderToggle.addEventListener('change', () => {
+        const showPlaceholder = this.placeholderToggle!.checked;
+
+        if (this.labelPlaceholder) {
+          if (showPlaceholder) {
+            this.labelPlaceholder.style.fontWeight = 'bold';
+            this.labelPlaceholder.style.color = '#333';
+          } else {
+            this.labelPlaceholder.style.fontWeight = 'normal';
+            this.labelPlaceholder.style.color = '#666';
+          }
+        }
+
+        this.onUpdate();
       });
     }
 
@@ -218,5 +243,9 @@ export class UIController {
 
   public getVisualizationMode() {
     return this.openingUI.getVisualizationMode();
+  }
+
+  public getShowPlaceholder(): boolean {
+    return this.placeholderToggle ? this.placeholderToggle.checked : true;
   }
 }

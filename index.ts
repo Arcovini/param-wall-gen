@@ -10,6 +10,7 @@ import { WallGenerator } from './wall/WallGenerator';
 import { SceneUtils } from './utils/SceneUtils';
 import { UIController } from './ui/UIController';
 import { buildMasonryWall } from './buildMasonryWall';
+import { PlaceholderWall } from './placeholderWall';
 import type { BuildMasonryWallParams } from './types';
 
 // ===== TYPE RE-EXPORTS =====
@@ -112,6 +113,21 @@ function init(): void {
 
     // Generate new wall
     currentWallGroup = buildMasonryWall(buildParams);
+
+    // Add Placeholder Wall (Yellow Box) for visualization
+    if (uiController.getShowPlaceholder()) {
+      PlaceholderWall.attach(
+        currentWallGroup,
+        params.wallWidth,
+        params.wallHeight,
+        params.wallLength,
+        params.positionX,
+        params.positionY,
+        params.positionZ,
+        params.yawDegrees * (Math.PI / 180)
+      );
+    }
+
     scene.add(currentWallGroup);
   }
 

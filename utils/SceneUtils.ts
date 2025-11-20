@@ -107,6 +107,7 @@ export class SceneUtils {
       roughness: 1.0, // Let texture control roughness
       metalness: 1.0, // Let texture control metalness
       color: 0xFFFFFF,
+      side: THREE.DoubleSide
     });
 
     const floor = new THREE.Mesh(geometry, material);

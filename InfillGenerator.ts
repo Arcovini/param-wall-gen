@@ -34,7 +34,7 @@ export class InfillGenerator {
     const fullWallHeight = blocksVertical * blockHeight + (blocksVertical - 1) * cementThickness;
     const gap = wallHeight - fullWallHeight;
 
-    if (gap <= 0.01) { // No significant gap (< 1cm)
+    if (gap <= 0) { // No gap
       return null;
     }
 
@@ -42,7 +42,10 @@ export class InfillGenerator {
     const infillMesh = new THREE.Mesh(infillGeometry, this.material);
 
     // Position at top of wall (centered)
-    infillMesh.position.set(0, fullWallHeight / 2 + gap / 2, 0);
+    // The wall geometry is centered at 0, spanning [-wallHeight/2, wallHeight/2].
+    // The infill should be at the top, so its top edge should be at wallHeight/2.
+    // Center Y = Top - Height/2 = wallHeight/2 - gap/2.
+    infillMesh.position.set(0, wallHeight / 2 - gap / 2, 0);
     infillMesh.castShadow = true;
     infillMesh.receiveShadow = true;
     infillMesh.name = "TopInfill";

@@ -108,8 +108,9 @@ export class WallGenerator {
       const isLastRow = row === rowsToShow - 1;
 
       // Calculate Y position for this row
-      // Center of the row
-      const rowY = row * (blockHeight + cementThickness) - (fullWallHeight / 2) + (blockHeight / 2);
+      // Align to bottom of the wall (target height)
+      // Start at -wallHeight/2
+      const rowY = -wallHeight / 2 + row * (blockHeight + cementThickness) + (blockHeight / 2);
 
       // Create Row (Single Watertight Mesh)
       const rowGeometry = RowGenerator.createRow(

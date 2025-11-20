@@ -14,6 +14,9 @@ export class UIController {
   private placeholderToggle: HTMLInputElement | null;
   private labelPlaceholder: HTMLElement | null;
 
+  private actualWallToggle: HTMLInputElement | null;
+  private labelActualWall: HTMLElement | null;
+
   private blockWidthInput: HTMLInputElement | null;
   private blockHeightInput: HTMLInputElement | null;
   private cementThicknessInput: HTMLInputElement | null;
@@ -64,6 +67,9 @@ export class UIController {
 
     this.placeholderToggle = document.getElementById('placeholder-toggle') as HTMLInputElement;
     this.labelPlaceholder = document.getElementById('label-placeholder');
+
+    this.actualWallToggle = document.getElementById('actual-wall-toggle') as HTMLInputElement;
+    this.labelActualWall = document.getElementById('label-actual-wall');
 
     this.blockWidthInput = document.getElementById('block-width') as HTMLInputElement;
     this.blockHeightInput = document.getElementById('block-height') as HTMLInputElement;
@@ -120,6 +126,25 @@ export class UIController {
           } else {
             this.labelPlaceholder.style.fontWeight = 'normal';
             this.labelPlaceholder.style.color = '#666';
+          }
+        }
+
+        this.onUpdate();
+      });
+    }
+
+    // Actual Wall Toggle
+    if (this.actualWallToggle) {
+      this.actualWallToggle.addEventListener('change', () => {
+        const showActualWall = this.actualWallToggle!.checked;
+
+        if (this.labelActualWall) {
+          if (showActualWall) {
+            this.labelActualWall.style.fontWeight = 'bold';
+            this.labelActualWall.style.color = '#333';
+          } else {
+            this.labelActualWall.style.fontWeight = 'normal';
+            this.labelActualWall.style.color = '#666';
           }
         }
 
@@ -247,5 +272,9 @@ export class UIController {
 
   public getShowPlaceholder(): boolean {
     return this.placeholderToggle ? this.placeholderToggle.checked : true;
+  }
+
+  public getShowActualWall(): boolean {
+    return this.actualWallToggle ? this.actualWallToggle.checked : false;
   }
 }

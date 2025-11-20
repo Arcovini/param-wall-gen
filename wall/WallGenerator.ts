@@ -255,6 +255,7 @@ export class WallGenerator {
 
     // Store calculated dimensions in userData for other generators to use
     wallGroup.userData.actualWallWidth = actualWallWidth;
+    wallGroup.userData.actualWallHeight = completedWallHeight;
 
     return wallGroup;
   }

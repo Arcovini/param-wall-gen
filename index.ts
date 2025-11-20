@@ -114,9 +114,9 @@ function init(): void {
     // Generate new wall
     currentWallGroup = buildMasonryWall(buildParams);
 
-    // Add Placeholder Wall (Yellow Box) for visualization
+    // Add Placeholder Wall (Yellow Box) - represents TARGET dimensions
     if (uiController.getShowPlaceholder()) {
-      PlaceholderWall.attach(
+      PlaceholderWall.attachWall(
         currentWallGroup,
         params.wallWidth,
         params.wallHeight,
@@ -125,6 +125,15 @@ function init(): void {
         params.positionY,
         params.positionZ,
         params.yawDegrees * (Math.PI / 180)
+      );
+    }
+
+    // Add Actual Wall Placeholder (Green Box) - represents VISIBLE/TRUNCATED dimensions
+    if (uiController.getShowActualWall()) {
+      PlaceholderWall.attachActualWall(
+        currentWallGroup,
+        params.wallHeight,
+        params.wallLength
       );
     }
 

@@ -14,6 +14,7 @@ import type { BuildMasonryWallParams } from './types';
 import { WallGenerator } from './wall/WallGenerator';
 import { OpeningGenerator } from './OpeningGenerator';
 import { InfillGenerator } from './InfillGenerator';
+import { LintelGenerator } from './LintelGenerator';
 import { Brush, Evaluator, SUBTRACTION, ADDITION } from 'three-bvh-csg';
 
 // Create a single instance of WallGenerator to reuse resources (textures, materials)
@@ -91,6 +92,7 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
 
   // Generate openings and perform CSG subtraction
   const openingGenerator = new OpeningGenerator();
+  const lintelGenerator = new LintelGenerator();
 
   if (openings && openings.length > 0) {
     const evaluator = new Evaluator();
@@ -152,6 +154,19 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
           visMesh.material = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.5 });
         }
         wallGroup.add(visMesh);
+      }
+
+      // Generate Lintel for this opening
+      const lintelMesh = lintelGenerator.createLintel(
+        opening,
+        wallHeight,
+        wallLength,
+        blockHeight,
+        blockWidth
+      );
+
+      if (lintelMesh) {
+        wallGroup.add(lintelMesh);
       }
     });
 
@@ -247,8 +262,9 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
   // Ideally OpeningGenerator should be a singleton or managed resource if we want to reuse materials.
   // For now, creating a new material for each build call is acceptable but not optimal.
 
-  // Add metadata to the group
+  // Add metadata to the group (preserve existing userData from WallGenerator)
   wallGroup.userData = {
+    ...wallGroup.userData, // Preserve actualWallWidth, actualWallHeight
     objectType: 'MasonryWall',
     wall: wall,
     openings: openings,

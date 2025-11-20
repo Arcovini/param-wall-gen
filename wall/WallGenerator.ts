@@ -168,10 +168,14 @@ export class WallGenerator {
           positions.push(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i));
           normals.push(normAttr.getX(i), normAttr.getY(i), normAttr.getZ(i));
           uvs.push(uvAttr.getX(i), uvAttr.getY(i));
+
+          // Explicitly ensure uv2 matches uv for consistency, 
+          // unless we really need separate lightmap UVs (which we don't yet).
+          // This avoids any potential mismatch or missing attribute issues.
           if (uv2Attr) {
             uv2s.push(uv2Attr.getX(i), uv2Attr.getY(i));
           } else {
-            uv2s.push(uvAttr.getX(i), uvAttr.getY(i)); // Fallback
+            uv2s.push(uvAttr.getX(i), uvAttr.getY(i));
           }
         }
 
@@ -181,7 +185,7 @@ export class WallGenerator {
           const indices = indexAttr.array;
           const groups = geom.groups;
 
-          // If no groups, assume it's all block (Material 0) - shouldn't happen with RowGenerator
+          // If no groups, assume it's all block (Material 0)
           if (groups.length === 0) {
             for (let i = 0; i < indexAttr.count; i++) {
               globalBlockIndices.push(indices[i] + vertexOffset);

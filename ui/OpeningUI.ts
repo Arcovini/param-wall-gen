@@ -23,6 +23,54 @@ export class OpeningUI {
     }
     this.container = container;
     this.onUpdate = onUpdate;
+
+    this.createVisualizationControl();
+  }
+
+  private visualizationMode: 'red' | 'wireframe' | 'none' = 'red';
+
+  private createVisualizationControl(): void {
+    const controlDiv = document.createElement('div');
+    controlDiv.className = 'control-group visualization-control';
+    controlDiv.style.marginBottom = '15px';
+    controlDiv.style.padding = '10px';
+    controlDiv.style.backgroundColor = '#f5f5f5';
+    controlDiv.style.borderRadius = '4px';
+
+    const label = document.createElement('label');
+    label.textContent = 'Opening Visualization: ';
+    label.style.marginRight = '10px';
+    controlDiv.appendChild(label);
+
+    const select = document.createElement('select');
+
+    const options = [
+      { value: 'red', text: 'Red Placeholder' },
+      { value: 'wireframe', text: 'Wireframe' },
+      { value: 'none', text: 'None' }
+    ];
+
+    options.forEach(opt => {
+      const option = document.createElement('option');
+      option.value = opt.value;
+      option.textContent = opt.text;
+      if (opt.value === this.visualizationMode) option.selected = true;
+      select.appendChild(option);
+    });
+
+    select.addEventListener('change', () => {
+      this.visualizationMode = select.value as 'red' | 'wireframe' | 'none';
+      this.onUpdate(this.openings);
+    });
+
+    controlDiv.appendChild(select);
+
+    // Insert at the top of container
+    this.container.insertBefore(controlDiv, this.container.firstChild);
+  }
+
+  public getVisualizationMode(): 'red' | 'wireframe' | 'none' {
+    return this.visualizationMode;
   }
 
   /**

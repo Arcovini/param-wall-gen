@@ -106,7 +106,8 @@ function init(): void {
       })),
       task: {
         completion: completion
-      }
+      },
+      visualization: uiController.getVisualizationMode()
     };
 
     // Generate new wall

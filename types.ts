@@ -30,9 +30,12 @@ type TaskParams = {
   completion: number;  // 0..1
 };
 
+export type VisualizationMode = 'red' | 'wireframe' | 'none';
+
 // ===== PARÂMETRO FINAL =====
 export interface BuildMasonryWallParams {
   wall: WallParams;
   openings: OpeningParams[];
   task: TaskParams;
+  visualization?: VisualizationMode;
 }

@@ -215,4 +215,8 @@ export class UIController {
   public getOpenings() {
     return this.openingUI.getOpenings();
   }
+
+  public getVisualizationMode() {
+    return this.openingUI.getVisualizationMode();
+  }
 }

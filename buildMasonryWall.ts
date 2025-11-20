@@ -77,24 +77,62 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
     const evaluator = new Evaluator();
     evaluator.attributes = ['position', 'normal', 'uv', 'uv2']; // Preserve attributes including uv2
 
+    // Calculate wall bounds for intersection testing
+    const wallHalfWidth = wallWidth / 2;
+    const wallHalfHeight = wallHeight / 2;
+    const wallHalfLength = wallLength / 2;
+
     // 1. Create a combined brush for all openings
     let combinedOpeningBrush: Brush | null = null;
 
     openings.forEach(opening => {
       const openingMesh = openingGenerator.createOpeningMesh(opening);
 
-      // Create a Brush from the opening mesh
-      const openingBrush = new Brush(openingMesh.geometry, openingMesh.material);
-      openingBrush.position.copy(openingMesh.position);
-      openingBrush.rotation.copy(openingMesh.rotation);
-      openingBrush.scale.copy(openingMesh.scale);
-      openingBrush.updateMatrixWorld();
+      // Check if opening intersects with wall bounds
+      const openingHalfWidth = opening.size.l / 2;
+      const openingHalfHeight = opening.size.h / 2;
+      const openingHalfDepth = opening.size.w / 2;
 
-      if (!combinedOpeningBrush) {
-        combinedOpeningBrush = openingBrush;
+      const openingX = opening.placement.position.x;
+      const openingY = opening.placement.position.y;
+      const openingZ = opening.placement.position.z;
+
+      // Simple AABB intersection test (assumes wall is centered at origin before placement)
+      const intersects =
+        Math.abs(openingX) < (wallHalfWidth + openingHalfWidth) &&
+        Math.abs(openingY) < (wallHalfHeight + openingHalfHeight) &&
+        Math.abs(openingZ) < (wallHalfLength + openingHalfDepth);
+
+      if (intersects) {
+        // Create a Brush from the opening mesh
+        const openingBrush = new Brush(openingMesh.geometry, openingMesh.material);
+        openingBrush.position.copy(openingMesh.position);
+        openingBrush.rotation.copy(openingMesh.rotation);
+        openingBrush.scale.copy(openingMesh.scale);
+        openingBrush.updateMatrixWorld();
+
+        if (!combinedOpeningBrush) {
+          // For the first opening, normalize it through an ADDITION with itself
+          // This ensures consistent geometry structure (fixes single-opening CSG issues)
+          combinedOpeningBrush = evaluator.evaluate(openingBrush, openingBrush, ADDITION);
+        } else {
+          // Union with existing openings
+          combinedOpeningBrush = evaluator.evaluate(combinedOpeningBrush, openingBrush, ADDITION);
+        }
       } else {
-        // Union with existing openings
-        combinedOpeningBrush = evaluator.evaluate(combinedOpeningBrush, openingBrush, ADDITION);
+        console.warn('Opening is outside wall bounds, skipping CSG operation:', opening.placement.position);
+      }
+
+      // Visualization (always show, even if out of bounds)
+      if (params.visualization && params.visualization !== 'none') {
+        const visMesh = openingMesh.clone();
+        if (params.visualization === 'wireframe') {
+          visMesh.material = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
+        } else {
+          // Default is red from OpeningGenerator
+          visMesh.material = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.5 });
+        }
+        wallGroup.add(visMesh);
       }
     });
 
@@ -105,6 +143,9 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
       if (wallMesh) {
         try {
           console.log("Starting CSG Subtraction...");
+          // Store original geometry to restore if CSG fails
+          const originalGeometry = wallMesh.geometry.clone();
+
           const wallBrush = new Brush(wallMesh.geometry, wallMesh.material);
           wallBrush.updateMatrixWorld();
 
@@ -121,11 +162,43 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
 
           (combinedOpeningBrush as Brush).material = blockMaterial;
 
+          console.log("WallBrush Attributes:", Object.keys(wallBrush.geometry.attributes));
+          console.log("OpeningBrush Attributes:", Object.keys((combinedOpeningBrush as Brush).geometry.attributes));
+
+          // Check for position specifically
+          if (!wallBrush.geometry.attributes.position) console.error("WallBrush missing position!");
+          if (!(combinedOpeningBrush as Brush).geometry.attributes.position) console.error("OpeningBrush missing position!");
+
           const result = evaluator.evaluate(wallBrush, combinedOpeningBrush as Brush, SUBTRACTION);
           console.log("CSG Subtraction complete. Result geometry groups:", result.geometry.groups);
 
-          wallMesh.geometry.dispose();
-          wallMesh.geometry = result.geometry;
+          // Validate the result geometry
+          if (!result || !result.geometry || result.geometry.attributes.position.count === 0) {
+            console.error("CSG operation resulted in empty or invalid geometry. Restoring original wall.");
+            wallMesh.geometry.dispose();
+            wallMesh.geometry = originalGeometry; // Restore original geometry
+          } else {
+            // Validate result has correct material groups
+            const hasValidGroups = result.geometry.groups && result.geometry.groups.length >= 2;
+            const hasCementGroup = result.geometry.groups.some(g => g.materialIndex === 1 && g.count > 0);
+
+            if (hasValidGroups && hasCementGroup) {
+              // Result is valid, apply it
+              wallMesh.geometry.dispose();
+              wallMesh.geometry = result.geometry;
+              console.log("CSG result applied successfully");
+            } else {
+              // Result is corrupted, restore original
+              console.warn("CSG result is corrupted (missing cement material group), restoring original geometry");
+              result.geometry.dispose();
+              // Keep original geometry (don't replace)
+            }
+
+            // Clean up the clone if we didn't need it
+            if (wallMesh.geometry !== originalGeometry) {
+              originalGeometry.dispose();
+            }
+          }
 
           // Re-assign materials if needed
           // The result mesh usually has materials set by the evaluator, but here we are just swapping geometry

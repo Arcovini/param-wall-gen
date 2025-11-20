@@ -64,10 +64,13 @@ export class OpeningGenerator {
 
     // Ensure uv2 exists for CSG compatibility
     if (!geometryCorrect.attributes.uv2) {
-      geometryCorrect.setAttribute('uv2', geometryCorrect.attributes.uv);
+      geometryCorrect.setAttribute('uv2', geometryCorrect.attributes.uv.clone());
     }
 
-    const meshCorrect = new THREE.Mesh(geometryCorrect, this.material);
+    // Convert to non-indexed geometry for better CSG stability
+    const finalGeometry = geometryCorrect.toNonIndexed();
+
+    const meshCorrect = new THREE.Mesh(finalGeometry, this.material);
 
     meshCorrect.position.set(
       placement.position.x,

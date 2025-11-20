@@ -37,7 +37,7 @@ export class OpeningUI {
       z: data?.z ?? 0,
       width: data?.width ?? 1.0,
       height: data?.height ?? 1.0,
-      length: data?.length ?? 0.2
+      length: data?.length ?? 1.0
     };
 
     this.openings.push(opening);

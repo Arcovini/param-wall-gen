@@ -35,14 +35,17 @@ export function getTest1Openings() {
  * - Positioned at ground level (y=0)
  * - Centered horizontally
  */
-export function getTest2Openings() {
+export function getTest2Openings(wallHeight: number = 3.0) {
+  const doorHeight = 2.1;
+  const doorY = -wallHeight / 2 + doorHeight / 2;
+
   return [
     {
-      placement: createPlacement(0, 1.05, 0), // Center at half height (2.1/2 = 1.05)
+      placement: createPlacement(0, doorY, 0), // Center at calculated Y (bottom aligned)
       size: {
         l: 0.9,  // length (width in horizontal)
-        w: 0.25, // width (depth through wall)
-        h: 2.1,  // height
+        w: 1.0, // width (depth through wall)
+        h: doorHeight,  // height
       },
     },
   ];
@@ -57,10 +60,10 @@ export function getTest2Openings() {
 export function getTest3Openings() {
   return [
     {
-      placement: createPlacement(0, 1.5, 0), // Center at 1.5m height
+      placement: createPlacement(0, 0, 0), // Center at 0 (geometric center)
       size: {
         l: 1.2,  // length (width)
-        w: 0.25, // width (depth)
+        w: 1.0, // width (depth)
         h: 1.0,  // height
       },
     },
@@ -77,14 +80,14 @@ export function getTest3Openings() {
  */
 export function getTest4Openings(wallHeight: number = 3.0) {
   const windowHeight = 1.0;
-  const windowY = wallHeight - windowHeight / 2; // Position so top edge touches wall top
+  const windowY = wallHeight / 2 - windowHeight / 2; // Position so top edge touches wall top (top is at wallHeight/2)
 
   return [
     {
       placement: createPlacement(0, windowY, 0),
       size: {
         l: 1.0,  // length (width)
-        w: 0.25, // width (depth)
+        w: 1.0, // width (depth)
         h: windowHeight,
       },
     },
@@ -98,31 +101,34 @@ export function getTest4Openings(wallHeight: number = 3.0) {
  * - Tests complex opening interactions and multiple lintels
  */
 export function getTest5Openings(wallHeight: number = 3.0) {
+  const doorHeight = 2.1;
+  const doorY = -wallHeight / 2 + doorHeight / 2;
+
   return [
     // Door on the left
     {
-      placement: createPlacement(-1.2, 1.05, 0), // Left side, ground level
+      placement: createPlacement(-1.2, doorY, 0), // Left side, bottom aligned
       size: {
         l: 0.9,
-        w: 0.25,
-        h: 2.1,
+        w: 1.0,
+        h: doorHeight,
       },
     },
     // Window at center
     {
-      placement: createPlacement(0.5, 1.5, 0), // Center-right, mid-height
+      placement: createPlacement(0.5, 0, 0), // Center-right, mid-height (y=0 is center)
       size: {
         l: 1.0,
-        w: 0.25,
+        w: 1.0,
         h: 1.0,
       },
     },
     // Window at top right
     {
-      placement: createPlacement(1.2, wallHeight - 0.5, 0), // Right side, top
+      placement: createPlacement(1.35, wallHeight / 2 - 0.65, 0), // Right side, top (adjusted to fit)
       size: {
         l: 0.8,
-        w: 0.25,
+        w: 1.0,
         h: 1.0,
       },
     },
@@ -144,7 +150,7 @@ export function getTestScenario(testNumber: number, wallHeight: number = 3.0) {
       return {
         name: 'Test 2: Door',
         description: 'Wall with standard door (0.9m × 2.1m) at ground level',
-        openings: getTest2Openings(),
+        openings: getTest2Openings(wallHeight),
       };
     case 3:
       return {

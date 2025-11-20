@@ -1,11 +1,11 @@
 // ===== TIPOS PRIMITIVOS =====
-type Position = { x:number; y:number; z:number };
-type Direction = { yaw:number };
+type Position = { x: number; y: number; z: number };
+type Direction = { yaw: number };
 type Placement = { parent: Placement | null; position: Position; direction: Direction };
-type Size = { l:number; w:number; h:number };
+type Size = { l: number; w: number; h: number };
 
 // ===== MATERIAIS =====
-type MaterialPBR = { albedo: string; metalness:number; roughness:number };
+type MaterialPBR = { albedo: string; metalness: number; roughness: number };
 type AssociatedMaterials = {
   masonry: MaterialPBR;
   lintel: MaterialPBR;
@@ -21,7 +21,7 @@ type WallParams = {
   materials: AssociatedMaterials;
 };
 
-type OpeningParams = {
+export type OpeningParams = {
   placement: Placement;
   size: Size;
 };

@@ -8,7 +8,7 @@ import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUti
  * WallGenerator - Generates a grid of blocks to fill wall dimensions
  * Handles block positioning, cement joints, and material reuse
  */
-export class WallGenerator {
+export class WallManager {
   private scene: THREE.Scene | null = null;
   private wallGroup: THREE.Group | null = null;
   private blockGenerator: BlockGenerator;
@@ -86,7 +86,7 @@ export class WallGenerator {
     // Calculate how many rows to show based on completion percentage
     const rowsToShow = RowGenerator.getVisibleRows(blocksVertical, completion);
 
-    console.log("WallGenerator:", {
+    console.log("WallManager:", {
       wallWidth, wallHeight, blockHeight, cementThickness,
       blocksVertical, completion, rowsToShow
     });

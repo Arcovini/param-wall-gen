@@ -11,15 +11,15 @@
 
 import * as THREE from 'three';
 import type { BuildMasonryWallParams } from './types';
-import { WallGenerator } from './wall/WallGenerator';
+import { WallManager } from './wall/WallManager';
 import { OpeningGenerator } from './OpeningGenerator';
 import { InfillGenerator } from './InfillGenerator';
 import { LintelGenerator } from './LintelGenerator';
 import { Brush, Evaluator, SUBTRACTION, ADDITION } from 'three-bvh-csg';
 
-// Create a single instance of WallGenerator to reuse resources (textures, materials)
+// Create a single instance of WallManager to reuse resources (textures, materials)
 // This significantly improves performance by avoiding recompilation/reloading on every update
-const generator = new WallGenerator();
+const generator = new WallManager();
 
 /**
  * Generates a masonry wall based on the provided parameters.

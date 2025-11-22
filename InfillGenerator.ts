@@ -1,17 +1,14 @@
 import * as THREE from 'three';
+import { MaterialManager } from './MaterialManager';
 
 /**
  * InfillGenerator - Generates top infill (encunhamento) for walls
  */
 export class InfillGenerator {
-  private material: THREE.MeshStandardMaterial;
+  // Material is now managed by MaterialManager
 
   constructor() {
-    this.material = new THREE.MeshStandardMaterial({
-      color: 0x4169E1, // Royal blue
-      roughness: 0.7,
-      metalness: 0.2
-    });
+    // No local material initialization needed
   }
 
   /**
@@ -39,7 +36,7 @@ export class InfillGenerator {
     }
 
     const infillGeometry = new THREE.BoxGeometry(actualWallWidth, gap, wallLength);
-    const infillMesh = new THREE.Mesh(infillGeometry, this.material);
+    const infillMesh = new THREE.Mesh(infillGeometry, MaterialManager.getInstance().getInfillMaterial());
 
     // Position at top of wall (centered)
     // The wall geometry is centered at 0, spanning [-wallHeight/2, wallHeight/2].
@@ -59,6 +56,6 @@ export class InfillGenerator {
    * Disposes of resources
    */
   dispose(): void {
-    this.material.dispose();
+    // Material is managed by MaterialManager, so we don't dispose it here
   }
 }

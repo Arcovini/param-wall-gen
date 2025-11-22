@@ -1,18 +1,15 @@
 import * as THREE from 'three';
 import type { OpeningParams } from './types';
+import { MaterialManager } from './MaterialManager';
 
 /**
  * LintelGenerator - Generates lintels (vergas) over openings
  */
 export class LintelGenerator {
-  private material: THREE.MeshStandardMaterial;
+  // Material is now managed by MaterialManager
 
   constructor() {
-    this.material = new THREE.MeshStandardMaterial({
-      color: 0x4169E1, // Royal blue
-      roughness: 0.7,
-      metalness: 0.2
-    });
+    // No local material initialization needed
   }
 
   /**
@@ -77,7 +74,7 @@ export class LintelGenerator {
       geometry.setAttribute('uv2', geometry.attributes.uv);
     }
 
-    const mesh = new THREE.Mesh(geometry, this.material);
+    const mesh = new THREE.Mesh(geometry, MaterialManager.getInstance().getLintelMaterial());
 
     // Position
     // Centered horizontally relative to opening -> same X and Z as opening
@@ -102,6 +99,6 @@ export class LintelGenerator {
    * Disposes of resources
    */
   dispose(): void {
-    this.material.dispose();
+    // Material is managed by MaterialManager, so we don't dispose it here
   }
 }

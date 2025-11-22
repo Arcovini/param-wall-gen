@@ -1,4 +1,11 @@
 import * as THREE from 'three';
+import { BlockGenerator } from '../BlockGenerator';
+import { RowGenerator } from '../RowGenerator';
+
+/**
+ * View modes for the masonry wall visualization
+ */
+export type ViewMode = 'block' | 'row' | 'wall';
 
 /**
  * SceneUtils - Utility functions for scene manipulation
@@ -117,4 +124,81 @@ export class SceneUtils {
 
     return floor;
   }
+
+  /**
+   * Creates a visualization based on the selected view mode
+   * 
+   * @param mode - The view mode ('block', 'row', or 'wall')
+   * @param blockGenerator - Instance of BlockGenerator
+   * @param wallParams - Wall parameters from the UI
+   * @returns A THREE.Group containing the visualization
+   */
+  static createViewModeVisualization(
+    mode: ViewMode,
+    blockGenerator: BlockGenerator,
+    wallParams: {
+      blockWidth: number;
+      blockHeight: number;
+      wallLength: number;
+      cementThickness: number;
+      actualWallWidth?: number;
+    }
+  ): THREE.Group {
+    const group = new THREE.Group();
+    group.name = `ViewMode_${mode}`;
+
+    switch (mode) {
+      case 'block':
+        // Create a single block with cement layer
+        const blockGeo = blockGenerator.createBlockGeometry(
+          wallParams.blockWidth,
+          wallParams.blockHeight,
+          wallParams.wallLength,
+          wallParams.cementThickness
+        );
+        const materials = [
+          blockGenerator.getBrickMaterial(),
+          blockGenerator.getCementMaterial()
+        ];
+        const blockMesh = new THREE.Mesh(blockGeo, materials);
+        blockMesh.castShadow = true;
+        blockMesh.receiveShadow = true;
+        blockMesh.name = 'SingleBlock';
+        group.add(blockMesh);
+        break;
+
+      case 'row':
+        // Create a single row
+        const actualWidth = wallParams.actualWallWidth || wallParams.blockWidth * 3 + wallParams.cementThickness * 2;
+        const rowGeo = RowGenerator.createRow(
+          blockGenerator,
+          actualWidth,
+          wallParams.wallLength,
+          wallParams.blockWidth,
+          wallParams.blockHeight,
+          wallParams.cementThickness,
+          false, // Not last row
+          false  // Don't invert normals
+        );
+        const rowMaterials = [
+          blockGenerator.getBrickMaterial(),
+          blockGenerator.getCementMaterial()
+        ];
+        const rowMesh = new THREE.Mesh(rowGeo, rowMaterials);
+        rowMesh.castShadow = true;
+        rowMesh.receiveShadow = true;
+        rowMesh.name = 'SingleRow';
+        group.add(rowMesh);
+        break;
+
+      case 'wall':
+        // Wall view is handled by the main buildMasonryWall function
+        // Return empty group as placeholder
+        group.name = 'ViewMode_wall_placeholder';
+        break;
+    }
+
+    return group;
+  }
 }
+

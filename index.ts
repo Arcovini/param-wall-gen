@@ -6,7 +6,6 @@
  */
 
 import { SceneRenderer } from './core/SceneRenderer';
-import { WallGenerator } from './wall/WallGenerator';
 import { SceneUtils } from './utils/SceneUtils';
 import { UIController } from './ui/UIController';
 import { buildMasonryWall } from './buildMasonryWall';
@@ -19,7 +18,6 @@ export type { BuildMasonryWallParams };
 
 // ===== SINGLETON INSTANCES =====
 let sceneRenderer: SceneRenderer | null = null;
-let wallGenerator: WallGenerator | null = null;
 let uiController: UIController | null = null;
 
 /**
@@ -60,6 +58,7 @@ function init(): void {
     const params = uiController.getWallParams();
     const openings = uiController.getOpenings();
     const completion = params.completionPercentage / 100;
+    const viewMode = uiController.getViewMode();
 
     // Remove previous wall if exists
     if (currentWallGroup) {
@@ -67,6 +66,32 @@ function init(): void {
       currentWallGroup = null;
     }
 
+    // Check view mode and create appropriate visualization
+    if (viewMode === 'block' || viewMode === 'row') {
+      // Import BlockGenerator for view mode visualization
+      import('./BlockGenerator').then(({ BlockGenerator }) => {
+        const blockGenerator = new BlockGenerator();
+
+        currentWallGroup = SceneUtils.createViewModeVisualization(
+          viewMode,
+          blockGenerator,
+          {
+            blockWidth: params.blockWidth,
+            blockHeight: params.blockHeight,
+            wallLength: params.wallLength,
+            cementThickness: params.cementThickness
+          }
+        );
+
+        // Position at origin for easier viewing
+        currentWallGroup.position.set(0, params.blockHeight / 2, 0);
+        scene.add(currentWallGroup);
+      });
+
+      return; // Exit early for block/row views
+    }
+
+    // WALL VIEW (default behavior)
     // Construct parameters for buildMasonryWall
     const buildParams: BuildMasonryWallParams = {
       wall: {
@@ -157,10 +182,6 @@ export function getRenderer(): SceneRenderer {
  * Disposes of all resources and cleans up
  */
 export function dispose(): void {
-  if (wallGenerator) {
-    wallGenerator.dispose();
-    wallGenerator = null;
-  }
   if (sceneRenderer) {
     sceneRenderer.dispose();
     sceneRenderer = null;

@@ -31,6 +31,7 @@ export class UIController {
   private rotationYawInput: HTMLInputElement | null;
 
   private completionInput: HTMLInputElement | null;
+  private viewModeSelect: HTMLSelectElement | null;
 
   private testButtons: NodeListOf<Element>;
   private testDescription: HTMLElement | null;
@@ -90,6 +91,7 @@ export class UIController {
     this.testDescription = document.getElementById('test-description');
     this.wallParamsTitle = document.getElementById('wall-params-title');
     this.addOpeningBtn = document.getElementById('add-opening-btn');
+    this.viewModeSelect = document.getElementById('view-mode-select') as HTMLSelectElement;
 
     // Attach Listeners
     this.attachListeners(scene);
@@ -193,6 +195,13 @@ export class UIController {
         }
       });
     });
+
+    // View Mode Select
+    if (this.viewModeSelect) {
+      this.viewModeSelect.addEventListener('change', () => {
+        this.onUpdate();
+      });
+    }
   }
 
   private setActiveTestButton(testNumber: number | null) {
@@ -276,5 +285,9 @@ export class UIController {
 
   public getShowActualWall(): boolean {
     return this.actualWallToggle ? this.actualWallToggle.checked : false;
+  }
+
+  public getViewMode(): 'block' | 'row' | 'wall' {
+    return (this.viewModeSelect?.value as 'block' | 'row' | 'wall') || 'wall';
   }
 }

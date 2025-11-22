@@ -103,8 +103,8 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
     const wallHalfHeight = wallHeight / 2;
     const wallHalfLength = wallLength / 2;
 
-    // 1. Create a combined brush for all openings
-    let combinedOpeningBrush: Brush | null = null;
+    // 1. Create a combined brush for all subtractions (openings + lintels)
+    let combinedSubtractionBrush: Brush | null = null;
 
     openings.forEach(opening => {
       const openingMesh = openingGenerator.createOpeningMesh(opening);
@@ -132,13 +132,12 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
         openingBrush.scale.copy(openingMesh.scale);
         openingBrush.updateMatrixWorld();
 
-        if (!combinedOpeningBrush) {
-          // For the first opening, normalize it through an ADDITION with itself
-          // This ensures consistent geometry structure (fixes single-opening CSG issues)
-          combinedOpeningBrush = evaluator.evaluate(openingBrush, openingBrush, ADDITION);
+        if (!combinedSubtractionBrush) {
+          // For the first subtraction, normalize it through an ADDITION with itself
+          combinedSubtractionBrush = evaluator.evaluate(openingBrush, openingBrush, ADDITION);
         } else {
-          // Union with existing openings
-          combinedOpeningBrush = evaluator.evaluate(combinedOpeningBrush, openingBrush, ADDITION);
+          // Union with existing subtractions
+          combinedSubtractionBrush = evaluator.evaluate(combinedSubtractionBrush, openingBrush, ADDITION);
         }
       } else {
         console.warn('Opening is outside wall bounds, skipping CSG operation:', opening.placement.position);
@@ -162,16 +161,30 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
         wallHeight,
         wallLength,
         blockHeight,
-        blockWidth
+        blockWidth,
+        wallGroup.userData.actualWallHeight || wallHeight // Pass current wall height
       );
 
       if (lintelMesh) {
         wallGroup.add(lintelMesh);
+
+        // Add Lintel to CSG subtraction
+        const lintelBrush = new Brush(lintelMesh.geometry, lintelMesh.material);
+        lintelBrush.position.copy(lintelMesh.position);
+        lintelBrush.rotation.copy(lintelMesh.rotation);
+        lintelBrush.scale.copy(lintelMesh.scale);
+        lintelBrush.updateMatrixWorld();
+
+        if (!combinedSubtractionBrush) {
+          combinedSubtractionBrush = evaluator.evaluate(lintelBrush, lintelBrush, ADDITION);
+        } else {
+          combinedSubtractionBrush = evaluator.evaluate(combinedSubtractionBrush, lintelBrush, ADDITION);
+        }
       }
     });
 
-    // 2. Subtract combined opening brush from wall mesh
-    if (combinedOpeningBrush) {
+    // 2. Subtract combined brush from wall mesh
+    if (combinedSubtractionBrush) {
       const wallMesh = wallGroup.getObjectByName("WallMesh") as THREE.Mesh;
 
       if (wallMesh) {
@@ -183,7 +196,7 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
           const wallBrush = new Brush(wallMesh.geometry, wallMesh.material);
           wallBrush.updateMatrixWorld();
 
-          // Set opening brush material to match blocks (or main material)
+          // Set subtraction brush material to match blocks (or main material)
           let blockMaterial: THREE.Material;
           if (Array.isArray(wallMesh.material) && wallMesh.material.length > 0) {
             blockMaterial = wallMesh.material[0];
@@ -194,16 +207,16 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
             blockMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
           }
 
-          (combinedOpeningBrush as Brush).material = blockMaterial;
+          (combinedSubtractionBrush as Brush).material = blockMaterial;
 
           console.log("WallBrush Attributes:", Object.keys(wallBrush.geometry.attributes));
-          console.log("OpeningBrush Attributes:", Object.keys((combinedOpeningBrush as Brush).geometry.attributes));
+          console.log("SubtractionBrush Attributes:", Object.keys((combinedSubtractionBrush as Brush).geometry.attributes));
 
           // Check for position specifically
           if (!wallBrush.geometry.attributes.position) console.error("WallBrush missing position!");
-          if (!(combinedOpeningBrush as Brush).geometry.attributes.position) console.error("OpeningBrush missing position!");
+          if (!(combinedSubtractionBrush as Brush).geometry.attributes.position) console.error("SubtractionBrush missing position!");
 
-          const result = evaluator.evaluate(wallBrush, combinedOpeningBrush as Brush, SUBTRACTION);
+          const result = evaluator.evaluate(wallBrush, combinedSubtractionBrush as Brush, SUBTRACTION);
           console.log("CSG Subtraction complete. Result geometry groups:", result.geometry.groups);
 
           // Validate the result geometry

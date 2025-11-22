@@ -29,7 +29,8 @@ export class LintelGenerator {
     wallHeight: number,
     wallLength: number,
     blockHeight: number,
-    blockWidth: number
+    blockWidth: number,
+    currentWallHeight: number
   ): THREE.Mesh | null {
     const openingHeight = opening.size.h;
     const openingWidth = opening.size.l;
@@ -43,9 +44,19 @@ export class LintelGenerator {
     // Wall is centered at 0, so top is wallHeight / 2
     const wallTopY = wallHeight / 2;
 
+    // Calculate current constructed wall top Y
+    // Wall starts at -wallHeight / 2
+    const currentWallTopY = -wallHeight / 2 + currentWallHeight;
+
     // Check if opening touches or exceeds the top of the wall
     // Use a small epsilon for float comparison
     if (openingTopY >= wallTopY - 0.001) {
+      return null;
+    }
+
+    // Check if the wall construction has reached the top of the opening
+    // If not, don't show the lintel yet
+    if (currentWallTopY <= openingTopY) {
       return null;
     }
 
@@ -53,8 +64,8 @@ export class LintelGenerator {
     // Height: half of block height (without cement)
     const lintelHeight = blockHeight / 2;
 
-    // Width: openingWidth + (blockWidth / 2)
-    const lintelWidth = openingWidth + (blockWidth / 2);
+    // Width: openingWidth + blockWidth (half block on each side)
+    const lintelWidth = openingWidth + blockWidth;
 
     // Depth: wall thickness
     const lintelDepth = wallLength;

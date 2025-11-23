@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { BlockGenerator } from './BlockGenerator';
+import { GeometryUtils } from './utils/GeometryUtils';
 
 
 export interface RowSpecification {
@@ -141,6 +142,15 @@ export class RowGenerator {
     rightCementCap.receiveShadow = true;
     rightCementCap.name = 'RightCementCap';
     rowGroup.add(rightCementCap);
+
+
+
+    // Check if the row is manifold (Debug)
+    const merged = GeometryUtils.mergeGroupGeometries(rowGroup);
+    if (merged) {
+      const result = GeometryUtils.isManifold(merged);
+      console.log(`[RowGenerator] Manifold Check: ${result.isManifold ? '✅' : '❌'} ${result.message}`);
+    }
 
     return rowGroup;
   }

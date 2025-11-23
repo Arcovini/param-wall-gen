@@ -110,8 +110,8 @@ export class WallManager {
       // Start at -wallHeight/2
       const rowY = -wallHeight / 2 + row * (blockHeight + cementThickness) + (blockHeight / 2);
 
-      // Create Row (Group of Blocks)
-      const rowGroup = RowGenerator.createRow(
+      // Create Row (now returns a welded mesh with shared vertices)
+      const rowMesh = RowGenerator.createRow(
         this.blockGenerator,
         actualWallWidth,
         wallLength,
@@ -120,21 +120,13 @@ export class WallManager {
         cementThickness
       );
 
-      // Extract geometries from the row group and position them
-      rowGroup.children.forEach(child => {
-        if (child instanceof THREE.Mesh) {
-          const blockGeo = child.geometry.clone();
+      // Clone the row's welded geometry and apply row position
+      const rowGeo = rowMesh.geometry.clone();
 
-          // Apply block's local transformation (position, rotation, scale)
-          child.updateMatrix();
-          blockGeo.applyMatrix4(child.matrix);
+      // Apply row's Y position (within the wall)
+      rowGeo.translate(0, rowY, 0);
 
-          // Apply row's Y position (within the wall)
-          blockGeo.translate(0, rowY, 0);
-
-          allRowGeometries.push(blockGeo);
-        }
-      });
+      allRowGeometries.push(rowGeo);
     }
 
     // Create top and bottom caps for the wall

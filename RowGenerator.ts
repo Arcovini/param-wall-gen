@@ -93,7 +93,10 @@ export class RowGenerator {
     // Create caps geometry
     // Split into Brick and Cement parts
     const brickCapGeo = new THREE.PlaneGeometry(wallLength, blockHeight);
+    brickCapGeo.setAttribute('uv2', brickCapGeo.attributes.uv);
+
     const cementCapGeo = new THREE.PlaneGeometry(wallLength, cementThickness);
+    cementCapGeo.setAttribute('uv2', cementCapGeo.attributes.uv);
 
     // Calculate Y positions
     // Row is centered at brick center (y=0)

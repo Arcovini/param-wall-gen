@@ -8,20 +8,21 @@ export class BlockGenerator {
   }
 
   /**
-   * Creates an open-sided block geometry with cement layer on top and right side.
+   * Creates an open-sided block geometry with cement on top and right side.
    * The block consists of:
-   * - Brick portion (front, back, bottom - NO top since cement covers it)
-   * - Cement layer on top (front, back, top)
-   * - Cement vertical strip on RIGHT side (front, back, right)
-   * - Corner where top cement meets right cement
+   * - Brick portion (front, back, bottom - NO left/right sides)
+   * - Cement layer on TOP (front, back, top face)
+   * - Cement strip on RIGHT side (front, back, right face - full height)
    * 
-   * Left side is open (will be closed by RowGenerator for the row)
+   * Left side is completely open (no faces).
+   * 
+   * This method builds geometry with SHARED VERTICES from the start for proper welding.
    * 
    * @param width Block width (X-axis)
-   * @param height Block height (Y-axis) - brick portion only
+   * @param height Block height (Y-axis) - brick portion only (excluding cement)
    * @param depth Block depth (Z-axis, wallLength)
-   * @param cementThickness Thickness of cement layer on top
-   * @returns Merged BufferGeometry with welded vertices and material groups
+   * @param cementThickness Thickness of cement layers
+   * @returns BufferGeometry with minimum vertex count and material groups
    */
   createBlockGeometry(
     width: number,
@@ -29,137 +30,160 @@ export class BlockGenerator {
     depth: number,
     cementThickness: number = 0
   ): THREE.BufferGeometry {
+    const geometry = new THREE.BufferGeometry();
+
+    // Define all unique vertices for the block
+    const vertices: number[] = [];
+    const indices: number[] = [];
+    const uvs: number[] = [];
+
+    // Material group tracking
+    const brickIndices: number[] = [];
+    const cementIndices: number[] = [];
+
+    // Calculate positions
     const halfWidth = width / 2;
     const halfDepth = depth / 2;
-
-    // Total height includes brick + cement
+    // Total height includes: brick + top cement
     const totalHeight = height + cementThickness;
     const halfTotalHeight = totalHeight / 2;
-    const halfBrickHeight = height / 2;
 
-    // Y positions
     const yBottom = -halfTotalHeight;
     const yTopBrick = -halfTotalHeight + height;
     const yTopCement = halfTotalHeight;
 
-    // X positions
     const xLeft = -halfWidth;
     const xRight = halfWidth;
-    const xRightCement = halfWidth + cementThickness;
+    const zFront = halfDepth;
+    const zBack = -halfDepth;
 
-    const geometries: THREE.BufferGeometry[] = [];
+    let vertexIndex = 0;
+    let uvIndex = 0;
 
-    // ===== BRICK PORTION =====
+    /**
+     * Helper to add a vertex with UV
+     */
+    const addVertex = (x: number, y: number, z: number, u: number, v: number): number => {
+      vertices.push(x, y, z);
+      uvs.push(u, v);
+      return vertexIndex++;
+    };
 
-    // Front face - Brick
-    const frontBrickGeo = new THREE.PlaneGeometry(width, height);
-    frontBrickGeo.translate(0, yBottom + halfBrickHeight, halfDepth);
-    geometries.push(frontBrickGeo);
+    /**
+     * Helper to add a quad face (two triangles) with proper UVs
+     * Vertices should be ordered counter-clockwise when viewed from the front
+     */
+    const addQuad = (v0: number, v1: number, v2: number, v3: number, isCement: boolean) => {
+      // Triangle 1: v0, v1, v2
+      (isCement ? cementIndices : brickIndices).push(v0, v1, v2);
 
-    // Back face - Brick (flipped normals)
-    const backBrickGeo = new THREE.PlaneGeometry(width, height);
-    backBrickGeo.rotateY(Math.PI);
-    backBrickGeo.translate(0, yBottom + halfBrickHeight, -halfDepth);
-    geometries.push(backBrickGeo);
+      // Triangle 2: v0, v2, v3
+      (isCement ? cementIndices : brickIndices).push(v0, v2, v3);
+    };
 
-    // Bottom face of brick
-    const bottomBrickGeo = new THREE.PlaneGeometry(width, depth);
-    bottomBrickGeo.rotateX(Math.PI / 2);
-    bottomBrickGeo.translate(0, yBottom, 0);
-    geometries.push(bottomBrickGeo);
+    // ===== BRICK VERTICES (8 corners of the central brick box) =====
+    // Bottom-left-front
+    const v0 = addVertex(xLeft, yBottom, zFront, 0, 0);
+    // Bottom-right-front  
+    const v1 = addVertex(xRight, yBottom, zFront, 1, 0);
+    // Top-right-front (at brick height)
+    const v2 = addVertex(xRight, yTopBrick, zFront, 1, 1);
+    // Top-left-front (at brick height)
+    const v3 = addVertex(xLeft, yTopBrick, zFront, 0, 1);
 
-    // NOTE: No top face for brick - cement covers it
+    // Bottom-left-back
+    const v4 = addVertex(xLeft, yBottom, zBack, 0, 0);
+    // Bottom-right-back
+    const v5 = addVertex(xRight, yBottom, zBack, 1, 0);
+    // Top-right-back (at brick height)
+    const v6 = addVertex(xRight, yTopBrick, zBack, 1, 1);
+    // Top-left-back (at brick height)
+    const v7 = addVertex(xLeft, yTopBrick, zBack, 0, 1);
 
-    // ===== CEMENT PORTION (if cementThickness > 0) =====
-    const cementGeometries: THREE.BufferGeometry[] = [];
+    // ===== BRICK FACES =====
+    // Front face (brick portion only)
+    addQuad(v0, v1, v2, v3, false);
 
+    // Back face
+    addQuad(v5, v4, v7, v6, false);
+
+    // Bottom face
+    addQuad(v4, v5, v1, v0, false);
+
+    // ===== CEMENT PORTION =====
     if (cementThickness > 0) {
-      // === HORIZONTAL CEMENT (on top of brick) ===
+      // === TOP CEMENT CAP ===
+      // Vertices at very top (above brick)
+      const vt0 = addVertex(xLeft, yTopCement, zFront, 0, 1);
+      const vt1 = addVertex(xRight, yTopCement, zFront, 1, 1);
+      const vt2 = addVertex(xLeft, yTopCement, zBack, 0, 1);
+      const vt3 = addVertex(xRight, yTopCement, zBack, 1, 1);
 
-      // Front face - Horizontal cement
-      const frontCementGeo = new THREE.PlaneGeometry(width, cementThickness);
-      frontCementGeo.translate(0, yTopBrick + cementThickness / 2, halfDepth);
-      cementGeometries.push(frontCementGeo);
+      // Front face of top cement
+      addQuad(v3, v2, vt1, vt0, true);
 
-      // Back face - Horizontal cement (flipped normals)
-      const backCementGeo = new THREE.PlaneGeometry(width, cementThickness);
-      backCementGeo.rotateY(Math.PI);
-      backCementGeo.translate(0, yTopBrick + cementThickness / 2, -halfDepth);
-      cementGeometries.push(backCementGeo);
+      // Back face of top cement
+      addQuad(v6, v7, vt2, vt3, true);
 
-      // Top face of horizontal cement
-      const topCementGeo = new THREE.PlaneGeometry(width, depth);
-      topCementGeo.rotateX(-Math.PI / 2);
-      topCementGeo.translate(0, yTopCement, 0);
-      cementGeometries.push(topCementGeo);
+      // Top face of top cement (flipped winding for correct normal)
+      addQuad(vt0, vt1, vt3, vt2, true);
 
-      // === VERTICAL CEMENT (right side of brick) ===
+      // === RIGHT CEMENT STRIP (vertical, brick height only) ===
+      // Vertices on the right edge extended by cement thickness
+      const xRightCement = xRight + cementThickness;
 
-      // Front face - Vertical cement
-      const frontVertCementGeo = new THREE.PlaneGeometry(cementThickness, height);
-      frontVertCementGeo.translate(xRight + cementThickness / 2, yBottom + halfBrickHeight, halfDepth);
-      cementGeometries.push(frontVertCementGeo);
+      // Right cement vertices at brick level
+      const vr0 = addVertex(xRightCement, yBottom, zFront, 1, 0);
+      const vr1 = addVertex(xRightCement, yTopBrick, zFront, 1, 0.8);
+      const vr2 = addVertex(xRightCement, yBottom, zBack, 1, 0);
+      const vr3 = addVertex(xRightCement, yTopBrick, zBack, 1, 0.8);
 
-      // Back face - Vertical cement (flipped normals)
-      const backVertCementGeo = new THREE.PlaneGeometry(cementThickness, height);
-      backVertCementGeo.rotateY(Math.PI);
-      backVertCementGeo.translate(xRight + cementThickness / 2, yBottom + halfBrickHeight, -halfDepth);
-      cementGeometries.push(backVertCementGeo);
+      // Front face of right cement (brick height)
+      addQuad(v1, vr0, vr1, v2, true);
 
+      // Back face of right cement (brick height)
+      addQuad(vr2, v5, v6, vr3, true);
 
+      // === CORNER CEMENT (where top and right meet) ===
+      // Corner vertices at the top
+      const vc0 = addVertex(xRightCement, yTopCement, zFront, 1, 1);
+      const vc1 = addVertex(xRightCement, yTopCement, zBack, 1, 1);
 
-      // === CORNER (where horizontal and vertical cement meet) ===
+      // Front face of corner
+      addQuad(v2, vr1, vc0, vt1, true);
 
-      // Front face - Corner
-      const frontCornerGeo = new THREE.PlaneGeometry(cementThickness, cementThickness);
-      frontCornerGeo.translate(xRight + cementThickness / 2, yTopBrick + cementThickness / 2, halfDepth);
-      cementGeometries.push(frontCornerGeo);
+      // Back face of corner
+      addQuad(vr3, v6, vt3, vc1, true);
 
-      // Back face - Corner (flipped normals)
-      const backCornerGeo = new THREE.PlaneGeometry(cementThickness, cementThickness);
-      backCornerGeo.rotateY(Math.PI);
-      backCornerGeo.translate(xRight + cementThickness / 2, yTopBrick + cementThickness / 2, -halfDepth);
-      cementGeometries.push(backCornerGeo);
-
-
-
-      // Top face - Corner (horizontal)
-      const topCornerGeo = new THREE.PlaneGeometry(cementThickness, depth);
-      topCornerGeo.rotateX(-Math.PI / 2);
-      topCornerGeo.translate(xRight + cementThickness / 2, yTopCement, 0);
-      cementGeometries.push(topCornerGeo);
+      // Top face of corner (extends the top cement to the right)
+      addQuad(vt1, vc0, vc1, vt3, true);
     }
 
-    // Ensure all geometries have UV2
-    [...geometries, ...cementGeometries].forEach(geo => {
-      if (!geo.attributes.uv2) {
-        geo.setAttribute('uv2', geo.attributes.uv);
-      }
-    });
+    // Set attributes
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setAttribute('uv2', new THREE.Float32BufferAttribute(uvs, 2));
 
-    // Calculate index counts BEFORE merging
-    const blockIndexCount = geometries.reduce((sum, geo) => sum + (geo.index?.count || 0), 0);
-    const cementIndexCount = cementGeometries.reduce((sum, geo) => sum + (geo.index?.count || 0), 0);
-
-    // Merge all geometries
-    const mergedGeo = BufferGeometryUtils.mergeGeometries([
-      ...geometries,
-      ...cementGeometries
-    ]);
-
-    if (!mergedGeo) {
-      throw new Error('Failed to merge block geometries');
-    }
-
-    // Merge vertices at shared edges
-    const weldedGeo = BufferGeometryUtils.mergeVertices(mergedGeo);
+    // Set indices
+    const allIndices = [...brickIndices, ...cementIndices];
+    geometry.setIndex(allIndices);
 
     // Set material groups
-    weldedGeo.clearGroups();
-    weldedGeo.addGroup(0, blockIndexCount, 0); // Material index 0: Brick
-    weldedGeo.addGroup(blockIndexCount, cementIndexCount, 1); // Material index 1: Cement
+    geometry.clearGroups();
+    geometry.addGroup(0, brickIndices.length, 0); // Material index 0: Brick
+    geometry.addGroup(brickIndices.length, cementIndices.length, 1); // Material index 1: Cement
 
-    return weldedGeo;
+    // Compute normals properly
+    geometry.computeVertexNormals();
+
+    // Diagnostic
+    console.log(`[BlockGenerator] Vertex Stats:
+      Total vertices: ${vertexIndex}
+      Brick indices: ${brickIndices.length}
+      Cement indices: ${cementIndices.length}
+      Expected: 18 vertices (8 brick + 4 top cement + 4 right cement + 2 corner)`);
+
+    return geometry;
   }
 
   /**

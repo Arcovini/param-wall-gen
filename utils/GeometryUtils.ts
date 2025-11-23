@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export class GeometryUtils {
   /**
@@ -34,12 +35,19 @@ export class GeometryUtils {
     }
 
     // Check edge counts
+    // Check edge counts
     for (const edge in edges) {
       const faceCount = edges[edge];
-      if (faceCount !== 2) {
+      if (faceCount === 1) {
         return {
           isManifold: false,
-          message: `Edge ${edge} is shared by ${faceCount} faces (should be 2 for closed manifold).`
+          message: `Mesh is not watertight. Edge ${edge} is shared by only 1 face (Hole).`
+        };
+      }
+      if (faceCount > 2) {
+        return {
+          isManifold: false,
+          message: `Mesh has internal faces or non-manifold edges. Edge ${edge} is shared by ${faceCount} faces.`
         };
       }
     }
@@ -50,6 +58,7 @@ export class GeometryUtils {
   /**
    * Merges all meshes in a group into a single BufferGeometry.
    * Applies world transforms to geometries before merging.
+   * Also merges vertices to ensure the mesh is continuous.
    */
   static mergeGroupGeometries(group: THREE.Group): THREE.BufferGeometry | null {
     const geometries: THREE.BufferGeometry[] = [];
@@ -60,13 +69,23 @@ export class GeometryUtils {
       if (child instanceof THREE.Mesh) {
         const clonedGeo = child.geometry.clone();
         clonedGeo.applyMatrix4(child.matrixWorld);
+        // Ensure attributes are compatible (e.g. uv2)
+        if (!clonedGeo.attributes.uv2 && clonedGeo.attributes.uv) {
+          clonedGeo.setAttribute('uv2', clonedGeo.attributes.uv);
+        }
         geometries.push(clonedGeo);
       }
     });
 
     if (geometries.length === 0) return null;
 
-    return mergeGeometries(geometries, false);
+    const merged = mergeGeometries(geometries, false);
+    if (!merged) return null;
+
+    // Merge vertices to close gaps between blocks
+    // Use a small tolerance if needed, default is usually fine for exact matches
+    const welded = BufferGeometryUtils.mergeVertices(merged);
+    return welded;
   }
 }
 

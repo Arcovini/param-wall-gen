@@ -105,6 +105,10 @@ export class RowGenerator {
     let prevRightTopCementVertices: number[] = [];
     let prevRightCornerVertices: number[] = [];
 
+    // Track first block's left edge vertices for left cap
+    let firstBlockLeftVertices: number[] = [];
+    let firstBlockLeftTopVertices: number[] = [];
+
     // Build each block with continuous UV mapping
     for (let col = 0; col < blocksHorizontal; col++) {
       const xCenter = col * (blockWidth + cementThickness) - halfRowWidth + halfWidth;
@@ -131,6 +135,9 @@ export class RowGenerator {
         v5 = addVertex(xRight, yBottom, zBack, uRight, 0);
         v6 = addVertex(xRight, yTopBrick, zBack, uRight, 1);
         v7 = addVertex(xLeft, yTopBrick, zBack, uLeft, 1);
+
+        // Store left edge for left cap
+        firstBlockLeftVertices = [v0, v3, v4, v7]; // bottomFront, topFront, bottomBack, topBack
 
         prevRightBrickVertices = [v1, v2, v5, v6];
       } else {
@@ -163,6 +170,9 @@ export class RowGenerator {
           vt1 = addVertex(xRight, yTopCement, zFront, uRight, 1);
           vt2 = addVertex(xLeft, yTopCement, zBack, uLeft, 1);
           vt3 = addVertex(xRight, yTopCement, zBack, uRight, 1);
+
+          // Store left top edge for left cap
+          firstBlockLeftTopVertices = [vt0, vt2]; // topFront, topBack
 
           prevRightTopCementVertices = [vt1, vt3];
         } else {
@@ -206,26 +216,24 @@ export class RowGenerator {
     }
 
     // === END CAPS ===
-    // Left cap
-    const xLeftCap = -halfRowWidth;
-    const vl0 = addVertex(xLeftCap, yBottom, zFront, 0, 0);
-    const vl1 = addVertex(xLeftCap, yTopBrick, zFront, 0, 1);
-    const vl2 = addVertex(xLeftCap, yBottom, zBack, 1, 0);
-    const vl3 = addVertex(xLeftCap, yTopBrick, zBack, 1, 1);
-    const vl4 = addVertex(xLeftCap, yTopCement, zFront, 0, 1);
-    const vl5 = addVertex(xLeftCap, yTopCement, zBack, 1, 1);
+    // Left cap - reuse first block's left edge vertices for manifold geometry
+    const vl0 = firstBlockLeftVertices[0]; // bottomFront
+    const vl1 = firstBlockLeftVertices[1]; // topFront
+    const vl2 = firstBlockLeftVertices[2]; // bottomBack
+    const vl3 = firstBlockLeftVertices[3]; // topBack
+    const vl4 = firstBlockLeftTopVertices[0]; // topCementFront
+    const vl5 = firstBlockLeftTopVertices[1]; // topCementBack
 
     addQuad(vl2, vl0, vl1, vl3, false); // Brick cap
     addQuad(vl3, vl1, vl4, vl5, true);  // Cement cap
 
-    // Right cap (full height cement)
-    const xRightCap = blocksHorizontal * (blockWidth + cementThickness) - halfRowWidth;
-    const vr0 = addVertex(xRightCap, yBottom, zFront, 0, 0);
-    const vr1 = addVertex(xRightCap, yTopBrick, zFront, 0, 1);
-    const vr2 = addVertex(xRightCap, yBottom, zBack, 1, 0);
-    const vr3 = addVertex(xRightCap, yTopBrick, zBack, 1, 1);
-    const vr4 = addVertex(xRightCap, yTopCement, zFront, 0, 1);
-    const vr5 = addVertex(xRightCap, yTopCement, zBack, 1, 1);
+    // Right cap - reuse last block's right cement vertices for manifold geometry
+    const vr0 = prevRightCementVertices[0]; // bottomFront
+    const vr1 = prevRightCementVertices[1]; // topFront
+    const vr2 = prevRightCementVertices[2]; // bottomBack
+    const vr3 = prevRightCementVertices[3]; // topBack
+    const vr4 = prevRightCornerVertices[0]; // topCementFront
+    const vr5 = prevRightCornerVertices[1]; // topCementBack
 
     addQuad(vr0, vr2, vr3, vr1, true); // Lower cement cap (brick height)
     addQuad(vr1, vr3, vr5, vr4, true); // Upper cement cap (cement thickness)

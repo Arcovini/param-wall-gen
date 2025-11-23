@@ -168,27 +168,18 @@ export class SceneUtils {
         break;
 
       case 'row':
-        // Create a single row
-        const actualWidth = wallParams.actualWallWidth || wallParams.blockWidth * 3 + wallParams.cementThickness * 2;
-        const rowGeo = RowGenerator.createRow(
+        // Create a single row with 8 blocks for demonstration
+        const actualWidth = wallParams.actualWallWidth || wallParams.blockWidth * 8 + wallParams.cementThickness * 7;
+        const rowGroup = RowGenerator.createRow(
           blockGenerator,
           actualWidth,
           wallParams.wallLength,
           wallParams.blockWidth,
           wallParams.blockHeight,
-          wallParams.cementThickness,
-          false, // Not last row
-          false  // Don't invert normals
+          wallParams.cementThickness
         );
-        const rowMaterials = [
-          blockGenerator.getBrickMaterial(),
-          blockGenerator.getCementMaterial()
-        ];
-        const rowMesh = new THREE.Mesh(rowGeo, rowMaterials);
-        rowMesh.castShadow = true;
-        rowMesh.receiveShadow = true;
-        rowMesh.name = 'SingleRow';
-        group.add(rowMesh);
+        rowGroup.name = 'SingleRow';
+        group.add(rowGroup);
         break;
 
       case 'wall':

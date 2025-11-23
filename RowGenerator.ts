@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { BlockGenerator } from './BlockGenerator';
-import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+
 
 export interface RowSpecification {
   rowHeight: number;
@@ -50,9 +50,8 @@ export class RowGenerator {
   }
 
   /**
-   * Creates a complete row as a single watertight mesh with material groups.
-   * Group 0: Blocks
-   * Group 1: Cement
+   * Creates a complete row as a Group of block meshes.
+   * Each block is an instance of the geometry from BlockGenerator.
    */
   static createRow(
     blockGenerator: BlockGenerator,
@@ -60,136 +59,90 @@ export class RowGenerator {
     wallLength: number,
     blockWidth: number,
     blockHeight: number,
-    cementThickness: number,
-    isLastRow: boolean,
-    invertNormals: boolean // Kept for compatibility
-  ): THREE.BufferGeometry {
-    const blockGeometries: THREE.BufferGeometry[] = [];
-    const cementGeometries: THREE.BufferGeometry[] = [];
+    cementThickness: number
+  ): THREE.Group {
+    const rowGroup = new THREE.Group();
 
     const halfRowWidth = actualWallWidth / 2;
-    const halfWallLength = wallLength / 2;
     const blocksHorizontal = Math.round(actualWallWidth / (blockWidth + cementThickness));
 
-    // Y coordinates for row positioning
-    const yBottom = -blockHeight / 2;
-    const yTopBlock = blockHeight / 2;
-    const yTopCement = yTopBlock + (!isLastRow ? cementThickness : 0);
-    const yTopRow = !isLastRow ? yTopCement : yTopBlock;
+    // Create block geometry once for the entire row (performance optimization)
+    // Pass false for closeRightSide to avoid internal perpendicular faces
+    const blockGeo = blockGenerator.createBlockGeometry(blockWidth, blockHeight, wallLength, cementThickness, false);
 
-    // Create blocks and cement joints
+    // Get materials
+    const materials = [
+      blockGenerator.getBrickMaterial(),
+      blockGenerator.getCementMaterial()
+    ];
+
+    // Create and position blocks
     for (let col = 0; col < blocksHorizontal; col++) {
-      const isLastColumn = col === blocksHorizontal - 1;
+      // Calculate position for this block (accounting for block width + cement thickness spacing)
       const xPosition = col * (blockWidth + cementThickness) - halfRowWidth + (blockWidth / 2);
 
-      // Create block using BlockGenerator (has front, back, top, bottom - no left/right sides)
-      const blockGeo = blockGenerator.createBlockGeometry(blockWidth, blockHeight, wallLength, cementThickness);
-      blockGeo.translate(xPosition, cementThickness / 2, 0); // Offset by half cement thickness for proper positioning
-      blockGeometries.push(blockGeo);
+      const blockMesh = new THREE.Mesh(blockGeo, materials);
+      blockMesh.position.set(xPosition, cementThickness / 2, 0);
+      blockMesh.castShadow = true;
+      blockMesh.receiveShadow = true;
 
-      // Vertical cement between blocks (if not last column)
-      if (!isLastColumn) {
-        const xCement = xPosition + blockWidth / 2 + cementThickness / 2;
-
-        // Front cement plane
-        const cementFrontGeo = new THREE.PlaneGeometry(cementThickness, blockHeight);
-        cementFrontGeo.translate(xCement, 0, halfWallLength);
-        cementGeometries.push(cementFrontGeo);
-
-        // Back cement plane (flipped normals)
-        const cementBackGeo = new THREE.PlaneGeometry(cementThickness, blockHeight);
-        cementBackGeo.rotateY(Math.PI);
-        cementBackGeo.translate(xCement, 0, -halfWallLength);
-        cementGeometries.push(cementBackGeo);
-
-        // Top connecting plane for vertical cement
-        const cementTopGeo = new THREE.PlaneGeometry(cementThickness, wallLength);
-        cementTopGeo.rotateX(-Math.PI / 2);
-        cementTopGeo.translate(xCement, yTopBlock, 0);
-        cementGeometries.push(cementTopGeo);
-
-        // Bottom connecting plane for vertical cement
-        const cementBottomGeo = new THREE.PlaneGeometry(cementThickness, wallLength);
-        cementBottomGeo.rotateX(Math.PI / 2);
-        cementBottomGeo.translate(xCement, yBottom, 0);
-        cementGeometries.push(cementBottomGeo);
-      }
+      rowGroup.add(blockMesh);
     }
 
-    // Horizontal cement on top of row (if not last row)
-    if (!isLastRow) {
-      const topCementY = yTopBlock + cementThickness / 2;
+    // Create caps geometry
+    // Split into Brick and Cement parts
+    const brickCapGeo = new THREE.PlaneGeometry(wallLength, blockHeight);
+    const cementCapGeo = new THREE.PlaneGeometry(wallLength, cementThickness);
 
-      // Front cement strip
-      const topCementFrontGeo = new THREE.PlaneGeometry(actualWallWidth, cementThickness);
-      topCementFrontGeo.translate(0, topCementY, halfWallLength);
-      cementGeometries.push(topCementFrontGeo);
+    // Calculate Y positions
+    // Row is centered at brick center (y=0)
+    const brickCapY = 0;
+    const cementCapY = blockHeight / 2 + cementThickness / 2;
 
-      // Back cement strip (flipped normals)
-      const topCementBackGeo = new THREE.PlaneGeometry(actualWallWidth, cementThickness);
-      topCementBackGeo.rotateY(Math.PI);
-      topCementBackGeo.translate(0, topCementY, -halfWallLength);
-      cementGeometries.push(topCementBackGeo);
+    // === LEFT SIDE ===
 
-      // Top connecting plane for horizontal cement
-      const topCementTopGeo = new THREE.PlaneGeometry(actualWallWidth, wallLength);
-      topCementTopGeo.rotateX(-Math.PI / 2);
-      topCementTopGeo.translate(0, yTopCement, 0);
-      cementGeometries.push(topCementTopGeo);
-    }
+    // Left Brick Cap
+    const leftBrickCap = new THREE.Mesh(brickCapGeo, materials[0]); // Brick material
+    leftBrickCap.rotation.y = -Math.PI / 2;
+    leftBrickCap.position.set(-halfRowWidth, brickCapY, 0);
+    leftBrickCap.castShadow = true;
+    leftBrickCap.receiveShadow = true;
+    leftBrickCap.name = 'LeftBrickCap';
+    rowGroup.add(leftBrickCap);
 
-    // Left closing plane (perpendicular) - BEFORE MERGE
-    const leftCapGeo = new THREE.PlaneGeometry(wallLength, yTopRow - yBottom);
-    leftCapGeo.rotateY(Math.PI / 2);
-    leftCapGeo.translate(-halfRowWidth, (yTopRow + yBottom) / 2, 0);
+    // Left Cement Cap
+    const leftCementCap = new THREE.Mesh(cementCapGeo, materials[1]); // Cement material
+    leftCementCap.rotation.y = -Math.PI / 2;
+    leftCementCap.position.set(-halfRowWidth, cementCapY, 0);
+    leftCementCap.castShadow = true;
+    leftCementCap.receiveShadow = true;
+    leftCementCap.name = 'LeftCementCap';
+    rowGroup.add(leftCementCap);
 
-    // Ensure UV2 for left cap
-    if (!leftCapGeo.attributes.uv2) {
-      leftCapGeo.setAttribute('uv2', leftCapGeo.attributes.uv);
-    }
-    blockGeometries.push(leftCapGeo);
+    // === RIGHT SIDE ===
 
-    // Right closing plane (perpendicular) - BEFORE MERGE
-    const rightCapGeo = new THREE.PlaneGeometry(wallLength, yTopRow - yBottom);
-    rightCapGeo.rotateY(-Math.PI / 2);
-    rightCapGeo.translate(halfRowWidth, (yTopRow + yBottom) / 2, 0);
+    // Position: End of the last block's cement
+    const rightCapX = blocksHorizontal * (blockWidth + cementThickness) - halfRowWidth;
 
-    // Ensure UV2 for right cap
-    if (!rightCapGeo.attributes.uv2) {
-      rightCapGeo.setAttribute('uv2', rightCapGeo.attributes.uv);
-    }
-    blockGeometries.push(rightCapGeo);
+    // Right Brick Cap
+    const rightBrickCap = new THREE.Mesh(brickCapGeo, materials[0]); // Brick material
+    rightBrickCap.rotation.y = Math.PI / 2;
+    rightBrickCap.position.set(rightCapX, brickCapY, 0);
+    rightBrickCap.castShadow = true;
+    rightBrickCap.receiveShadow = true;
+    rightBrickCap.name = 'RightBrickCap';
+    rowGroup.add(rightBrickCap);
 
-    // Ensure all cement geometries have UV2
-    cementGeometries.forEach(geo => {
-      if (!geo.attributes.uv2) {
-        geo.setAttribute('uv2', geo.attributes.uv);
-      }
-    });
+    // Right Cement Cap
+    const rightCementCap = new THREE.Mesh(cementCapGeo, materials[1]); // Cement material
+    rightCementCap.rotation.y = Math.PI / 2;
+    rightCementCap.position.set(rightCapX, cementCapY, 0);
+    rightCementCap.castShadow = true;
+    rightCementCap.receiveShadow = true;
+    rightCementCap.name = 'RightCementCap';
+    rowGroup.add(rightCementCap);
 
-    // Calculate index counts BEFORE merging
-    const blockIndexCount = blockGeometries.reduce((sum, geo) => sum + (geo.index?.count || 0), 0);
-    const cementIndexCount = cementGeometries.reduce((sum, geo) => sum + (geo.index?.count || 0), 0);
-
-    // Merge all geometries
-    const mergedGeo = BufferGeometryUtils.mergeGeometries([
-      ...blockGeometries,
-      ...cementGeometries
-    ]);
-
-    if (!mergedGeo) {
-      throw new Error('Failed to merge geometries in createRow');
-    }
-
-    // Merge vertices to weld edges
-    const weldedGeo = BufferGeometryUtils.mergeVertices(mergedGeo);
-
-    // Set material groups
-    weldedGeo.clearGroups();
-    weldedGeo.addGroup(0, blockIndexCount, 0); // Material index 0: Blocks
-    weldedGeo.addGroup(blockIndexCount, cementIndexCount, 1); // Material index 1: Cement
-
-    return weldedGeo;
+    return rowGroup;
   }
 
   // Removed createRowSideMesh as it is now integrated

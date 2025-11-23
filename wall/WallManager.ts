@@ -105,28 +105,35 @@ export class WallManager {
 
     // Generate Rows
     for (let row = 0; row < rowsToShow; row++) {
-      const isLastRow = row === rowsToShow - 1;
-
       // Calculate Y position for this row
       // Align to bottom of the wall (target height)
       // Start at -wallHeight/2
       const rowY = -wallHeight / 2 + row * (blockHeight + cementThickness) + (blockHeight / 2);
 
-      // Create Row (Single Watertight Mesh)
-      const rowGeometry = RowGenerator.createRow(
+      // Create Row (Group of Blocks)
+      const rowGroup = RowGenerator.createRow(
         this.blockGenerator,
         actualWallWidth,
         wallLength,
         blockWidth,
         blockHeight,
-        cementThickness,
-        isLastRow,
-        false // unused
+        cementThickness
       );
 
-      // Translate to correct Y position
-      rowGeometry.translate(0, rowY, 0);
-      allRowGeometries.push(rowGeometry);
+      // Extract geometries from the row group and position them
+      rowGroup.children.forEach(child => {
+        if (child instanceof THREE.Mesh) {
+          const blockGeo = child.geometry.clone();
+
+          // Apply block's local position (within the row)
+          blockGeo.translate(child.position.x, child.position.y, child.position.z);
+
+          // Apply row's Y position (within the wall)
+          blockGeo.translate(0, rowY, 0);
+
+          allRowGeometries.push(blockGeo);
+        }
+      });
     }
 
     // Create top and bottom caps for the wall

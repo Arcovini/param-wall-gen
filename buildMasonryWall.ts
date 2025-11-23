@@ -15,11 +15,80 @@ import { WallManager } from './wall/WallManager';
 import { OpeningGenerator } from './OpeningGenerator';
 import { InfillGenerator } from './InfillGenerator';
 import { LintelGenerator } from './LintelGenerator';
-import { Brush, Evaluator, SUBTRACTION, ADDITION } from 'three-bvh-csg';
+import { Brush, Evaluator, SUBTRACTION } from 'three-bvh-csg';
 
 // Create a single instance of WallManager to reuse resources (textures, materials)
 // This significantly improves performance by avoiding recompilation/reloading on every update
 const generator = new WallManager();
+
+/**
+ * Helper: Calculate Y bounds for a specific row
+ */
+function getRowBounds(
+  rowIndex: number,
+  wallHeight: number,
+  blockHeight: number,
+  cementThickness: number
+): { minY: number; maxY: number } {
+  const rowHeight = blockHeight + cementThickness;
+  const rowCenterY = -wallHeight / 2 + rowIndex * rowHeight + blockHeight / 2;
+
+  return {
+    minY: rowCenterY - (rowHeight / 2),
+    maxY: rowCenterY + (rowHeight / 2)
+  };
+}
+
+/**
+ * Helper: Get array of row indices that intersect with an opening
+ */
+function getRowsIntersectingOpening(
+  opening: { placement: { position: { y: number } }, size: { h: number } },
+  wallHeight: number,
+  blockHeight: number,
+  cementThickness: number,
+  totalRows: number
+): number[] {
+  const openingBottomY = opening.placement.position.y - opening.size.h / 2;
+  const openingTopY = opening.placement.position.y + opening.size.h / 2;
+
+  const rowHeight = blockHeight + cementThickness;
+  const intersectingRows: number[] = [];
+
+  for (let rowIndex = 0; rowIndex < totalRows; rowIndex++) {
+    const rowBounds = getRowBounds(rowIndex, wallHeight, blockHeight, cementThickness);
+
+    // Check if opening intersects this row
+    const intersects = !(openingBottomY >= rowBounds.maxY || openingTopY <= rowBounds.minY);
+
+    if (intersects) {
+      intersectingRows.push(rowIndex);
+    }
+  }
+
+  return intersectingRows;
+}
+
+/**
+ * Helper: Filter openings that intersect a specific row
+ */
+function getOpeningsForRow<T extends { placement: { position: { x: number; y: number; z: number } }, size: { h: number } }>(
+  rowIndex: number,
+  openings: T[],
+  wallHeight: number,
+  blockHeight: number,
+  cementThickness: number
+): T[] {
+  const rowBounds = getRowBounds(rowIndex, wallHeight, blockHeight, cementThickness);
+
+  return openings.filter(opening => {
+    const openingBottomY = opening.placement.position.y - opening.size.h / 2;
+    const openingTopY = opening.placement.position.y + opening.size.h / 2;
+
+    // Check if opening intersects this row
+    return !(openingBottomY >= rowBounds.maxY || openingTopY <= rowBounds.minY);
+  });
+}
 
 /**
  * Generates a masonry wall based on the provided parameters.
@@ -103,8 +172,15 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
     const wallHalfHeight = wallHeight / 2;
     const wallHalfLength = wallLength / 2;
 
-    // 1. Create a combined brush for all subtractions (openings + lintels)
-    let combinedSubtractionBrush: Brush | null = null;
+    // 1. Create opening meshes and store them with their data
+    type OpeningData = {
+      opening: typeof openings[0];
+      mesh: THREE.Mesh;
+      lintelMesh: THREE.Mesh | null;
+      intersectsWall: boolean;
+    };
+
+    const openingDataList: OpeningData[] = [];
 
     openings.forEach(opening => {
       const openingMesh = openingGenerator.createOpeningMesh(opening);
@@ -124,22 +200,7 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
         Math.abs(openingY) < (wallHalfHeight + openingHalfHeight) &&
         Math.abs(openingZ) < (wallHalfLength + openingHalfDepth);
 
-      if (intersects) {
-        // Create a Brush from the opening mesh
-        const openingBrush = new Brush(openingMesh.geometry, openingMesh.material);
-        openingBrush.position.copy(openingMesh.position);
-        openingBrush.rotation.copy(openingMesh.rotation);
-        openingBrush.scale.copy(openingMesh.scale);
-        openingBrush.updateMatrixWorld();
-
-        if (!combinedSubtractionBrush) {
-          // For the first subtraction, normalize it through an ADDITION with itself
-          combinedSubtractionBrush = evaluator.evaluate(openingBrush, openingBrush, ADDITION);
-        } else {
-          // Union with existing subtractions
-          combinedSubtractionBrush = evaluator.evaluate(combinedSubtractionBrush, openingBrush, ADDITION);
-        }
-      } else {
+      if (!intersects) {
         console.warn('Opening is outside wall bounds, skipping CSG operation:', opening.placement.position);
       }
 
@@ -162,106 +223,154 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
         wallLength,
         blockHeight,
         blockWidth,
-        wallGroup.userData.actualWallHeight || wallHeight // Pass current wall height
+        wallGroup.userData.actualWallHeight || wallHeight
       );
 
       if (lintelMesh) {
         wallGroup.add(lintelMesh);
-
-        // Add Lintel to CSG subtraction
-        const lintelBrush = new Brush(lintelMesh.geometry, lintelMesh.material);
-        lintelBrush.position.copy(lintelMesh.position);
-        lintelBrush.rotation.copy(lintelMesh.rotation);
-        lintelBrush.scale.copy(lintelMesh.scale);
-        lintelBrush.updateMatrixWorld();
-
-        if (!combinedSubtractionBrush) {
-          combinedSubtractionBrush = evaluator.evaluate(lintelBrush, lintelBrush, ADDITION);
-        } else {
-          combinedSubtractionBrush = evaluator.evaluate(combinedSubtractionBrush, lintelBrush, ADDITION);
-        }
       }
+
+      openingDataList.push({
+        opening,
+        mesh: openingMesh,
+        lintelMesh,
+        intersectsWall: intersects
+      });
     });
 
-    // 2. Subtract combined brush from wall mesh
-    if (combinedSubtractionBrush) {
-      const wallMesh = wallGroup.getObjectByName("WallMesh") as THREE.Mesh;
+    // Create a map for fast opening lookup
+    const openingMap = new Map<typeof openings[0], OpeningData>();
+    openingDataList.forEach(data => {
+      openingMap.set(data.opening, data);
+    });
 
-      if (wallMesh) {
-        try {
-          console.log("Starting CSG Subtraction...");
-          // Store original geometry to restore if CSG fails
-          const originalGeometry = wallMesh.geometry.clone();
+    // 2. Find all row meshes
+    const rowMeshes = wallGroup.children.filter(
+      child => child instanceof THREE.Mesh && child.name.startsWith("RowMesh_")
+    ) as THREE.Mesh[];
 
-          const wallBrush = new Brush(wallMesh.geometry, wallMesh.material);
-          wallBrush.updateMatrixWorld();
+    console.log(`Starting per-row CSG: ${rowMeshes.length} rows, ${openingDataList.length} openings`);
 
-          // Set subtraction brush material to match blocks (or main material)
-          let blockMaterial: THREE.Material;
-          if (Array.isArray(wallMesh.material) && wallMesh.material.length > 0) {
-            blockMaterial = wallMesh.material[0];
-          } else if (wallMesh.material instanceof THREE.Material) {
-            blockMaterial = wallMesh.material;
-          } else {
-            // Fallback
-            blockMaterial = new THREE.MeshStandardMaterial({ color: 0x888888 });
-          }
+    // 3. For each row, perform CSG with relevant openings
+    rowMeshes.forEach((rowMesh, rowIndex) => {
+      // Find openings that intersect this row
+      const openingsForThisRow = getOpeningsForRow(
+        rowIndex,
+        openings,
+        wallHeight,
+        blockHeight,
+        cementThickness
+      );
 
-          (combinedSubtractionBrush as Brush).material = blockMaterial;
-
-          console.log("WallBrush Attributes:", Object.keys(wallBrush.geometry.attributes));
-          console.log("SubtractionBrush Attributes:", Object.keys((combinedSubtractionBrush as Brush).geometry.attributes));
-
-          // Check for position specifically
-          if (!wallBrush.geometry.attributes.position) console.error("WallBrush missing position!");
-          if (!(combinedSubtractionBrush as Brush).geometry.attributes.position) console.error("SubtractionBrush missing position!");
-
-          const result = evaluator.evaluate(wallBrush, combinedSubtractionBrush as Brush, SUBTRACTION);
-          console.log("CSG Subtraction complete. Result geometry groups:", result.geometry.groups);
-
-          // Validate the result geometry
-          if (!result || !result.geometry || result.geometry.attributes.position.count === 0) {
-            console.error("CSG operation resulted in empty or invalid geometry. Restoring original wall.");
-            wallMesh.geometry.dispose();
-            wallMesh.geometry = originalGeometry; // Restore original geometry
-          } else {
-            // Validate result has correct material groups
-            const hasValidGroups = result.geometry.groups && result.geometry.groups.length >= 2;
-            const hasCementGroup = result.geometry.groups.some(g => g.materialIndex === 1 && g.count > 0);
-
-            if (hasValidGroups && hasCementGroup) {
-              // Result is valid, apply it
-              wallMesh.geometry.dispose();
-              wallMesh.geometry = result.geometry;
-              console.log("CSG result applied successfully");
-            } else {
-              // Result is corrupted, restore original
-              console.warn("CSG result is corrupted (missing cement material group), restoring original geometry");
-              result.geometry.dispose();
-              // Keep original geometry (don't replace)
-            }
-
-            // Clean up the clone if we didn't need it
-            if (wallMesh.geometry !== originalGeometry) {
-              originalGeometry.dispose();
-            }
-          }
-
-          // Re-assign materials if needed
-          // The result mesh usually has materials set by the evaluator, but here we are just swapping geometry
-          // on the existing mesh. The existing mesh has [Block, Cement].
-          // The result geometry will have groups pointing to 0 and 1 (if we are lucky) or maybe more.
-          // Since combinedOpeningBrush uses blockMaterial (which is index 0), the new faces should use index 0.
-          // We need to ensure the mesh keeps its multi-material array.
-
-        } catch (error) {
-          console.error("CSG Operation failed:", error);
-          // Continue without subtraction to avoid crashing the app
-        }
-      } else {
-        console.warn("WallMesh not found for CSG");
+      if (openingsForThisRow.length === 0) {
+        return; // Skip rows with no openings
       }
-    }
+
+      console.log(`Row ${rowIndex}: Processing ${openingsForThisRow.length} intersecting opening(s)`);
+
+      // Store original geometry to restore if CSG fails
+      const originalGeometry = rowMesh.geometry.clone();
+      let currentGeometry = originalGeometry;
+      let csgApplied = false;
+      let isFirstIteration = true;
+
+      // Iterate over openings and subtract each one individually
+      openingsForThisRow.forEach(opening => {
+        const openingData = openingMap.get(opening);
+
+        if (!openingData || !openingData.intersectsWall) {
+          return;
+        }
+
+        try {
+          // Create row brush from current geometry
+          const rowBrush = new Brush(currentGeometry, rowMesh.material);
+
+          // Only apply position on first iteration (original geometry in local space)
+          // After first CSG, geometry is in world space - use identity transform
+          if (isFirstIteration) {
+            rowBrush.position.copy(rowMesh.position);
+            rowBrush.rotation.copy(rowMesh.rotation);
+            rowBrush.scale.copy(rowMesh.scale);
+          } else {
+            rowBrush.position.set(0, 0, 0);
+            rowBrush.rotation.set(0, 0, 0);
+            rowBrush.scale.set(1, 1, 1);
+          }
+          rowBrush.updateMatrixWorld();
+
+          // Subtract opening
+          const openingBrush = new Brush(openingData.mesh.geometry, openingData.mesh.material);
+          openingBrush.position.copy(openingData.mesh.position);
+          openingBrush.rotation.copy(openingData.mesh.rotation);
+          openingBrush.scale.copy(openingData.mesh.scale);
+          openingBrush.updateMatrixWorld();
+
+          let result = evaluator.evaluate(rowBrush, openingBrush, SUBTRACTION);
+
+          // Subtract lintel if it exists
+          if (openingData.lintelMesh && result && result.geometry) {
+            const lintelBrush = new Brush(openingData.lintelMesh.geometry, openingData.lintelMesh.material);
+            lintelBrush.position.copy(openingData.lintelMesh.position);
+            lintelBrush.rotation.copy(openingData.lintelMesh.rotation);
+            lintelBrush.scale.copy(openingData.lintelMesh.scale);
+            lintelBrush.updateMatrixWorld();
+
+            // Result from previous CSG is in world space - use identity transform
+            const tempBrush = new Brush(result.geometry, rowMesh.material);
+            tempBrush.position.set(0, 0, 0);
+            tempBrush.rotation.set(0, 0, 0);
+            tempBrush.scale.set(1, 1, 1);
+            tempBrush.updateMatrixWorld();
+
+            result = evaluator.evaluate(tempBrush, lintelBrush, SUBTRACTION);
+          }
+
+          // Validate and update current geometry
+          if (result && result.geometry && result.geometry.attributes.position.count > 0) {
+            const hasValidGroups = result.geometry.groups && result.geometry.groups.length >= 1;
+            const hasAnyFaces = result.geometry.groups.some(g => g.count > 0);
+
+            if (hasValidGroups && hasAnyFaces) {
+              // Dispose previous iteration's geometry (but not original)
+              if (!isFirstIteration && currentGeometry !== originalGeometry) {
+                currentGeometry.dispose();
+              }
+              currentGeometry = result.geometry;
+              csgApplied = true;
+              isFirstIteration = false;  // Subsequent iterations use world-space geometry
+              console.log(`Row ${rowIndex}: Applied opening successfully`);
+            }
+          }
+        } catch (error) {
+          console.error(`Row ${rowIndex}: Failed to subtract opening:`, error);
+        }
+      });
+
+      // Apply final geometry if any CSG was successful
+      if (csgApplied) {
+        rowMesh.geometry.dispose();
+        rowMesh.geometry = currentGeometry;
+
+        // CSG result is in world space - reset transform to identity
+        rowMesh.position.set(0, 0, 0);
+        rowMesh.rotation.set(0, 0, 0);
+        rowMesh.scale.set(1, 1, 1);
+        rowMesh.updateMatrix();
+
+        console.log(`Row ${rowIndex}: All CSG operations completed successfully`);
+      } else {
+        // No CSG applied, clean up
+        if (currentGeometry !== originalGeometry) {
+          currentGeometry.dispose();
+        }
+      }
+
+      // Always dispose the original clone if we didn't use it
+      if (rowMesh.geometry !== originalGeometry) {
+        originalGeometry.dispose();
+      }
+    });
   }
 
   // We can dispose the generator's material if we don't cache it, 

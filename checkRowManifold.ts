@@ -17,7 +17,7 @@ export function checkRowManifold() {
   const cementThickness = 0.01;
   const actualWallWidth = 0.2; // Assuming same as block width for now
 
-  const rowGroup = RowGenerator.createRow(
+  const rowMesh = RowGenerator.createRow(
     blockGenerator,
     actualWallWidth,
     wallLength,
@@ -26,13 +26,15 @@ export function checkRowManifold() {
     cementThickness
   );
 
-  console.log('Row Group created:', rowGroup);
+  console.log('Row Mesh created:', rowMesh);
 
-  const mergedGeo = GeometryUtils.mergeGroupGeometries(rowGroup);
+  // RowGenerator.createRow() now returns a single welded mesh, not a group
+  // So we can use its geometry directly
+  const rowGeometry = rowMesh.geometry;
 
-  if (mergedGeo) {
-    console.log('Merged Geometry:', mergedGeo);
-    const result = GeometryUtils.isManifold(mergedGeo);
+  if (rowGeometry) {
+    console.log('Row Geometry:', rowGeometry);
+    const result = GeometryUtils.isManifold(rowGeometry);
     console.log('Manifold Check Result:', result);
 
     if (result.isManifold) {

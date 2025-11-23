@@ -125,8 +125,9 @@ export class WallManager {
         if (child instanceof THREE.Mesh) {
           const blockGeo = child.geometry.clone();
 
-          // Apply block's local position (within the row)
-          blockGeo.translate(child.position.x, child.position.y, child.position.z);
+          // Apply block's local transformation (position, rotation, scale)
+          child.updateMatrix();
+          blockGeo.applyMatrix4(child.matrix);
 
           // Apply row's Y position (within the wall)
           blockGeo.translate(0, rowY, 0);

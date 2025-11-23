@@ -27,8 +27,7 @@ export class BlockGenerator {
     width: number,
     height: number,
     depth: number,
-    cementThickness: number = 0,
-    closeRightSide: boolean = true
+    cementThickness: number = 0
   ): THREE.BufferGeometry {
     const halfWidth = width / 2;
     const halfDepth = depth / 2;
@@ -107,13 +106,7 @@ export class BlockGenerator {
       backVertCementGeo.translate(xRight + cementThickness / 2, yBottom + halfBrickHeight, -halfDepth);
       cementGeometries.push(backVertCementGeo);
 
-      if (closeRightSide) {
-        // Right face - Vertical cement (perpendicular)
-        const rightVertCementGeo = new THREE.PlaneGeometry(depth, height);
-        rightVertCementGeo.rotateY(-Math.PI / 2);
-        rightVertCementGeo.translate(xRightCement, yBottom + halfBrickHeight, 0);
-        cementGeometries.push(rightVertCementGeo);
-      }
+
 
       // === CORNER (where horizontal and vertical cement meet) ===
 
@@ -128,13 +121,7 @@ export class BlockGenerator {
       backCornerGeo.translate(xRight + cementThickness / 2, yTopBrick + cementThickness / 2, -halfDepth);
       cementGeometries.push(backCornerGeo);
 
-      if (closeRightSide) {
-        // Right face - Corner (perpendicular)
-        const rightCornerGeo = new THREE.PlaneGeometry(depth, cementThickness);
-        rightCornerGeo.rotateY(-Math.PI / 2);
-        rightCornerGeo.translate(xRightCement, yTopBrick + cementThickness / 2, 0);
-        cementGeometries.push(rightCornerGeo);
-      }
+
 
       // Top face - Corner (horizontal)
       const topCornerGeo = new THREE.PlaneGeometry(cementThickness, depth);

@@ -68,7 +68,7 @@ export class RowGenerator {
 
     // Create block geometry once for the entire row (performance optimization)
     // Pass false for closeRightSide to avoid internal perpendicular faces
-    const blockGeo = blockGenerator.createBlockGeometry(blockWidth, blockHeight, wallLength, cementThickness, false);
+    const blockGeo = blockGenerator.createBlockGeometry(blockWidth, blockHeight, wallLength, cementThickness);
 
     // Get materials
     const materials = [

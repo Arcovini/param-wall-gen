@@ -225,10 +225,23 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
         wallLength,
         blockHeight,
         blockWidth,
-        wallGroup.userData.actualWallHeight || wallHeight
+        wallGroup.userData.actualWallHeight || wallHeight,
+        cementThickness
       );
 
       if (lintelMesh) {
+        // Explicitly align lintel with opening mesh to ensure horizontal centering
+        // This overrides any potential discrepancy in LintelGenerator's positioning
+        lintelMesh.position.x = openingMesh.position.x;
+        lintelMesh.position.z = openingMesh.position.z;
+
+        // Ensure vertical positioning is correct (bottom of lintel at top of opening)
+        // openingTopY is openingY + size.h / 2
+        // Add cementThickness to account for the mortar joint between opening and lintel
+        const openingTopY = opening.placement.position.y + opening.size.h / 2;
+        const lintelHeight = (lintelMesh.geometry as THREE.BoxGeometry).parameters.height;
+        lintelMesh.position.y = openingTopY + cementThickness + lintelHeight;
+
         wallGroup.add(lintelMesh);
       }
 
@@ -238,6 +251,14 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
         lintelMesh,
         intersectsWall: intersects
       });
+
+      console.log(`[Debug] Opening ${openingDataList.length}:
+        Pos: (${opening.placement.position.x}, ${opening.placement.position.y}, ${opening.placement.position.z})
+        Size: ${opening.size.l}x${opening.size.h}x${opening.size.w}
+        Mesh Pos: (${openingMesh.position.x}, ${openingMesh.position.y}, ${openingMesh.position.z})
+        Lintel Pos: ${lintelMesh ? `(${lintelMesh.position.x}, ${lintelMesh.position.y}, ${lintelMesh.position.z})` : 'N/A'}
+        Lintel Width: ${lintelMesh ? (lintelMesh.geometry as THREE.BoxGeometry).parameters.width : 'N/A'}
+      `);
     });
 
     // Create a map for fast opening lookup
@@ -679,12 +700,23 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
 
     // 6. Intersect infill and lintels with actual wall bounds
     // This ensures they only exist where the actual wall material exists
-    const actualWallWidth = wallGroup.userData.actualWallWidth || wallWidth;
+
+    // Recalculate actual wall width to ensure we have the precise masonry dimensions
+    // independent of userData which might be stale or missing
+    const blocksHorizontal = Math.floor(wallWidth / (blockWidth + cementThickness));
+    const calculatedActualWidth = blocksHorizontal > 0
+      ? blocksHorizontal * blockWidth + (blocksHorizontal - 1) * cementThickness
+      : 0;
+
+    const actualWallWidth = calculatedActualWidth;
     const actualWallHeight = wallGroup.userData.actualWallHeight || wallHeight;
 
     if (actualWallWidth > 0 && actualWallHeight > 0) {
+      console.log(`[buildMasonryWall] Intersecting with Actual Wall: ${actualWallWidth}x${actualWallHeight}`);
+
       // Create a box geometry representing the actual wall bounds
-      const actualWallGeometry = new THREE.BoxGeometry(actualWallWidth, actualWallHeight, wallLength);
+      // Make it slightly deeper (1.2x) to ensure clean intersection with lintels in Z-axis
+      const actualWallGeometry = new THREE.BoxGeometry(actualWallWidth, actualWallHeight, wallLength * 1.2);
       const actualWallMaterial = new THREE.MeshBasicMaterial();
 
       // Position at the bottom of the wall (same as row positioning)

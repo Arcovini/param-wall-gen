@@ -19,6 +19,8 @@ export class LintelGenerator {
    * @param wallLength The depth/thickness of the wall
    * @param blockHeight The height of a single block
    * @param blockWidth The width (length) of a single block
+   * @param currentWallHeight The current height of the constructed wall
+   * @param cementThickness The thickness of cement joints
    * @returns A THREE.Mesh representing the lintel, or null if not needed
    */
   createLintel(
@@ -27,7 +29,8 @@ export class LintelGenerator {
     wallLength: number,
     blockHeight: number,
     blockWidth: number,
-    currentWallHeight: number
+    currentWallHeight: number,
+    cementThickness: number
   ): THREE.Mesh | null {
     const openingHeight = opening.size.h;
     const openingWidth = opening.size.l;
@@ -71,16 +74,16 @@ export class LintelGenerator {
 
     // Ensure uv2 exists for consistency
     if (!geometry.attributes.uv2) {
-      geometry.setAttribute('uv2', geometry.attributes.uv);
+      geometry.setAttribute('uv2', geometry.attributes.uv.clone());
     }
 
     const mesh = new THREE.Mesh(geometry, MaterialManager.getInstance().getLintelMaterial());
 
     // Position
     // Centered horizontally relative to opening -> same X and Z as opening
-    // Vertically immediately over the opening
-    // Lintel center Y = Opening Top Y + Lintel Height / 2
-    const lintelY = openingTopY + lintelHeight / 2;
+    // Vertically immediately over the opening with cement joint
+    // Lintel center Y = Opening Top Y + Cement Thickness + Lintel Height
+    const lintelY = openingTopY + cementThickness + lintelHeight;
 
     mesh.position.set(
       opening.placement.position.x,

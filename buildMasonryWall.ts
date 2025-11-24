@@ -522,7 +522,27 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
 
     console.log(`Starting per-row CSG: ${rowMeshes.length} rows, ${openingDataList.length} openings`);
 
-    // 5. For each row, perform CSG with relevant openings
+    // Calculate actual wall dimensions for horizontal cutting
+    const blocksHorizontal = Math.floor(wallWidth / (blockWidth + cementThickness));
+    const calculatedActualWidth = blocksHorizontal > 0
+      ? blocksHorizontal * blockWidth + (blocksHorizontal - 1) * cementThickness
+      : 0;
+    const actualWallWidth = wallGroup.userData.actualWallWidth || calculatedActualWidth;
+    const actualWallHeight = wallGroup.userData.actualWallHeight || wallHeight;
+
+    // Create actualWall box for horizontal cutting (reused for all rows)
+    const actualWallGeometry = new THREE.BoxGeometry(actualWallWidth, actualWallHeight, wallLength * 1.2);
+    const actualWallMaterial = new THREE.MeshBasicMaterial();
+    const actualWallY = -wallHeight / 2 + actualWallHeight / 2;
+
+    // Ensure uv2 exists on actualWall geometry for CSG
+    if (!actualWallGeometry.attributes.uv2 && actualWallGeometry.attributes.uv) {
+      actualWallGeometry.setAttribute('uv2', actualWallGeometry.attributes.uv.clone());
+    }
+
+    console.log(`[buildMasonryWall] Actual wall bounds for horizontal cutting: ${actualWallWidth}x${actualWallHeight}`);
+
+    // 5. For each row, perform CSG with relevant openings and actualWall intersection
     rowMeshes.forEach((rowMesh, rowIndex) => {
       // Find openings that intersect this row
       const openingsForThisRow = getOpeningsForRow(
@@ -533,20 +553,18 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
         cementThickness
       );
 
-      if (openingsForThisRow.length === 0) {
-        return; // Skip rows with no openings
-      }
-
-      console.log(`Row ${rowIndex}: Processing ${openingsForThisRow.length} intersecting opening(s)`);
-
       // Store original geometry to restore if CSG fails
       const originalGeometry = rowMesh.geometry.clone();
       let currentGeometry = originalGeometry;
       let csgApplied = false;
       let isFirstIteration = true;
 
-      // Iterate over openings and subtract each one individually
-      openingsForThisRow.forEach(opening => {
+      // Process opening subtractions if any exist
+      if (openingsForThisRow.length > 0) {
+        console.log(`Row ${rowIndex}: Processing ${openingsForThisRow.length} intersecting opening(s)`);
+
+        // Iterate over openings and subtract each one individually
+        openingsForThisRow.forEach(opening => {
         const openingData = openingMap.get(opening);
 
         if (!openingData || !openingData.intersectsWall) {
@@ -718,6 +736,71 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
           }
         });
       }
+      } // End of if (openingsForThisRow.length > 0)
+
+      // Apply actualWall INTERSECTION to cut sides and create caps
+      // This ensures the row is horizontally bounded to actualWallWidth with cement-capped edges
+      if (actualWallWidth > 0 && actualWallHeight > 0) {
+        try {
+          console.log(`Row ${rowIndex}: Applying horizontal cut with actualWall bounds`);
+
+          // Prepare row brush (geometry may be in world space if CSG was already applied)
+          const rowBrush = new Brush(currentGeometry, rowMesh.material);
+
+          if (isFirstIteration) {
+            rowBrush.position.copy(rowMesh.position);
+            rowBrush.rotation.copy(rowMesh.rotation);
+            rowBrush.scale.copy(rowMesh.scale);
+          } else {
+            rowBrush.position.set(0, 0, 0);
+            rowBrush.rotation.set(0, 0, 0);
+            rowBrush.scale.set(1, 1, 1);
+          }
+          rowBrush.updateMatrixWorld();
+
+          // Create actualWall brush
+          const wallBrush = new Brush(actualWallGeometry, actualWallMaterial);
+          wallBrush.position.set(0, actualWallY, 0);
+          wallBrush.updateMatrixWorld();
+
+          // Perform INTERSECTION to cut row to exact wall bounds
+          const result = evaluator.evaluate(rowBrush, wallBrush, INTERSECTION);
+
+          // Post-CSG cleanup for intersection
+          if (result && result.geometry && result.geometry.attributes.position.count > 0) {
+            // SKIP mergeVertices to preserve material groups (brick/cement)
+            // The CSG result creates boundary faces that need material remapping
+
+            // Remap new boundary faces (index 2) to Cement (index 1)
+            // The wallBrush adds a new material group at the end (index 2)
+            if (result.geometry.groups) {
+              result.geometry.groups.forEach(group => {
+                if (group.materialIndex === 2) {
+                  group.materialIndex = 1; // Set to Cement for capped edges
+                }
+              });
+            }
+
+            // Ensure uv2 exists for proper rendering
+            if (!result.geometry.attributes.uv2 && result.geometry.attributes.uv) {
+              result.geometry.setAttribute('uv2', result.geometry.attributes.uv.clone());
+            }
+
+            result.geometry.computeVertexNormals();
+
+            // Update geometry
+            if (!isFirstIteration && currentGeometry !== originalGeometry) {
+              currentGeometry.dispose();
+            }
+            currentGeometry = result.geometry;
+            csgApplied = true;
+            isFirstIteration = false;
+            console.log(`Row ${rowIndex}: Applied horizontal cut with cement caps successfully`);
+          }
+        } catch (error) {
+          console.error(`Row ${rowIndex}: Failed to apply actualWall intersection:`, error);
+        }
+      }
 
       // Apply final geometry if any CSG was successful
       if (csgApplied) {
@@ -746,27 +829,10 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
 
     // 6. Intersect infill and lintels with actual wall bounds
     // This ensures they only exist where the actual wall material exists
-
-    // Recalculate actual wall width to ensure we have the precise masonry dimensions
-    // independent of userData which might be stale or missing
-    const blocksHorizontal = Math.floor(wallWidth / (blockWidth + cementThickness));
-    const calculatedActualWidth = blocksHorizontal > 0
-      ? blocksHorizontal * blockWidth + (blocksHorizontal - 1) * cementThickness
-      : 0;
-
-    const actualWallWidth = calculatedActualWidth;
-    const actualWallHeight = wallGroup.userData.actualWallHeight || wallHeight;
+    // (actualWallWidth, actualWallHeight, actualWallGeometry, actualWallY already declared above)
 
     if (actualWallWidth > 0 && actualWallHeight > 0) {
       console.log(`[buildMasonryWall] Intersecting with Actual Wall: ${actualWallWidth}x${actualWallHeight}`);
-
-      // Create a box geometry representing the actual wall bounds
-      // Make it slightly deeper (1.2x) to ensure clean intersection with lintels in Z-axis
-      const actualWallGeometry = new THREE.BoxGeometry(actualWallWidth, actualWallHeight, wallLength * 1.2);
-      const actualWallMaterial = new THREE.MeshBasicMaterial();
-
-      // Position at the bottom of the wall (same as row positioning)
-      const actualWallY = -wallHeight / 2 + actualWallHeight / 2;
 
       // 6a. Intersect infill with actual wall
       if (infillMesh && infillMesh.geometry.attributes.position.count > 0) {
@@ -869,6 +935,103 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
       }
 
       // Clean up the temporary actual wall geometry
+      actualWallGeometry.dispose();
+    }
+  } else {
+    // No openings - still need to apply actualWall intersection to all rows
+    // This cuts the expanded rows to exact wall dimensions with cement caps
+
+    const evaluator = new Evaluator();
+    evaluator.attributes = ['position', 'normal', 'uv', 'uv2'];
+    evaluator.useGroups = true;
+
+    // Get all row meshes from the wall group
+    const rowMeshes = wallGroup.children.filter(
+      child => child instanceof THREE.Mesh && child.name?.startsWith('RowMesh')
+    ) as THREE.Mesh[];
+
+    // Calculate actual wall dimensions
+    const blocksHorizontal = Math.floor(wallWidth / (blockWidth + cementThickness));
+    const calculatedActualWidth = blocksHorizontal > 0
+      ? blocksHorizontal * blockWidth + (blocksHorizontal - 1) * cementThickness
+      : 0;
+    const actualWallWidth = wallGroup.userData.actualWallWidth || calculatedActualWidth;
+    const actualWallHeight = wallGroup.userData.actualWallHeight || wallHeight;
+
+    if (rowMeshes.length > 0 && actualWallWidth > 0 && actualWallHeight > 0) {
+      console.log(`[buildMasonryWall] No openings - applying horizontal cut to ${rowMeshes.length} rows`);
+
+      // Create actualWall box for horizontal cutting
+      const actualWallGeometry = new THREE.BoxGeometry(actualWallWidth, actualWallHeight, wallLength * 1.2);
+      const actualWallMaterial = new THREE.MeshBasicMaterial();
+      const actualWallY = -wallHeight / 2 + actualWallHeight / 2;
+
+      // Ensure uv2 exists on actualWall geometry
+      if (!actualWallGeometry.attributes.uv2 && actualWallGeometry.attributes.uv) {
+        actualWallGeometry.setAttribute('uv2', actualWallGeometry.attributes.uv.clone());
+      }
+
+      rowMeshes.forEach((rowMesh, rowIndex) => {
+        if (!rowMesh || rowMesh.geometry.attributes.position.count === 0) {
+          return;
+        }
+
+        // Ensure uv2 exists before CSG
+        if (!rowMesh.geometry.attributes.uv2 && rowMesh.geometry.attributes.uv) {
+          rowMesh.geometry.setAttribute('uv2', rowMesh.geometry.attributes.uv.clone());
+        }
+
+        try {
+          console.log(`Row ${rowIndex}: Applying horizontal cut with actualWall bounds`);
+
+          const rowBrush = new Brush(rowMesh.geometry, rowMesh.material);
+          rowBrush.position.copy(rowMesh.position);
+          rowBrush.rotation.copy(rowMesh.rotation);
+          rowBrush.scale.copy(rowMesh.scale);
+          rowBrush.updateMatrixWorld();
+
+          const wallBrush = new Brush(actualWallGeometry, actualWallMaterial);
+          wallBrush.position.set(0, actualWallY, 0);
+          wallBrush.updateMatrixWorld();
+
+          const result = evaluator.evaluate(rowBrush, wallBrush, INTERSECTION);
+
+          if (result && result.geometry && result.geometry.attributes.position.count > 0) {
+            // SKIP mergeVertices to preserve material groups (brick/cement)
+
+            // Remap new boundary faces (index 2) to Cement (index 1)
+            if (result.geometry.groups) {
+              result.geometry.groups.forEach(group => {
+                if (group.materialIndex === 2) {
+                  group.materialIndex = 1; // Set to Cement for capped edges
+                }
+              });
+            }
+
+            // Ensure uv2 exists
+            if (!result.geometry.attributes.uv2 && result.geometry.attributes.uv) {
+              result.geometry.setAttribute('uv2', result.geometry.attributes.uv.clone());
+            }
+
+            result.geometry.computeVertexNormals();
+
+            rowMesh.geometry.dispose();
+            rowMesh.geometry = result.geometry;
+
+            // Result is in world space
+            rowMesh.position.set(0, 0, 0);
+            rowMesh.rotation.set(0, 0, 0);
+            rowMesh.scale.set(1, 1, 1);
+            rowMesh.updateMatrix();
+
+            console.log(`Row ${rowIndex}: Applied horizontal cut with cement caps successfully`);
+          }
+        } catch (error) {
+          console.error(`Row ${rowIndex}: Failed to apply actualWall intersection:`, error);
+        }
+      });
+
+      // Clean up
       actualWallGeometry.dispose();
     }
   }

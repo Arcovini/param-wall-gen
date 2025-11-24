@@ -99,6 +99,12 @@ export class WallManager {
       ? rowsToShow * blockHeight + (rowsToShow - 1) * cementThickness
       : 0;
 
+    // Add extra blocks for horizontal truncation (one on each side)
+    const expandedBlocksHorizontal = blocksHorizontal + 2;
+    const expandedWallWidth = expandedBlocksHorizontal > 0
+      ? expandedBlocksHorizontal * blockWidth + (expandedBlocksHorizontal - 1) * cementThickness
+      : 0;
+
     // Generate Rows - create separate meshes for each row
     for (let row = 0; row < rowsToShow; row++) {
       // Calculate Y position for this row
@@ -107,9 +113,10 @@ export class WallManager {
       const rowY = -wallHeight / 2 + row * (blockHeight + cementThickness) + (blockHeight / 2);
 
       // Create Row (returns a welded mesh with shared vertices)
+      // Use expandedWallWidth to generate extra blocks
       const rowMesh = RowGenerator.createRow(
         this.blockGenerator,
-        actualWallWidth,
+        expandedWallWidth,
         wallLength,
         blockWidth,
         blockHeight,
@@ -130,7 +137,8 @@ export class WallManager {
     applyPlacement(wallGroup, { x: positionX, y: positionY, z: positionZ }, yawDegrees);
 
     // Store calculated dimensions in userData for other generators to use
-    wallGroup.userData.actualWallWidth = actualWallWidth;
+    // Store the TARGET wallWidth as actualWallWidth so buildMasonryWall uses it for intersection
+    wallGroup.userData.actualWallWidth = wallWidth;
     wallGroup.userData.actualWallHeight = completedWallHeight;
 
     return wallGroup;

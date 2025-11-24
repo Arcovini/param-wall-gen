@@ -87,6 +87,7 @@ export class MaterialManager {
         metalnessMap: this.ormTexture,
         roughness: 0.8,
         metalness: 0.2,
+        flatShading: true, // Ensure sharp edges for bricks
       });
     }
     return this.brickMaterial;
@@ -101,6 +102,7 @@ export class MaterialManager {
         color: 0xcccccc,
         roughness: 0.9,
         metalness: 0.1,
+        flatShading: true, // Ensure sharp edges for cement
       });
     }
     return this.cementMaterial;

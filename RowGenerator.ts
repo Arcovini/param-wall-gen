@@ -199,6 +199,7 @@ export class RowGenerator {
         // Right cement faces
         addQuad(v1, vr0, vr1, v2, true); // Front
         addQuad(vr2, v5, v6, vr3, true); // Back
+        addQuad(v5, vr2, vr0, v1, true); // Bottom of cement strip
 
         // Corner cement vertices
         const vc0 = addVertex(xRightCement, yTopCement, zFront, uRightCement, 1);
@@ -292,9 +293,10 @@ export class RowGenerator {
       blockGenerator.getCementMaterial()
     ];
 
-    // Check if the row is manifold
-    const manifoldResult = GeometryUtils.isManifold(rowGeometry);
-    console.log(`[RowGenerator] Manifold Check: ${manifoldResult.isManifold ? '✅' : '❌'} ${manifoldResult.message}`);
+    // Check if the row is manifold using enhanced BVH-based validation
+    const manifoldResult = GeometryUtils.isManifoldWithBVH(rowGeometry);
+    console.log(`[RowGenerator] Enhanced Manifold Check: ${manifoldResult.isManifold ? '✅' : '❌'} ${manifoldResult.message}`);
+    console.log(`[RowGenerator] Details:`, manifoldResult.details);
 
     // Create and return the welded mesh
     const rowMesh = new THREE.Mesh(rowGeometry, materials);

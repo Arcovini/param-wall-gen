@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { MeshBVH } from 'three-mesh-bvh';
+import { Brush, Evaluator, ADDITION } from 'three-bvh-csg';
 
 export class GeometryUtils {
   /**
@@ -53,6 +55,98 @@ export class GeometryUtils {
     }
 
     return { isManifold: true, message: 'Geometry is a closed manifold.' };
+  }
+
+  /**
+   * Enhanced manifold check using three-bvh-csg capabilities.
+   * This validates the geometry using BVH structure and CSG operations.
+   */
+  static isManifoldWithBVH(geometry: THREE.BufferGeometry): {
+    isManifold: boolean;
+    message: string;
+    details: {
+      edgeCheck: boolean;
+      bvhCheck: boolean;
+      csgCheck: boolean;
+      vertexCount: number;
+      triangleCount: number;
+    }
+  } {
+    // First, run the basic edge-based manifold check
+    const edgeResult = this.isManifold(geometry);
+
+    const details = {
+      edgeCheck: edgeResult.isManifold,
+      bvhCheck: false,
+      csgCheck: false,
+      vertexCount: geometry.attributes.position ? geometry.attributes.position.count : 0,
+      triangleCount: geometry.index ? geometry.index.count / 3 : 0
+    };
+
+    if (!edgeResult.isManifold) {
+      return {
+        isManifold: false,
+        message: `Edge check failed: ${edgeResult.message}`,
+        details
+      };
+    }
+
+    // BVH structure validation
+    try {
+      const bvh = new MeshBVH(geometry);
+      details.bvhCheck = true;
+
+      // If BVH builds successfully, the geometry has valid structure
+      console.log('[BVH Check] BVH built successfully');
+    } catch (error) {
+      return {
+        isManifold: false,
+        message: `BVH construction failed: ${error}`,
+        details
+      };
+    }
+
+    // CSG operation validation - try a union with itself
+    try {
+      const evaluator = new Evaluator();
+      evaluator.attributes = ['position', 'normal'];
+
+      const material = new THREE.MeshBasicMaterial();
+      const brush = new Brush(geometry, material);
+      brush.updateMatrixWorld();
+
+      // Perform a self-union operation - this should work for manifold geometry
+      const result = evaluator.evaluate(brush, brush, ADDITION);
+
+      if (result && result.geometry && result.geometry.attributes.position.count > 0) {
+        details.csgCheck = true;
+        console.log('[CSG Check] Self-union succeeded, result has',
+          result.geometry.attributes.position.count, 'vertices');
+
+        // Clean up
+        result.geometry.dispose();
+        material.dispose();
+      } else {
+        material.dispose();
+        return {
+          isManifold: false,
+          message: 'CSG self-union produced empty result',
+          details
+        };
+      }
+    } catch (error) {
+      return {
+        isManifold: false,
+        message: `CSG operation failed: ${error}`,
+        details
+      };
+    }
+
+    return {
+      isManifold: true,
+      message: 'Geometry passed all manifold checks (edge, BVH, and CSG)',
+      details
+    };
   }
 
   /**

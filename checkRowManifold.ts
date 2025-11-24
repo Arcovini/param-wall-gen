@@ -34,14 +34,23 @@ export function checkRowManifold() {
 
   if (rowGeometry) {
     console.log('Row Geometry:', rowGeometry);
-    const result = GeometryUtils.isManifold(rowGeometry);
-    console.log('Manifold Check Result:', result);
+
+    // Run enhanced manifold check with BVH and CSG validation
+    const result = GeometryUtils.isManifoldWithBVH(rowGeometry);
+    console.log('Enhanced Manifold Check Result:', result);
 
     if (result.isManifold) {
       console.log('✅ SUCCESS: The row mesh is a closed manifold.');
+      console.log('Details:', result.details);
+      console.log(`  - Edge Check: ${result.details.edgeCheck ? '✅' : '❌'}`);
+      console.log(`  - BVH Check: ${result.details.bvhCheck ? '✅' : '❌'}`);
+      console.log(`  - CSG Check: ${result.details.csgCheck ? '✅' : '❌'}`);
+      console.log(`  - Vertices: ${result.details.vertexCount}`);
+      console.log(`  - Triangles: ${result.details.triangleCount}`);
     } else {
       console.error('❌ FAILURE: The row mesh is NOT manifold.');
       console.error('Reason:', result.message);
+      console.error('Details:', result.details);
     }
   } else {
     console.error('Failed to merge geometries.');

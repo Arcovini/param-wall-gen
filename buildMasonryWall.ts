@@ -620,38 +620,6 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
             result.geometry.computeVertexNormals();
           }
 
-          // Subtract lintel if it exists
-          if (openingData.lintelMesh && result && result.geometry) {
-            const lintelBrush = new Brush(openingData.lintelMesh.geometry, openingData.lintelMesh.material);
-            lintelBrush.position.copy(openingData.lintelMesh.position);
-            lintelBrush.rotation.copy(openingData.lintelMesh.rotation);
-            lintelBrush.scale.copy(openingData.lintelMesh.scale);
-            lintelBrush.updateMatrixWorld();
-
-            // Result from previous CSG is in world space - use identity transform
-            const tempBrush = new Brush(result.geometry, rowMesh.material);
-            tempBrush.position.set(0, 0, 0);
-            tempBrush.rotation.set(0, 0, 0);
-            tempBrush.scale.set(1, 1, 1);
-            tempBrush.updateMatrixWorld();
-
-            result = evaluator.evaluate(tempBrush, lintelBrush, SUBTRACTION);
-
-            // Post-CSG cleanup for lintel subtraction
-            if (result && result.geometry && result.geometry.attributes.position.count > 0) {
-              const mergedGeometry = BufferGeometryUtils.mergeVertices(result.geometry, 0.001);
-              result.geometry.dispose();
-              result.geometry = mergedGeometry;
-
-              // Ensure uv2 exists for proper rendering
-              if (!result.geometry.attributes.uv2 && result.geometry.attributes.uv) {
-                result.geometry.setAttribute('uv2', result.geometry.attributes.uv.clone());
-              }
-
-              result.geometry.computeVertexNormals();
-            }
-          }
-
           // Validate and update current geometry
           if (result && result.geometry && result.geometry.attributes.position.count > 0) {
             const hasValidGroups = result.geometry.groups && result.geometry.groups.length >= 1;
@@ -672,6 +640,84 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
           console.error(`Row ${rowIndex}: Failed to subtract opening:`, error);
         }
       });
+
+      // Separate loop for Lintel Subtraction
+      // Lintels might intersect rows that the opening itself doesn't (since lintel is above opening)
+      // So we need to check all lintels against this row
+      const lintelsForThisRow = openingDataList.filter(data => {
+        if (!data.lintelMesh) return false;
+
+        const lintelBox = new THREE.Box3().setFromObject(data.lintelMesh);
+        const rowBounds = getRowBounds(rowIndex, wallHeight, blockHeight, cementThickness);
+
+        // Check Y-axis intersection
+        // Note: rowBounds are in local Y relative to wall center, but lintelBox is in world Y (if placed in group)
+        // However, getRowBounds returns Y relative to wall center (0,0,0)
+        // And lintelMesh is placed relative to wall center (0,0,0)
+        // So coordinate systems match
+
+        return !(lintelBox.max.y <= rowBounds.minY || lintelBox.min.y >= rowBounds.maxY);
+      });
+
+      if (lintelsForThisRow.length > 0) {
+        console.log(`Row ${rowIndex}: Processing ${lintelsForThisRow.length} intersecting lintel(s)`);
+
+        lintelsForThisRow.forEach(data => {
+          if (!data.lintelMesh) return;
+
+          try {
+            // Subtract lintel
+            const lintelBrush = new Brush(data.lintelMesh.geometry, data.lintelMesh.material);
+            lintelBrush.position.copy(data.lintelMesh.position);
+            lintelBrush.rotation.copy(data.lintelMesh.rotation);
+            lintelBrush.scale.copy(data.lintelMesh.scale);
+            lintelBrush.updateMatrixWorld();
+
+            // Prepare row brush
+            // If CSG was already applied (by openings or previous lintels), geometry is in world space
+            // If not, it's in local space
+            const rowBrush = new Brush(currentGeometry, rowMesh.material);
+
+            if (isFirstIteration) {
+              rowBrush.position.copy(rowMesh.position);
+              rowBrush.rotation.copy(rowMesh.rotation);
+              rowBrush.scale.copy(rowMesh.scale);
+            } else {
+              rowBrush.position.set(0, 0, 0);
+              rowBrush.rotation.set(0, 0, 0);
+              rowBrush.scale.set(1, 1, 1);
+            }
+            rowBrush.updateMatrixWorld();
+
+            let result = evaluator.evaluate(rowBrush, lintelBrush, SUBTRACTION);
+
+            // Post-CSG cleanup for lintel subtraction
+            if (result && result.geometry && result.geometry.attributes.position.count > 0) {
+              const mergedGeometry = BufferGeometryUtils.mergeVertices(result.geometry, 0.001);
+              result.geometry.dispose();
+              result.geometry = mergedGeometry;
+
+              // Ensure uv2 exists for proper rendering
+              if (!result.geometry.attributes.uv2 && result.geometry.attributes.uv) {
+                result.geometry.setAttribute('uv2', result.geometry.attributes.uv.clone());
+              }
+
+              result.geometry.computeVertexNormals();
+
+              // Update geometry
+              if (!isFirstIteration && currentGeometry !== originalGeometry) {
+                currentGeometry.dispose();
+              }
+              currentGeometry = result.geometry;
+              csgApplied = true;
+              isFirstIteration = false;
+              console.log(`Row ${rowIndex}: Applied lintel subtraction successfully`);
+            }
+          } catch (error) {
+            console.error(`Row ${rowIndex}: Failed to subtract lintel:`, error);
+          }
+        });
+      }
 
       // Apply final geometry if any CSG was successful
       if (csgApplied) {
@@ -809,6 +855,12 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
               lintelMesh.updateMatrix();
 
               console.log(`Lintel ${lintelIndex}: Intersection with actual wall completed`);
+            } else {
+              // No intersection with actual wall (e.g. lintel is floating above the wall)
+              // Remove the lintel from the scene
+              console.log(`Lintel ${lintelIndex}: No intersection with actual wall, removing lintel`);
+              lintelMesh.removeFromParent();
+              lintelMesh.geometry.dispose();
             }
           } catch (error) {
             console.error(`Lintel ${lintelIndex}: Failed to intersect with actual wall:`, error);

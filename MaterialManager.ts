@@ -34,6 +34,22 @@ export class MaterialManager {
   }
 
   /**
+   * Helper: Configure texture wrapping and repeat settings
+   */
+  private configureTexture(texture: THREE.Texture, repeatX: number, repeatY: number): void {
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(repeatX, repeatY);
+  }
+
+  /**
+   * Helper: Dispose a resource (material or texture) safely
+   */
+  private disposeResource(resource: THREE.Material | THREE.Texture | null): void {
+    resource?.dispose();
+  }
+
+  /**
    * Returns the shared infill material with concrete textures
    */
   public getInfillMaterial(): THREE.MeshStandardMaterial {
@@ -43,15 +59,9 @@ export class MaterialManager {
         this.concreteBaseColorTexture = this.textureLoader.load('/textures/concrete/concrete_layers_diff_1k.jpg');
         this.concreteNormalTexture = this.textureLoader.load('/textures/concrete/concrete_layers_nor_gl_1k.jpg');
 
-        // Configure textures
-        // Repeat 10x horizontally (along wall width) on front/back faces
-        [this.concreteBaseColorTexture, this.concreteNormalTexture].forEach(texture => {
-          if (texture) {
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.RepeatWrapping;
-            texture.repeat.set(10, 1);
-          }
-        });
+        // Configure textures - Repeat 10x horizontally (along wall width) on front/back faces
+        this.configureTexture(this.concreteBaseColorTexture, 10, 1);
+        this.configureTexture(this.concreteNormalTexture, 10, 1);
       }
 
       this.infillMaterial = new THREE.MeshStandardMaterial({
@@ -89,13 +99,8 @@ export class MaterialManager {
         this.normalTexture = this.textureLoader.load('/textures/masonry/brick/redBrick_Normal.jpg');
 
         // Configure textures
-        [this.baseColorTexture, this.normalTexture].forEach(texture => {
-          if (texture) {
-            texture.wrapS = THREE.RepeatWrapping;
-            texture.wrapT = THREE.RepeatWrapping;
-            texture.repeat.set(1, 1);
-          }
-        });
+        this.configureTexture(this.baseColorTexture, 1, 1);
+        this.configureTexture(this.normalTexture, 1, 1);
       }
 
       this.brickMaterial = new THREE.MeshStandardMaterial({
@@ -125,40 +130,29 @@ export class MaterialManager {
   }
 
   /**
-   * Disposes of all managed materials
+   * Disposes of all managed materials and textures
    */
   public dispose(): void {
-    if (this.infillMaterial) {
-      this.infillMaterial.dispose();
-      this.infillMaterial = null;
-    }
-    if (this.lintelMaterial) {
-      this.lintelMaterial.dispose();
-      this.lintelMaterial = null;
-    }
-    if (this.brickMaterial) {
-      this.brickMaterial.dispose();
-      this.brickMaterial = null;
-    }
-    if (this.cementMaterial) {
-      this.cementMaterial.dispose();
-      this.cementMaterial = null;
-    }
-    if (this.baseColorTexture) {
-      this.baseColorTexture.dispose();
-      this.baseColorTexture = null;
-    }
-    if (this.normalTexture) {
-      this.normalTexture.dispose();
-      this.normalTexture = null;
-    }
-    if (this.concreteBaseColorTexture) {
-      this.concreteBaseColorTexture.dispose();
-      this.concreteBaseColorTexture = null;
-    }
-    if (this.concreteNormalTexture) {
-      this.concreteNormalTexture.dispose();
-      this.concreteNormalTexture = null;
-    }
+    // Dispose materials
+    this.disposeResource(this.infillMaterial);
+    this.disposeResource(this.lintelMaterial);
+    this.disposeResource(this.brickMaterial);
+    this.disposeResource(this.cementMaterial);
+
+    // Dispose textures
+    this.disposeResource(this.baseColorTexture);
+    this.disposeResource(this.normalTexture);
+    this.disposeResource(this.concreteBaseColorTexture);
+    this.disposeResource(this.concreteNormalTexture);
+
+    // Reset all references to null
+    this.infillMaterial = null;
+    this.lintelMaterial = null;
+    this.brickMaterial = null;
+    this.cementMaterial = null;
+    this.baseColorTexture = null;
+    this.normalTexture = null;
+    this.concreteBaseColorTexture = null;
+    this.concreteNormalTexture = null;
   }
 }

@@ -21,6 +21,9 @@ export class MaterialManager {
   private concreteNormalTexture: THREE.Texture | null = null;
   private concreteArmTexture: THREE.Texture | null = null;
 
+  // Cement textures
+  private cementBaseColorTexture: THREE.Texture | null = null;
+
   private constructor() {
     this.textureLoader = new THREE.TextureLoader();
   }
@@ -124,8 +127,20 @@ export class MaterialManager {
    */
   public getCementMaterial(): THREE.MeshStandardMaterial {
     if (!this.cementMaterial) {
+      // Load cement texture if not loaded
+      if (!this.cementBaseColorTexture) {
+        this.cementBaseColorTexture = this.textureLoader.load('/textures/masonry/brick/cement_baseColor.jpg');
+
+        // Configure texture
+        if (this.cementBaseColorTexture) {
+          this.cementBaseColorTexture.wrapS = THREE.RepeatWrapping;
+          this.cementBaseColorTexture.wrapT = THREE.RepeatWrapping;
+          this.cementBaseColorTexture.repeat.set(1, 1);
+        }
+      }
+
       this.cementMaterial = new THREE.MeshStandardMaterial({
-        color: 0xcccccc,
+        map: this.cementBaseColorTexture,
         roughness: 0.9,
         metalness: 0.1,
         flatShading: true, // Ensure sharp edges for cement
@@ -177,6 +192,10 @@ export class MaterialManager {
     if (this.concreteArmTexture) {
       this.concreteArmTexture.dispose();
       this.concreteArmTexture = null;
+    }
+    if (this.cementBaseColorTexture) {
+      this.cementBaseColorTexture.dispose();
+      this.cementBaseColorTexture = null;
     }
   }
 }

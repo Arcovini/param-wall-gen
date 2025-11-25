@@ -120,7 +120,8 @@ export class WallManager {
         wallLength,
         blockWidth,
         blockHeight,
-        cementThickness
+        cementThickness,
+        row
       );
 
       // Position the row mesh

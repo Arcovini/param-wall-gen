@@ -54,6 +54,7 @@ export class RowGenerator {
   /**
    * Creates row geometry with continuous UV mapping and shared vertices.
    * UVs are mapped continuously across the entire row (0 to 1) allowing vertex sharing at interfaces.
+   * @param rowIndex - The index of the row (0-based). Odd rows will be offset by half a block width.
    */
   static createRowGeometry(
     blockGenerator: BlockGenerator,
@@ -61,11 +62,15 @@ export class RowGenerator {
     wallLength: number,
     blockWidth: number,
     blockHeight: number,
-    cementThickness: number
+    cementThickness: number,
+    rowIndex: number = 0
   ): THREE.BufferGeometry {
     const geometry = new THREE.BufferGeometry();
     const halfRowWidth = actualWallWidth / 2;
     const blocksHorizontal = Math.round(actualWallWidth / (blockWidth + cementThickness));
+
+    // Calculate offset for odd rows (half a block width to the right)
+    const rowOffset = (rowIndex % 2 === 1) ? (blockWidth / 2) : 0;
 
     const vertices: number[] = [];
     const uvs: number[] = [];
@@ -111,7 +116,7 @@ export class RowGenerator {
 
     // Build each block with continuous UV mapping
     for (let col = 0; col < blocksHorizontal; col++) {
-      const xCenter = col * (blockWidth + cementThickness) - halfRowWidth + halfWidth;
+      const xCenter = col * (blockWidth + cementThickness) - halfRowWidth + halfWidth + rowOffset;
       const xLeft = xCenter - halfWidth;
       const xRight = xCenter + halfWidth;
       const xRightCement = xRight + cementThickness;
@@ -268,6 +273,7 @@ export class RowGenerator {
   /**
    * Creates a complete row as a single welded mesh.
    * Uses createRowGeometry() to build geometry with shared vertices from the start.
+   * @param rowIndex - The index of the row (0-based). Odd rows will be offset by half a block width.
    */
   static createRow(
     blockGenerator: BlockGenerator,
@@ -275,7 +281,8 @@ export class RowGenerator {
     wallLength: number,
     blockWidth: number,
     blockHeight: number,
-    cementThickness: number
+    cementThickness: number,
+    rowIndex: number = 0
   ): THREE.Mesh {
     // Build row geometry with shared vertices
     const rowGeometry = this.createRowGeometry(
@@ -284,7 +291,8 @@ export class RowGenerator {
       wallLength,
       blockWidth,
       blockHeight,
-      cementThickness
+      cementThickness,
+      rowIndex
     );
 
     // Get materials

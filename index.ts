@@ -45,9 +45,8 @@ function init(): void {
   // Track the current wall group
   let currentWallGroup: THREE.Group | null = null;
 
-  // 4. Create floor at ground level
+  // 4. Create floor at ground level (but don't add it yet)
   const floor = SceneUtils.createFloor(10, 10, 0);
-  scene.add(floor);
 
   // Initialize UIController
   uiController = new UIController(() => updateWall(), scene);
@@ -59,6 +58,14 @@ function init(): void {
     const openings = uiController.getOpenings();
     const completion = params.completionPercentage / 100;
     const viewMode = uiController.getViewMode();
+
+    // Manage floor: add/remove based on view mode (floor is not part of exported THREE.Group)
+    const shouldShowFloor = viewMode !== 'wall-output';
+    if (shouldShowFloor && !floor.parent) {
+      scene.add(floor);
+    } else if (!shouldShowFloor && floor.parent) {
+      scene.remove(floor);
+    }
 
     // Remove previous wall if exists
     if (currentWallGroup) {
@@ -91,7 +98,8 @@ function init(): void {
       return; // Exit early for block/row views
     }
 
-    // WALL VIEW (default behavior)
+    // WALL VIEW and WALL OUTPUT VIEW (both use buildMasonryWall)
+    // Both modes use all user parameters, but wall-output shows only the exported THREE.Group
     // Construct parameters for buildMasonryWall
     const buildParams: BuildMasonryWallParams = {
       wall: {
@@ -133,33 +141,42 @@ function init(): void {
       task: {
         completion: completion
       },
-      visualization: uiController.getVisualizationMode()
+      // In wall-output mode, don't show opening visualizations (not part of exported THREE.Group)
+      visualization: viewMode === 'wall-output' ? 'none' : uiController.getVisualizationMode()
     };
 
     // Generate new wall
     currentWallGroup = buildMasonryWall(buildParams);
 
-    // Add Placeholder Wall (Yellow Box) - represents TARGET dimensions
-    if (uiController.getShowPlaceholder()) {
-      PlaceholderWall.attachWall(
-        currentWallGroup,
-        params.wallWidth,
-        params.wallHeight,
-        params.wallLength,
-        params.positionX,
-        params.positionY,
-        params.positionZ,
-        params.yawDegrees * (Math.PI / 180)
-      );
+    // Apply current wireframe state to the new wall
+    if (uiController.getWireframeEnabled()) {
+      SceneUtils.setWireframeMode(currentWallGroup, true);
     }
 
-    // Add Actual Wall Placeholder (Green Box) - represents VISIBLE/TRUNCATED dimensions
-    if (uiController.getShowActualWall()) {
-      PlaceholderWall.attachActualWall(
-        currentWallGroup,
-        params.wallHeight,
-        params.wallLength
-      );
+    // Add placeholders only in 'wall' mode (not in 'wall-output' mode)
+    if (viewMode === 'wall') {
+      // Add Placeholder Wall (Yellow Box) - represents TARGET dimensions
+      if (uiController.getShowPlaceholder()) {
+        PlaceholderWall.attachWall(
+          currentWallGroup,
+          params.wallWidth,
+          params.wallHeight,
+          params.wallLength,
+          params.positionX,
+          params.positionY,
+          params.positionZ,
+          params.yawDegrees * (Math.PI / 180)
+        );
+      }
+
+      // Add Actual Wall Placeholder (Green Box) - represents VISIBLE/TRUNCATED dimensions
+      if (uiController.getShowActualWall()) {
+        PlaceholderWall.attachActualWall(
+          currentWallGroup,
+          params.wallHeight,
+          params.wallLength
+        );
+      }
     }
 
     scene.add(currentWallGroup);

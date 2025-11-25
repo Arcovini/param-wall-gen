@@ -5,7 +5,7 @@ import { RowGenerator } from '../RowGenerator';
 /**
  * View modes for the masonry wall visualization
  */
-export type ViewMode = 'block' | 'row' | 'wall';
+export type ViewMode = 'block' | 'row' | 'wall' | 'wall-output';
 
 /**
  * SceneUtils - Utility functions for scene manipulation
@@ -13,29 +13,24 @@ export type ViewMode = 'block' | 'row' | 'wall';
  */
 export class SceneUtils {
   /**
-   * Toggles wireframe mode for all meshes in the scene
+   * Toggles wireframe mode for all meshes in the scene or a specific object
    */
-  static setWireframeMode(scene: THREE.Scene, enabled: boolean): void {
-    // Apply wireframe mode to all meshes in the scene
-    scene.traverse((object) => {
+  static setWireframeMode(sceneOrObject: THREE.Scene | THREE.Object3D, enabled: boolean): void {
+    // Apply wireframe mode to all meshes
+    sceneOrObject.traverse((object) => {
       if (object instanceof THREE.Mesh && object.material) {
-        if (Array.isArray(object.material)) {
-          object.material.forEach((mat) => {
-            if (mat instanceof THREE.Material) {
-              (mat as any).wireframe = enabled;
-            }
-          });
-        } else if (object.material instanceof THREE.Material) {
-          (object.material as any).wireframe = enabled;
-        }
+        const materials = Array.isArray(object.material) ? object.material : [object.material];
+        materials.forEach((mat) => {
+          if ('wireframe' in mat) {
+            (mat as any).wireframe = enabled;
+          }
+        });
       }
     });
 
-    // Update background color
-    if (enabled) {
-      scene.background = new THREE.Color(0xffffff);
-    } else {
-      scene.background = new THREE.Color(0xf5f5f5);
+    // Update background color only if it's a scene
+    if (sceneOrObject instanceof THREE.Scene) {
+      sceneOrObject.background = new THREE.Color(enabled ? 0xffffff : 0xf5f5f5);
     }
   }
 
@@ -186,6 +181,12 @@ export class SceneUtils {
         // Wall view is handled by the main buildMasonryWall function
         // Return empty group as placeholder
         group.name = 'ViewMode_wall_placeholder';
+        break;
+
+      case 'wall-output':
+        // Wall output view is handled by the main buildMasonryWall function
+        // Return empty group as placeholder
+        group.name = 'ViewMode_wall_output_placeholder';
         break;
     }
 

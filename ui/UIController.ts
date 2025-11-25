@@ -199,9 +199,13 @@ export class UIController {
     // View Mode Select
     if (this.viewModeSelect) {
       this.viewModeSelect.addEventListener('change', () => {
+        this.updateUIVisibilityForViewMode();
         this.onUpdate();
       });
     }
+
+    // Initialize UI visibility based on current view mode
+    this.updateUIVisibilityForViewMode();
   }
 
   private setActiveTestButton(testNumber: number | null) {
@@ -287,7 +291,36 @@ export class UIController {
     return this.actualWallToggle ? this.actualWallToggle.checked : false;
   }
 
-  public getViewMode(): 'block' | 'row' | 'wall' {
-    return (this.viewModeSelect?.value as 'block' | 'row' | 'wall') || 'wall';
+  public getViewMode(): 'block' | 'row' | 'wall' | 'wall-output' {
+    return (this.viewModeSelect?.value as 'block' | 'row' | 'wall' | 'wall-output') || 'wall';
+  }
+
+  public getWireframeEnabled(): boolean {
+    return this.wireframeToggle ? this.wireframeToggle.checked : false;
+  }
+
+  /**
+   * Updates UI visibility based on the current view mode
+   * In 'wall-output' mode, hide controls for elements not in the exported THREE.Group
+   */
+  private updateUIVisibilityForViewMode(): void {
+    const viewMode = this.getViewMode();
+    const isWallOutputMode = viewMode === 'wall-output';
+
+    // Hide wall placeholder, actual wall, and opening visualization controls in wall-output mode
+    // Note: Wireframe is kept visible as it's just a rendering style, not an added object
+    const wallPlaceholderControl = document.getElementById('wall-placeholder-control');
+    const actualWallControl = document.getElementById('actual-wall-control');
+    const openingVisualizationControl = document.getElementById('opening-visualization-control');
+
+    if (wallPlaceholderControl) {
+      wallPlaceholderControl.style.display = isWallOutputMode ? 'none' : '';
+    }
+    if (actualWallControl) {
+      actualWallControl.style.display = isWallOutputMode ? 'none' : '';
+    }
+    if (openingVisualizationControl) {
+      openingVisualizationControl.style.display = isWallOutputMode ? 'none' : '';
+    }
   }
 }

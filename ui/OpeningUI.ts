@@ -31,6 +31,7 @@ export class OpeningUI {
 
   private createVisualizationControl(): void {
     const controlDiv = document.createElement('div');
+    controlDiv.id = 'opening-visualization-control';
     controlDiv.className = 'control-group visualization-control';
     controlDiv.style.marginBottom = '15px';
     controlDiv.style.padding = '10px';

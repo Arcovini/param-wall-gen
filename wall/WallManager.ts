@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { applyPlacement } from '../WallPlacement';
-import { RowGenerator } from '../RowGenerator';
-import { BlockGenerator } from '../BlockGenerator';
+import { applyPlacement } from './WallPlacement';
+import { RowGenerator } from './RowGenerator';
+import { BlockGenerator } from './BlockGenerator';
 
 /**
  * WallGenerator - Generates a grid of blocks to fill wall dimensions

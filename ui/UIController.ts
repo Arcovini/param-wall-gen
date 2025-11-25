@@ -1,5 +1,5 @@
 import { OpeningUI, OpeningData } from './OpeningUI';
-import { getTestScenario } from '../test-scenarios';
+import { getTestScenario } from '../utils/test-scenarios';
 import { SceneUtils } from '../utils/SceneUtils';
 import * as THREE from 'three';
 

@@ -13,9 +13,9 @@ import * as THREE from 'three';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { BuildMasonryWallParams } from './types';
 import { WallManager } from './wall/WallManager';
-import { OpeningGenerator } from './OpeningGenerator';
-import { InfillGenerator } from './InfillGenerator';
-import { LintelGenerator } from './LintelGenerator';
+import { OpeningGenerator } from './wall/OpeningGenerator';
+import { InfillGenerator } from './wall/InfillGenerator';
+import { LintelGenerator } from './wall/LintelGenerator';
 import { Brush, Evaluator, SUBTRACTION, INTERSECTION, ADDITION } from 'three-bvh-csg';
 
 // Create a single instance of WallManager to reuse resources (textures, materials)

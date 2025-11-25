@@ -5,14 +5,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Three.js Cube - Isometric View</title>
-  <script type="module" crossorigin src="/assets/index-C3yLrq5_.js"></script>
+  <script type="module" crossorigin src="/assets/index-DVMB-7ha.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/index-i25B5gBN.css">
 </head>
 
 <body>
   <div id="canvas-container">
     <div class="canvas-overlay">
-      <div class="control-group wireframe-group">
+      <div class="control-group wireframe-group" id="wireframe-control">
         <label class="toggle-switch">
           <input type="checkbox" id="wireframe-toggle">
           <span class="slider"></span>
@@ -21,7 +21,7 @@
           <span id="label-wireframe">Wireframe</span>
         </div>
       </div>
-      <div class="control-group wireframe-group" style="margin-top: 10px;">
+      <div class="control-group wireframe-group" id="wall-placeholder-control" style="margin-top: 10px;">
         <label class="toggle-switch">
           <input type="checkbox" id="placeholder-toggle" checked>
           <span class="slider"></span>
@@ -30,7 +30,7 @@
           <span id="label-placeholder" style="font-weight: bold; color: #333;">Wall Placeholder</span>
         </div>
       </div>
-      <div class="control-group wireframe-group" style="margin-top: 10px;">
+      <div class="control-group wireframe-group" id="actual-wall-control" style="margin-top: 10px;">
         <label class="toggle-switch">
           <input type="checkbox" id="actual-wall-toggle">
           <span class="slider"></span>
@@ -47,6 +47,7 @@
           <option value="wall">Wall (Default)</option>
           <option value="row">Row</option>
           <option value="block">Block</option>
+          <option value="wall-output">Wall Output</option>
         </select>
       </div>
     </div>

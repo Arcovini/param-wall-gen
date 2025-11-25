@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { BlockGenerator } from './BlockGenerator';
-import { GeometryUtils } from './utils/GeometryUtils';
+import { GeometryUtils } from '../utils/GeometryUtils';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 

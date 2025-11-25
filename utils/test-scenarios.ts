@@ -11,7 +11,7 @@
  * All dimensions in SI units (meters)
  */
 
-import type { BuildMasonryWallParams } from './types';
+import type { BuildMasonryWallParams } from '../types';
 
 // Helper to create placement relative to wall
 function createPlacement(x: number, y: number, z: number) {

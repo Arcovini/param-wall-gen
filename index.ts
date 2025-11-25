@@ -9,7 +9,7 @@ import { SceneRenderer } from './core/SceneRenderer';
 import { SceneUtils } from './utils/SceneUtils';
 import { UIController } from './ui/UIController';
 import { buildMasonryWall } from './buildMasonryWall';
-import { PlaceholderWall } from './placeholderWall';
+import { PlaceholderWall } from './utils/placeholderWall';
 import type { BuildMasonryWallParams } from './types';
 
 // ===== TYPE RE-EXPORTS =====
@@ -76,7 +76,7 @@ function init(): void {
     // Check view mode and create appropriate visualization
     if (viewMode === 'block' || viewMode === 'row') {
       // Import BlockGenerator for view mode visualization
-      import('./BlockGenerator').then(({ BlockGenerator }) => {
+      import('./wall/BlockGenerator').then(({ BlockGenerator }) => {
         const blockGenerator = new BlockGenerator();
 
         currentWallGroup = SceneUtils.createViewModeVisualization(

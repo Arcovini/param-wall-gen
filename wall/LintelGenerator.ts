@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { OpeningParams } from './types';
+import type { OpeningParams } from '../types';
 import { MaterialManager } from './MaterialManager';
 
 /**

@@ -258,18 +258,24 @@ export class UIController {
 
   // Getters for Params
   public getWallParams() {
+    // Helper to parse float with proper NaN handling (0 is a valid value, not a fallback)
+    const parseFloatOrDefault = (value: string | undefined, defaultValue: number): number => {
+      const parsed = parseFloat(value || '');
+      return isNaN(parsed) ? defaultValue : parsed;
+    };
+
     const params = {
-      blockWidth: parseFloat(this.blockWidthInput?.value || '0') || this.defaults.blockWidth,
-      blockHeight: parseFloat(this.blockHeightInput?.value || '0') || this.defaults.blockHeight,
-      cementThickness: parseFloat(this.cementThicknessInput?.value || '0') || this.defaults.cementThickness,
-      wallWidth: parseFloat(this.wallWidthInput?.value || '0') || this.defaults.wallWidth,
-      wallHeight: parseFloat(this.wallHeightInput?.value || '0') || this.defaults.wallHeight,
-      wallLength: parseFloat(this.wallLengthInput?.value || '0') || this.defaults.wallLength,
-      positionX: parseFloat(this.positionXInput?.value || '0') || this.defaults.positionX,
-      positionY: parseFloat(this.positionYInput?.value || '0') || this.defaults.positionY,
-      positionZ: parseFloat(this.positionZInput?.value || '0') || this.defaults.positionZ,
-      yawDegrees: parseFloat(this.rotationYawInput?.value || '0') || this.defaults.yawDegrees,
-      completionPercentage: parseFloat(this.completionInput?.value || '0') || this.defaults.completionPercentage
+      blockWidth: parseFloatOrDefault(this.blockWidthInput?.value, this.defaults.blockWidth),
+      blockHeight: parseFloatOrDefault(this.blockHeightInput?.value, this.defaults.blockHeight),
+      cementThickness: parseFloatOrDefault(this.cementThicknessInput?.value, this.defaults.cementThickness),
+      wallWidth: parseFloatOrDefault(this.wallWidthInput?.value, this.defaults.wallWidth),
+      wallHeight: parseFloatOrDefault(this.wallHeightInput?.value, this.defaults.wallHeight),
+      wallLength: parseFloatOrDefault(this.wallLengthInput?.value, this.defaults.wallLength),
+      positionX: parseFloatOrDefault(this.positionXInput?.value, this.defaults.positionX),
+      positionY: parseFloatOrDefault(this.positionYInput?.value, this.defaults.positionY),
+      positionZ: parseFloatOrDefault(this.positionZInput?.value, this.defaults.positionZ),
+      yawDegrees: parseFloatOrDefault(this.rotationYawInput?.value, this.defaults.yawDegrees),
+      completionPercentage: parseFloatOrDefault(this.completionInput?.value, this.defaults.completionPercentage)
     };
     console.log("UIController Params:", params);
     return params;

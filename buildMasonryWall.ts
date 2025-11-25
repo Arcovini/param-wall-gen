@@ -121,11 +121,19 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
   const positionY = wall.placement.position.y;
   const positionZ = wall.placement.position.z;
 
-  // Convert yaw from radians (params) to degrees (generator) if needed, 
+  // Convert yaw from radians (params) to degrees (generator) if needed,
   // or just pass radians if generator expects them.
   // WallGenerator.generateWallGroup expects yawDegrees.
   // params.wall.placement.direction.yaw is in radians.
   const yawDegrees = wall.placement.direction.yaw * (180 / Math.PI);
+
+  // Calculate actual wall height based on completion percentage
+  // This is the height of the constructed portion (complete rows only)
+  const totalRows = Math.floor(wallHeight / (blockHeight + cementThickness));
+  const visibleRows = Math.floor(totalRows * Math.max(0, Math.min(1, task.completion)));
+  const actualWallHeight = visibleRows > 0
+    ? visibleRows * blockHeight + (visibleRows - 1) * cementThickness
+    : 0;
 
   // Generate the wall group using the singleton generator
   const wallGroup = generator.generateWallGroup(
@@ -225,7 +233,7 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
         wallLength,
         blockHeight,
         blockWidth,
-        wallGroup.userData.actualWallHeight || wallHeight,
+        actualWallHeight,
         cementThickness
       );
 
@@ -529,7 +537,7 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
       ? blocksHorizontal * blockWidth + (blocksHorizontal - 1) * cementThickness
       : 0;
     const actualWallWidth = wallGroup.userData.actualWallWidth || calculatedActualWidth;
-    const actualWallHeight = wallGroup.userData.actualWallHeight || wallHeight;
+    // Use actualWallHeight calculated at function start based on completion percentage
 
     // Create actualWall box for horizontal cutting (reused for all rows)
     const actualWallGeometry = new THREE.BoxGeometry(actualWallWidth, actualWallHeight, wallLength * 1.2);
@@ -957,7 +965,7 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
       ? blocksHorizontal * blockWidth + (blocksHorizontal - 1) * cementThickness
       : 0;
     const actualWallWidth = wallGroup.userData.actualWallWidth || calculatedActualWidth;
-    const actualWallHeight = wallGroup.userData.actualWallHeight || wallHeight;
+    // Use actualWallHeight calculated at function start based on completion percentage
 
     if (rowMeshes.length > 0 && actualWallWidth > 0 && actualWallHeight > 0) {
       console.log(`[buildMasonryWall] No openings - applying horizontal cut to ${rowMeshes.length} rows`);

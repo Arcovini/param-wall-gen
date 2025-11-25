@@ -14,15 +14,10 @@ export class MaterialManager {
   private textureLoader: THREE.TextureLoader;
   private baseColorTexture: THREE.Texture | null = null;
   private normalTexture: THREE.Texture | null = null;
-  private ormTexture: THREE.Texture | null = null;
 
   // Concrete textures for infill
   private concreteBaseColorTexture: THREE.Texture | null = null;
   private concreteNormalTexture: THREE.Texture | null = null;
-  private concreteArmTexture: THREE.Texture | null = null;
-
-  // Cement textures
-  private cementBaseColorTexture: THREE.Texture | null = null;
 
   private constructor() {
     this.textureLoader = new THREE.TextureLoader();
@@ -47,11 +42,10 @@ export class MaterialManager {
       if (!this.concreteBaseColorTexture) {
         this.concreteBaseColorTexture = this.textureLoader.load('/textures/concrete/concrete_layers_diff_1k.jpg');
         this.concreteNormalTexture = this.textureLoader.load('/textures/concrete/concrete_layers_nor_gl_1k.jpg');
-        this.concreteArmTexture = this.textureLoader.load('/textures/concrete/concrete_layers_arm_1k.jpg');
 
         // Configure textures
         // Repeat 10x horizontally (along wall width) on front/back faces
-        [this.concreteBaseColorTexture, this.concreteNormalTexture, this.concreteArmTexture].forEach(texture => {
+        [this.concreteBaseColorTexture, this.concreteNormalTexture].forEach(texture => {
           if (texture) {
             texture.wrapS = THREE.RepeatWrapping;
             texture.wrapT = THREE.RepeatWrapping;
@@ -63,9 +57,6 @@ export class MaterialManager {
       this.infillMaterial = new THREE.MeshStandardMaterial({
         map: this.concreteBaseColorTexture,
         normalMap: this.concreteNormalTexture,
-        aoMap: this.concreteArmTexture,
-        roughnessMap: this.concreteArmTexture,
-        metalnessMap: this.concreteArmTexture,
         roughness: 0.9,
         metalness: 0.1
       });
@@ -96,10 +87,9 @@ export class MaterialManager {
       if (!this.baseColorTexture) {
         this.baseColorTexture = this.textureLoader.load('/textures/masonry/brick/redBrick_difuseAO.jpg');
         this.normalTexture = this.textureLoader.load('/textures/masonry/brick/redBrick_Normal.jpg');
-        this.ormTexture = this.textureLoader.load('/textures/masonry/brick/redBrick_ARM.jpg');
 
         // Configure textures
-        [this.baseColorTexture, this.normalTexture, this.ormTexture].forEach(texture => {
+        [this.baseColorTexture, this.normalTexture].forEach(texture => {
           if (texture) {
             texture.wrapS = THREE.RepeatWrapping;
             texture.wrapT = THREE.RepeatWrapping;
@@ -111,9 +101,6 @@ export class MaterialManager {
       this.brickMaterial = new THREE.MeshStandardMaterial({
         map: this.baseColorTexture,
         normalMap: this.normalTexture,
-        aoMap: this.ormTexture,
-        roughnessMap: this.ormTexture,
-        metalnessMap: this.ormTexture,
         roughness: 0.8,
         metalness: 0.2,
         flatShading: true, // Ensure sharp edges for bricks
@@ -127,20 +114,8 @@ export class MaterialManager {
    */
   public getCementMaterial(): THREE.MeshStandardMaterial {
     if (!this.cementMaterial) {
-      // Load cement texture if not loaded
-      if (!this.cementBaseColorTexture) {
-        this.cementBaseColorTexture = this.textureLoader.load('/textures/masonry/brick/cement_baseColor.jpg');
-
-        // Configure texture
-        if (this.cementBaseColorTexture) {
-          this.cementBaseColorTexture.wrapS = THREE.RepeatWrapping;
-          this.cementBaseColorTexture.wrapT = THREE.RepeatWrapping;
-          this.cementBaseColorTexture.repeat.set(1, 1);
-        }
-      }
-
       this.cementMaterial = new THREE.MeshStandardMaterial({
-        map: this.cementBaseColorTexture,
+        color: 0xC0C0B8,
         roughness: 0.9,
         metalness: 0.1,
         flatShading: true, // Ensure sharp edges for cement
@@ -177,10 +152,6 @@ export class MaterialManager {
       this.normalTexture.dispose();
       this.normalTexture = null;
     }
-    if (this.ormTexture) {
-      this.ormTexture.dispose();
-      this.ormTexture = null;
-    }
     if (this.concreteBaseColorTexture) {
       this.concreteBaseColorTexture.dispose();
       this.concreteBaseColorTexture = null;
@@ -188,14 +159,6 @@ export class MaterialManager {
     if (this.concreteNormalTexture) {
       this.concreteNormalTexture.dispose();
       this.concreteNormalTexture = null;
-    }
-    if (this.concreteArmTexture) {
-      this.concreteArmTexture.dispose();
-      this.concreteArmTexture = null;
-    }
-    if (this.cementBaseColorTexture) {
-      this.cementBaseColorTexture.dispose();
-      this.cementBaseColorTexture = null;
     }
   }
 }

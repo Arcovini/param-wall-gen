@@ -235,12 +235,13 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
         lintelMesh.position.x = openingMesh.position.x;
         lintelMesh.position.z = openingMesh.position.z;
 
-        // Ensure vertical positioning is correct (bottom of lintel at top of opening)
-        // openingTopY is openingY + size.h / 2
-        // Add cementThickness to account for the mortar joint between opening and lintel
-        const openingTopY = opening.placement.position.y + opening.size.h / 2;
+        // Ensure vertical positioning is correct (bottom of lintel flush with top of opening)
+        // Use actual opening mesh geometry height (accounts for 5% oversizing)
+        // Lintel center Y = Opening Top Y + Lintel Height / 2
+        const openingHeight = (openingMesh.geometry as THREE.BoxGeometry).parameters.height;
+        const openingTopY = opening.placement.position.y + openingHeight / 2;
         const lintelHeight = (lintelMesh.geometry as THREE.BoxGeometry).parameters.height;
-        lintelMesh.position.y = openingTopY + cementThickness + lintelHeight;
+        lintelMesh.position.y = openingTopY + lintelHeight / 2;
 
         wallGroup.add(lintelMesh);
       }

@@ -81,9 +81,9 @@ export class LintelGenerator {
 
     // Position
     // Centered horizontally relative to opening -> same X and Z as opening
-    // Vertically immediately over the opening with cement joint
-    // Lintel center Y = Opening Top Y + Cement Thickness + Lintel Height
-    const lintelY = openingTopY + cementThickness + lintelHeight;
+    // Vertically flush with the top of the opening (no cement gap)
+    // Lintel center Y = Opening Top Y + Lintel Height / 2
+    const lintelY = openingTopY + lintelHeight / 2;
 
     mesh.position.set(
       opening.placement.position.x,

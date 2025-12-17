@@ -1,7 +1,6 @@
 /**
  * buildMasonryWall - Main API function for generating parametric masonry walls
  *
- * Implements the specification from the PDF challenge:
  * - Creates realistic masonry wall with ceramic blocks and cement joints
  * - Supports openings (doors, windows)
  * - Adds lintels above openings (when needed)

@@ -8,6 +8,7 @@
 import { SceneRenderer } from './core/SceneRenderer';
 import { SceneUtils } from './utils/SceneUtils';
 import { UIController } from './ui/UIController';
+import { UploadConfiguration } from './core/UploadConfiguration';
 import { buildMasonryWall } from './buildMasonryWall';
 import { PlaceholderWall } from './utils/placeholderWall';
 import type { BuildMasonryWallParams } from './types';
@@ -19,6 +20,7 @@ export type { BuildMasonryWallParams };
 // ===== SINGLETON INSTANCES =====
 let sceneRenderer: SceneRenderer | null = null;
 let uiController: UIController | null = null;
+let uploadConfiguration: UploadConfiguration | null = null;
 
 /**
  * Initializes and returns the singleton SceneRenderer instance
@@ -50,6 +52,13 @@ function init(): void {
 
   // Initialize UIController
   uiController = new UIController(() => updateWall(), scene);
+
+  // Initialize Upload Configuration UI
+  uploadConfiguration = new UploadConfiguration();
+  uploadConfiguration.setOnConfigLoaded((config) => {
+    console.log('Configuration loaded:', config);
+    // TODO: Apply configuration to wall parameters
+  });
 
   function updateWall(): void {
     if (!uiController) return;
@@ -202,6 +211,10 @@ export function dispose(): void {
   if (sceneRenderer) {
     sceneRenderer.dispose();
     sceneRenderer = null;
+  }
+  if (uploadConfiguration) {
+    uploadConfiguration.dispose();
+    uploadConfiguration = null;
   }
   // UIManager doesn't have a dispose method yet, but if it did, we'd call it here
 }

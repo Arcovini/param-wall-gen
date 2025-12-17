@@ -1,6 +1,5 @@
 /**
  * CSG Utilities - Helper functions for CSG operations
- * Reduces code duplication in buildMasonryWall.ts
  */
 
 import * as THREE from 'three';

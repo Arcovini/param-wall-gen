@@ -11,7 +11,7 @@ import { UIController } from './ui/UIController';
 import { UploadConfiguration } from './core/UploadConfiguration';
 import { buildMasonryWall } from './buildMasonryWall';
 import { PlaceholderWall } from './utils/placeholderWall';
-import type { BuildMasonryWallParams } from './types';
+import type { BuildMasonryWallParams, ExtractedWall } from './types';
 
 // ===== TYPE RE-EXPORTS =====
 // Re-export types for external consumption
@@ -55,9 +55,27 @@ function init(): void {
 
   // Initialize Upload Configuration UI
   uploadConfiguration = new UploadConfiguration();
-  uploadConfiguration.setOnConfigLoaded((config) => {
-    console.log('Configuration loaded:', config);
-    // TODO: Apply configuration to wall parameters
+  uploadConfiguration.setOnWallsLoaded((walls: ExtractedWall[]) => {
+    if (walls.length === 0) return;
+
+    // Use only the first wall
+    const firstWall = walls[0];
+
+    // Update UI inputs with first wall's parameters
+    // Note: worldYaw is already in degrees from the JSON
+    uiController!.setWallParams({
+      wallWidth: firstWall.size.w,
+      wallHeight: firstWall.size.h,
+      wallLength: firstWall.size.l,
+      positionX: firstWall.worldPosition.x,
+      positionY: firstWall.worldPosition.y,
+      positionZ: firstWall.worldPosition.z,
+      yawDegrees: firstWall.worldYaw
+    });
+
+    console.log(`Loaded first wall: ${firstWall.name || firstWall.id}`);
+    
+    updateWall();
   });
 
   function updateWall(): void {

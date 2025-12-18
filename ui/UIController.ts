@@ -306,6 +306,43 @@ export class UIController {
   }
 
   /**
+   * Programmatically sets wall parameters and updates the UI inputs
+   */
+  public setWallParams(params: {
+    wallWidth?: number;
+    wallHeight?: number;
+    wallLength?: number;
+    positionX?: number;
+    positionY?: number;
+    positionZ?: number;
+    yawDegrees?: number;
+  }): void {
+    if (params.wallWidth !== undefined && this.wallWidthInput) {
+      this.wallWidthInput.value = params.wallWidth.toString();
+    }
+    if (params.wallHeight !== undefined && this.wallHeightInput) {
+      this.wallHeightInput.value = params.wallHeight.toString();
+    }
+    if (params.wallLength !== undefined && this.wallLengthInput) {
+      this.wallLengthInput.value = params.wallLength.toString();
+    }
+    if (params.positionX !== undefined && this.positionXInput) {
+      this.positionXInput.value = params.positionX.toString();
+    }
+    if (params.positionY !== undefined && this.positionYInput) {
+      this.positionYInput.value = params.positionY.toString();
+    }
+    if (params.positionZ !== undefined && this.positionZInput) {
+      this.positionZInput.value = params.positionZ.toString();
+    }
+    if (params.yawDegrees !== undefined && this.rotationYawInput) {
+      this.rotationYawInput.value = params.yawDegrees.toString();
+    }
+
+    this.onUpdate();
+  }
+
+  /**
    * Updates UI visibility based on the current view mode
    * In 'wall-output' mode, hide controls for elements not in the exported THREE.Group
    */

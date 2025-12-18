@@ -1,3 +1,14 @@
+import type {
+  ProjectConfiguration,
+  ConfigProject,
+  ConfigSite,
+  ConfigBuilding,
+  ConfigStorey,
+  ConfigSpace,
+  ConfigWall,
+  ExtractedWall
+} from '../types';
+
 /**
  * UploadConfiguration - UI component for uploading JSON wall configuration files
  * Creates a file upload interface positioned below the "Wall Configurator" heading
@@ -5,7 +16,7 @@
 export class UploadConfiguration {
   private container: HTMLDivElement;
   private fileInput: HTMLInputElement;
-  private onConfigLoaded: ((config: unknown) => void) | null = null;
+  private onWallsLoaded: ((walls: ExtractedWall[]) => void) | null = null;
 
   constructor() {
     this.container = this.createContainer();
@@ -145,6 +156,120 @@ export class UploadConfiguration {
   }
 
   /**
+   * Extracts all walls from the configuration, computing world positions
+   */
+  private extractWalls(config: ProjectConfiguration): ExtractedWall[] {
+    const walls: ExtractedWall[] = [];
+
+    // Convert from IFC coordinate system (Z-up) to Three.js coordinate system (Y-up)
+    // IFC: X = horizontal, Y = horizontal (depth), Z = vertical (height)
+    // Three.js: X = horizontal, Y = vertical (height), Z = horizontal (depth)
+    const getPos = (pos?: { x: number; y: number; z: number } | null) => ({
+      x: pos?.x ?? 0,
+      y: pos?.z ?? 0,  // IFC Z becomes Three.js Y (vertical)
+      z: pos?.y ?? 0   // IFC Y becomes Three.js Z (depth)
+    });
+
+    const getYaw = (dir?: { yaw: number } | null) => dir?.yaw ?? 0;
+
+    const addPos = (a: { x: number; y: number; z: number }, b: { x: number; y: number; z: number }) => ({
+      x: a.x + b.x,
+      y: a.y + b.y,
+      z: a.z + b.z
+    });
+
+    const processWall = (
+      wall: ConfigWall,
+      parentPos: { x: number; y: number; z: number },
+      parentYaw: number
+    ) => {
+      const wallPos = getPos(wall.position);
+      const wallYaw = getYaw(wall.direction);
+
+      walls.push({
+        id: wall.id,
+        name: wall.name,
+        size: { ...wall.size },
+        worldPosition: addPos(parentPos, wallPos),
+        worldYaw: parentYaw + wallYaw
+      });
+    };
+
+    const processSpace = (
+      space: ConfigSpace,
+      parentPos: { x: number; y: number; z: number },
+      parentYaw: number
+    ) => {
+      const spacePos = addPos(parentPos, getPos(space.position));
+      const spaceYaw = parentYaw + getYaw(space.direction);
+
+      for (const wall of space.walls || []) {
+        processWall(wall, spacePos, spaceYaw);
+      }
+    };
+
+    const processStorey = (
+      storey: ConfigStorey,
+      parentPos: { x: number; y: number; z: number },
+      parentYaw: number
+    ) => {
+      const storeyPos = addPos(parentPos, getPos(storey.position));
+      const storeyYaw = parentYaw + getYaw(storey.direction);
+
+      // Process walls directly in storey
+      for (const wall of storey.walls || []) {
+        processWall(wall, storeyPos, storeyYaw);
+      }
+
+      // Process walls in spaces
+      for (const space of storey.spaces || []) {
+        processSpace(space, storeyPos, storeyYaw);
+      }
+    };
+
+    const processBuilding = (
+      building: ConfigBuilding,
+      parentPos: { x: number; y: number; z: number },
+      parentYaw: number
+    ) => {
+      const buildingPos = addPos(parentPos, getPos(building.position));
+      const buildingYaw = parentYaw + getYaw(building.direction);
+
+      for (const storey of building.storeys || []) {
+        processStorey(storey, buildingPos, buildingYaw);
+      }
+    };
+
+    const processSite = (
+      site: ConfigSite,
+      parentPos: { x: number; y: number; z: number },
+      parentYaw: number
+    ) => {
+      const sitePos = addPos(parentPos, getPos(site.position));
+      const siteYaw = parentYaw + getYaw(site.direction);
+
+      for (const building of site.buildings || []) {
+        processBuilding(building, sitePos, siteYaw);
+      }
+    };
+
+    const processProject = (project: ConfigProject) => {
+      const projectPos = getPos(project.position);
+      const projectYaw = getYaw(project.direction);
+
+      for (const site of project.sites || []) {
+        processSite(site, projectPos, projectYaw);
+      }
+    };
+
+    if (config.project) {
+      processProject(config.project);
+    }
+
+    return walls;
+  }
+
+  /**
    * Handles file selection
    */
   private handleFileSelect(event: Event): void {
@@ -162,11 +287,18 @@ export class UploadConfiguration {
 
     reader.onload = (e) => {
       try {
-        const config = JSON.parse(e.target?.result as string);
-        this.showStatus(`Loaded: ${file.name}`, 'success');
+        const config = JSON.parse(e.target?.result as string) as ProjectConfiguration;
+        const walls = this.extractWalls(config);
 
-        if (this.onConfigLoaded) {
-          this.onConfigLoaded(config);
+        if (walls.length === 0) {
+          this.showStatus('No walls found in configuration', 'error');
+          return;
+        }
+
+        this.showStatus(`Loaded ${walls.length} wall(s) from ${file.name}`, 'success');
+
+        if (this.onWallsLoaded) {
+          this.onWallsLoaded(walls);
         }
       } catch (error) {
         this.showStatus('Invalid JSON file', 'error');
@@ -200,14 +332,14 @@ export class UploadConfiguration {
   }
 
   /**
-   * Sets the callback for when a configuration is loaded
+   * Sets the callback for when walls are loaded from configuration
    */
-  setOnConfigLoaded(callback: (config: unknown) => void): void {
-    this.onConfigLoaded = callback;
+  setOnWallsLoaded(callback: (walls: ExtractedWall[]) => void): void {
+    this.onWallsLoaded = callback;
   }
 
   /**
-   * Gets the loaded configuration (for external access)
+   * Gets the container element
    */
   getContainer(): HTMLDivElement {
     return this.container;

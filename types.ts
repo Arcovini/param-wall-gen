@@ -4,48 +4,70 @@ type Direction = { yaw: number };
 type Placement = { parent: Placement | null; position: Position; direction: Direction };
 type Size = { l: number; w: number; h: number };
 
-// ===== IFC JSON STRUCTURE =====
-export interface IFCWall {
+// ===== JSON CONFIGURATION STRUCTURE =====
+// Hierarchical structure: Project > Sites > Buildings > Storeys > Spaces > Walls
+// Positions are relative to parent elements
+
+export interface ConfigWall {
   id: string;
   name: string;
   size: Size;
   position: Position;
-  direction: Direction;
+  direction?: Direction | null;
 }
 
-export interface IFCSpace {
+export interface ConfigSpace {
   id: string;
   name: string;
-  walls: IFCWall[];
+  position?: Position | null;
+  direction?: Direction | null;
+  walls: ConfigWall[];
 }
 
-export interface IFCStorey {
+export interface ConfigStorey {
   id: string;
   name: string;
-  spaces?: IFCSpace[];
-  walls?: IFCWall[];
+  position?: Position | null;
+  direction?: Direction | null;
+  spaces?: ConfigSpace[];
+  walls?: ConfigWall[];
 }
 
-export interface IFCBuilding {
+export interface ConfigBuilding {
   id: string;
   name: string;
-  storeys: IFCStorey[];
+  position?: Position | null;
+  direction?: Direction | null;
+  storeys: ConfigStorey[];
 }
 
-export interface IFCSite {
+export interface ConfigSite {
   id: string;
   name: string;
-  buildings: IFCBuilding[];
+  position?: Position | null;
+  direction?: Direction | null;
+  buildings: ConfigBuilding[];
 }
 
-export interface IFCProject {
+export interface ConfigProject {
   id: string;
   name: string;
-  sites: IFCSite[];
+  position?: Position | null;
+  direction?: Direction | null;
+  sites: ConfigSite[];
 }
 
-export interface IFCConfiguration {
-  project: IFCProject;
+export interface ProjectConfiguration {
+  project: ConfigProject;
+}
+
+// Extracted wall with computed world transform
+export interface ExtractedWall {
+  id: string;
+  name: string;
+  size: Size;
+  worldPosition: Position;
+  worldYaw: number;
 }
 
 // ===== MATERIAIS =====

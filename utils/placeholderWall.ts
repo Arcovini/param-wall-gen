@@ -25,6 +25,20 @@ export class PlaceholderWall {
     return mesh;
   }
 
+  /**
+   * Creates a small sphere to indicate the pivot point of the wall
+   */
+  static createPivotIndicator(): THREE.Mesh {
+    const geometry = new THREE.SphereGeometry(0.05, 16, 16);
+    const material = new THREE.MeshBasicMaterial({
+      color: 0xff0000,
+      transparent: false
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = 'PivotIndicator';
+    return mesh;
+  }
+
   static attachWall(
     wallGroup: THREE.Group,
     targetWidth: number,
@@ -36,10 +50,19 @@ export class PlaceholderWall {
     rotation: number
   ): void {
     // The "Wall Placeholder" (Yellow) should represent the TARGET dimensions.
-    // It is centered at (0,0,0) relative to the group because the group itself is placed at (x,y,z).
+    // Since the wall now uses bottom-left as pivot point, the placeholder
+    // needs to be positioned at (width/2, height/2, 0) relative to the group
     const mesh = this.generateWall(targetWidth, targetHeight, targetLength, 0, 0, 0, 0);
 
+    // Position placeholder to align with the new bottom-left pivot system
+    mesh.position.set(targetWidth / 2, targetHeight / 2, 0);
+
     wallGroup.add(mesh);
+
+    // Add pivot point indicator at the bottom-left corner (origin of local space)
+    const pivotIndicator = this.createPivotIndicator();
+    pivotIndicator.position.set(0, 0, 0);
+    wallGroup.add(pivotIndicator);
   }
 
   static generateActualWall(
@@ -89,19 +112,16 @@ export class PlaceholderWall {
       return;
     }
 
-    // Calculate Y offset.
-    // The wall group is centered vertically based on the TARGET height.
-    // So local Y=0 corresponds to the center of the target wall.
-    // The bottom of the target wall is at local Y = -targetHeight / 2.
-    // We want the actual wall to start at the same bottom.
-    // The center of the actual wall (height H) is at bottom + H / 2.
-    // So: y = (-targetHeight / 2) + (actualHeight / 2).
-    const y = (-targetHeight / 2) + (actualHeight / 2);
+    // With bottom-left pivot, the actual wall placeholder should be positioned so that
+    // its bottom-left corner aligns with the origin (0, 0, 0).
+    // Center of box is at (actualWidth/2, actualHeight/2, 0)
+    const x = actualWidth / 2;
+    const y = actualHeight / 2;
 
-    console.log("Creating actual wall placeholder with y offset:", y);
+    console.log("Creating actual wall placeholder with position:", { x, y });
 
-    // Center at (0, y, 0) relative to the group
-    const mesh = this.generateActualWall(actualWidth, actualHeight, targetLength, 0, y, 0, 0);
+    const mesh = this.generateActualWall(actualWidth, actualHeight, targetLength, x, y, 0, 0);
     wallGroup.add(mesh);
   }
 }
+

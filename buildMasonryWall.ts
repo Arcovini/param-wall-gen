@@ -286,6 +286,18 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
     );
   }
 
+  // After all CSG operations, shift geometry to bottom-left pivot point
+  // This changes the pivot from centroid to bottom-left corner (matching IFC Wall Element conventions)
+  const halfWidth = wallWidth / 2;
+  const halfHeight = wallHeight / 2;
+
+  wallGroup.children.forEach(child => {
+    if (child instanceof THREE.Mesh || child instanceof THREE.Group) {
+      child.position.x += halfWidth;
+      child.position.y += halfHeight;
+    }
+  });
+
   // Add metadata to the group
   wallGroup.userData = {
     ...wallGroup.userData,
@@ -294,7 +306,9 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
     openings: openings,
     task: {
       completion: task.completion
-    }
+    },
+    // Store pivot point info for placeholders
+    pivotOffset: { x: halfWidth, y: halfHeight }
   };
 
   return wallGroup;

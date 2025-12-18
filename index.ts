@@ -64,9 +64,9 @@ function init(): void {
     // Update UI inputs with first wall's parameters
     // Note: worldYaw is already in degrees from the JSON
     uiController!.setWallParams({
-      wallWidth: firstWall.size.w,
+      wallWidth: firstWall.size.l,
       wallHeight: firstWall.size.h,
-      wallLength: firstWall.size.l,
+      wallLength: firstWall.size.w,
       positionX: firstWall.worldPosition.x,
       positionY: firstWall.worldPosition.y,
       positionZ: firstWall.worldPosition.z,
@@ -74,7 +74,7 @@ function init(): void {
     });
 
     console.log(`Loaded first wall: ${firstWall.name || firstWall.id}`);
-    
+
     updateWall();
   });
 

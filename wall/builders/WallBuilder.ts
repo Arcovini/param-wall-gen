@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import type { BuildMasonryWallParams } from '../../types';
 import { WallManager } from '../WallManager';
 import { OpeningGenerator, type OpeningData } from '../OpeningGenerator';
+import { WallVisualizer } from '../visualization/WallVisualizer';
 import { InfillGenerator } from '../InfillGenerator';
 import { processWallCsg } from '../../utils/WallCsgProcessor';
 
@@ -147,8 +148,19 @@ export class WallBuilder {
     };
 
     const { openingDataList, lintelMeshes } = this.openingGenerator.processAllOpenings(
-      openings, wallBounds, processContext, this.ctx.wallGroup, this.params.visualization
+      openings, wallBounds, processContext, this.ctx.wallGroup
     );
+
+    // Explicitly handle visualization using WallVisualizer
+    const visualizationMode = this.params.visualization;
+    if (visualizationMode && visualizationMode !== 'none') {
+      openingDataList.forEach(data => {
+        const visMesh = WallVisualizer.createOpeningVisualization(data.mesh, visualizationMode);
+        if (visMesh) {
+          this.ctx.wallGroup!.add(visMesh);
+        }
+      });
+    }
 
     this.ctx.openingDataList = openingDataList;
     this.ctx.lintelMeshes = lintelMeshes;

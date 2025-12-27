@@ -10,7 +10,7 @@ import { SceneUtils } from './utils/SceneUtils';
 import { UIController } from './ui/UIController';
 import { UploadConfiguration } from './core/UploadConfiguration';
 import { buildMasonryWall } from './buildMasonryWall';
-import { PlaceholderWall } from './utils/placeholderWall';
+import { WallVisualizer } from './wall/visualization/WallVisualizer';
 import type { BuildMasonryWallParams, ExtractedWall } from './types';
 
 // ===== TYPE RE-EXPORTS =====
@@ -184,23 +184,18 @@ function init(): void {
     if (viewMode === 'wall') {
       // Add Placeholder Wall (Yellow Box) - represents TARGET dimensions
       if (uiController.getShowPlaceholder()) {
-        PlaceholderWall.attachWall(
+        WallVisualizer.addTargetPlaceholder(
           currentWallGroup,
           params.wallWidth,
           params.wallHeight,
-          params.wallLength,
-          params.positionX,
-          params.positionY,
-          params.positionZ,
-          params.yawDegrees * (Math.PI / 180)
+          params.wallLength
         );
       }
 
       // Add Actual Wall Placeholder (Green Box) - represents VISIBLE/TRUNCATED dimensions
       if (uiController.getShowActualWall()) {
-        PlaceholderWall.attachActualWall(
+        WallVisualizer.addActualPlaceholder(
           currentWallGroup,
-          params.wallHeight,
           params.wallLength
         );
       }

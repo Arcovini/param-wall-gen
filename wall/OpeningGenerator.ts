@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { OpeningParams, VisualizationMode } from '../types';
+import type { OpeningParams } from '../types';
 import { LintelGenerator } from './LintelGenerator';
 
 /**
@@ -102,22 +102,7 @@ export class OpeningGenerator {
     );
   }
 
-  /**
-   * Creates a visualization mesh for an opening
-   */
-  createVisualization(openingMesh: THREE.Mesh, mode: VisualizationMode): THREE.Mesh | null {
-    if (mode === 'none') {
-      return null;
-    }
 
-    const visMesh = openingMesh.clone();
-    if (mode === 'wireframe') {
-      visMesh.material = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
-    } else {
-      visMesh.material = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.5 });
-    }
-    return visMesh;
-  }
 
   /**
    * Positions a lintel mesh above its corresponding opening
@@ -159,8 +144,7 @@ export class OpeningGenerator {
     openings: OpeningParams[],
     wallBounds: WallBounds,
     ctx: OpeningProcessContext,
-    wallGroup: THREE.Group,
-    visualization?: VisualizationMode
+    wallGroup: THREE.Group
   ): { openingDataList: OpeningData[]; lintelMeshes: THREE.Mesh[] } {
     const openingDataList: OpeningData[] = [];
     const lintelMeshes: THREE.Mesh[] = [];
@@ -173,14 +157,6 @@ export class OpeningGenerator {
       const intersects = this.checkIntersection(opening, wallBounds);
       if (!intersects) {
         console.warn('Opening is outside wall bounds, skipping CSG operation:', opening.placement.position);
-      }
-
-      // Add visualization if enabled
-      if (visualization && visualization !== 'none') {
-        const visMesh = this.createVisualization(openingMesh, visualization);
-        if (visMesh) {
-          wallGroup.add(visMesh);
-        }
       }
 
       // Generate lintel

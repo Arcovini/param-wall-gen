@@ -363,3 +363,106 @@ export function intersectWithActualWall(
     }
   });
 }
+
+/**
+ * Context for wall CSG processing
+ */
+export interface WallCsgContext {
+  wallGroup: THREE.Group;
+  wallWidth: number;
+  wallHeight: number;
+  wallLength: number;
+  blockWidth: number;
+  blockHeight: number;
+  cementThickness: number;
+  actualWallWidth: number;
+  actualWallHeight: number;
+  openings: any[];
+  openingDataList: Array<{
+    opening: any;
+    mesh: THREE.Mesh;
+    lintelMesh: THREE.Mesh | null;
+    intersectsWall: boolean;
+  }>;
+  infillMesh: THREE.Mesh | null;
+  lintelMeshes: THREE.Mesh[];
+}
+
+/**
+ * Facade function: Processes all CSG operations for a wall
+ * 
+ * This is the main entry point for CSG processing, called by WallBuilder.
+ * It handles:
+ * - Opening subtractions from infill
+ * - Opening subtractions from lintels
+ * - Row processing (openings + lintels + horizontal cuts)
+ * - Final intersection with actual wall bounds
+ */
+export function processWallCsg(ctx: WallCsgContext): void {
+  // Initialize evaluator
+  const evaluator = new Evaluator();
+  evaluator.attributes = ['position', 'normal', 'uv', 'uv2'];
+  evaluator.useGroups = true;
+
+  // Collect row meshes
+  const rowMeshes = ctx.wallGroup.children.filter(
+    child => child instanceof THREE.Mesh && child.name?.startsWith('RowMesh')
+  ) as THREE.Mesh[];
+
+  // Calculate actual wall width if needed
+  let actualWallWidth = ctx.actualWallWidth;
+  if (!actualWallWidth) {
+    const blocksHorizontal = Math.floor(ctx.wallWidth / (ctx.blockWidth + ctx.cementThickness));
+    actualWallWidth = blocksHorizontal > 0
+      ? blocksHorizontal * ctx.blockWidth + (blocksHorizontal - 1) * ctx.cementThickness
+      : 0;
+  }
+
+  // Apply CSG to infill and lintels if there are openings
+  if (ctx.openingDataList.length > 0) {
+    if (ctx.infillMesh) {
+      processInfillCsg(ctx.infillMesh, ctx.openingDataList, null as any, 0, evaluator);
+    }
+    if (ctx.lintelMeshes.length > 0) {
+      processLintelsCsg(ctx.lintelMeshes, ctx.openingDataList, evaluator);
+    }
+  }
+
+  // Process all rows
+  processAllRowsCsg(
+    rowMeshes,
+    ctx.openings,
+    ctx.openingDataList,
+    ctx.wallHeight,
+    ctx.blockHeight,
+    ctx.cementThickness,
+    actualWallWidth,
+    ctx.actualWallHeight,
+    ctx.wallLength,
+    evaluator
+  );
+
+  // Final intersection with actual wall bounds (for infill and lintels)
+  if (actualWallWidth > 0 && ctx.actualWallHeight > 0) {
+    const actualWallGeometry = new THREE.BoxGeometry(
+      actualWallWidth,
+      ctx.actualWallHeight,
+      ctx.wallLength * 1.2
+    );
+    const actualWallY = -ctx.wallHeight / 2 + ctx.actualWallHeight / 2;
+
+    if (!actualWallGeometry.attributes.uv2 && actualWallGeometry.attributes.uv) {
+      actualWallGeometry.setAttribute('uv2', actualWallGeometry.attributes.uv.clone());
+    }
+
+    if (ctx.infillMesh && ctx.infillMesh.geometry.attributes.position.count > 0) {
+      intersectWithActualWall([ctx.infillMesh], actualWallGeometry, actualWallY, evaluator, 'Infill');
+    }
+
+    if (ctx.lintelMeshes.length > 0) {
+      intersectWithActualWall(ctx.lintelMeshes, actualWallGeometry, actualWallY, evaluator, 'Lintel');
+    }
+
+    actualWallGeometry.dispose();
+  }
+}

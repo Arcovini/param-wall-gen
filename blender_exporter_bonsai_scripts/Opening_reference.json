@@ -1,0 +1,105 @@
+{
+  "project": {
+    "id": "2KYkb7egD9kBUFmhXfEhOJ",
+    "name": "My Project",
+    "sites": [
+      {
+        "id": "1xnekTcpPCleHedSCPChKj",
+        "name": "My Site",
+        "buildings": [
+          {
+            "id": "1INHVAfkn089b4AtLjnNJq",
+            "name": "My Building",
+            "storeys": [
+              {
+                "id": "3CVeAGF3P9hRyN_J9yoT7b",
+                "name": "My Storey",
+                "walls": [
+                  {
+                    "id": "2XKElYlmT2DAusCXO8CcLV",
+                    "name": "Wall",
+                    "size": {
+                      "l": 8.0,
+                      "w": 0.1,
+                      "h": 3.0
+                    },
+                    "position": {
+                      "x": -4.980974,
+                      "y": -0.435778,
+                      "z": 0.0
+                    },
+                    "direction": {
+                      "yaw": -40.0
+                    },
+                    "openings": [
+                      {
+                        "type": "door",
+                        "id": "0d4b2p7QL3lB_IjcprjiCL",
+                        "name": "Door",
+                        "size": {
+                          "w": 0.9,
+                          "h": 2.0,
+                          "d": 0.0
+                        },
+                        "position": {
+                          "x": 0.988544,
+                          "y": -0.0,
+                          "z": 0.0
+                        }
+                      },
+                      {
+                        "type": "door",
+                        "id": "2B9V4mLCHFKeN2ithX07Y4",
+                        "name": "Door",
+                        "size": {
+                          "w": 0.9,
+                          "h": 2.0,
+                          "d": 0.0
+                        },
+                        "position": {
+                          "x": 6.795354,
+                          "y": 0.0,
+                          "z": 0.0
+                        }
+                      },
+                      {
+                        "type": "window",
+                        "id": "3Cr_YnZ5L7DgrfK6CEi3Tw",
+                        "name": "Window",
+                        "size": {
+                          "w": 0.6,
+                          "h": 0.9,
+                          "d": 0.0
+                        },
+                        "position": {
+                          "x": 2.81954,
+                          "y": -0.0,
+                          "z": 1.0
+                        }
+                      },
+                      {
+                        "type": "window",
+                        "id": "0KzatEM7zC5xGZweEoNreA",
+                        "name": "Window",
+                        "size": {
+                          "w": 0.6,
+                          "h": 0.9,
+                          "d": 0.0
+                        },
+                        "position": {
+                          "x": 5.107448,
+                          "y": 0.0,
+                          "z": 1.0
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -54,6 +54,19 @@ export class LintelGenerator {
       return null;
     }
 
+    // Check if lintel would intersect with the top infill area
+    const blocksVertical = Math.floor(wallHeight / (blockHeight + cementThickness));
+    const fullWallHeight = blocksVertical * blockHeight + (blocksVertical - 1) * cementThickness;
+    const gap = wallHeight - fullWallHeight;
+    if (gap > 0) {
+      const infillBottomY = wallTopY - gap;
+      const lintelHeight = blockHeight / 2;
+      const lintelTopY = openingTopY + lintelHeight;
+      if (lintelTopY > infillBottomY - 0.001) {
+        return null;
+      }
+    }
+
     // Check if the wall construction has reached the top of the opening
     // If not, don't show the lintel yet
     if (currentWallTopY <= openingTopY) {

@@ -51,25 +51,35 @@ buildMasonryWall(params)
 - `MaterialManager.ts` - PBR materials for masonry textures
 - `WallPlacement.ts` - Spatial transformations
 
-### CSG Operations (utils/)
+### Opening Processing (wall/processing/)
 
-- `CsgUtils.ts` - Low-level CSG helper functions using `three-bvh-csg`
-- `WallCsgProcessor.ts` - High-level workflows for cutting openings, boolean operations on walls/lintels/infill
+- `OpeningCutter.ts` - High-level orchestration for cutting openings from wall components. Does not use THREE.js or three-bvh-csg directly — delegates to utils.
+
+### Geometry Utilities (utils/geometry/)
+
+- `GeometryBuilder.ts` - Construction primitives: `addVertex`, `addQuad`, `build` for BufferGeometry
+- `GeometryMerger.ts` - Merging geometries + spatial queries: `mergeGroupGeometries`, `filterIntersecting`, `getMeshYBounds`, `createBoundsMesh`
+
+### CSG Utilities (utils/csg/)
+
+- `CsgOperations.ts` - Clean CSG API via `createSession()` returning `CsgSession` with `subtract`, `subtractMany`, `intersect` methods. Hides three-bvh-csg internals.
+- `CsgValidator.ts` - Manifold validation: `isManifold`, `isManifoldWithBVH`
 
 ## Refactoring Goals
 
-This codebase needs architectural cleanup. When working on this project:
+### Completed
 
-- **Identify code smells**: Look for long functions, unclear naming, tight coupling, repeated patterns
-- **Apply design patterns** where appropriate: Consider Strategy, Factory, Observer for scene/UI interactions
-- **Improve separation of concerns**: Some generators mix geometry creation with material handling
-- **Reduce cognitive load**: Functions should do one thing clearly
+- ✅ Extracted `GeometryBuilder` for shared vertex/quad construction
+- ✅ Separated CSG operations into clean layers (CsgOperations, CsgValidator)
+- ✅ Created `OpeningCutter` as high-level orchestrator (no direct THREE.js/CSG imports)
+- ✅ Organized utils into `geometry/` and `csg/` subfolders
 
-### Known Issues
+### Remaining
 
-- Folder structure might be untructured and confusing
-- Generator classes may have too many responsibilities
-- CSG operations spread across multiple files
+- **Long functions**: `SceneRenderer` constructor (110 lines), `RowGenerator.createRowGeometry` (160+ lines)
+- **SRP violations**: `UIController` (5 responsibilities), `UploadConfiguration` (4 responsibilities)
+- **Unclear naming**: `actualWallWidth` vs `wallWidth`, `completion` semantic unclear
+- **Tight coupling**: Hard-coded DOM IDs in UIController, direct instantiation in WallBuilder
 
 ## Key Technical Details
 

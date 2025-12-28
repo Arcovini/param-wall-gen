@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { BlockGenerator } from './BlockGenerator';
-import { GeometryUtils } from '../utils/GeometryUtils';
-import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { isManifoldWithBVH } from '../utils/csg/CsgValidator';
+import { GeometryBuilder } from '../utils/geometry/GeometryBuilder';
 
 
 export interface RowSpecification {
@@ -65,32 +65,12 @@ export class RowGenerator {
     cementThickness: number,
     rowIndex: number = 0
   ): THREE.BufferGeometry {
-    const geometry = new THREE.BufferGeometry();
+    const builder = new GeometryBuilder();
     const halfRowWidth = actualWallWidth / 2;
     const blocksHorizontal = Math.round(actualWallWidth / (blockWidth + cementThickness));
 
     // Calculate offset for odd rows (half a block width to the right)
     const rowOffset = (rowIndex % 2 === 1) ? (blockWidth / 2) : 0;
-
-    const vertices: number[] = [];
-    const uvs: number[] = [];
-    const brickIndices: number[] = [];
-    const cementIndices: number[] = [];
-
-    let vertexIndex = 0;
-
-    // Helper to add a vertex with UV
-    const addVertex = (x: number, y: number, z: number, u: number, v: number): number => {
-      vertices.push(x, y, z);
-      uvs.push(u, v);
-      return vertexIndex++;
-    };
-
-    // Helper to add a quad face
-    const addQuad = (v0: number, v1: number, v2: number, v3: number, isCement: boolean) => {
-      (isCement ? cementIndices : brickIndices).push(v0, v1, v2);
-      (isCement ? cementIndices : brickIndices).push(v0, v2, v3);
-    };
 
     // Calculate dimensions
     const halfWidth = blockWidth / 2;
@@ -105,9 +85,7 @@ export class RowGenerator {
     const zBack = -halfDepth;
 
     // Track vertices from previous block for sharing
-    let prevRightBrickVertices: number[] = [];
     let prevRightCementVertices: number[] = [];
-    let prevRightTopCementVertices: number[] = [];
     let prevRightCornerVertices: number[] = [];
 
     // Track first block's left edge vertices for left cap
@@ -121,153 +99,123 @@ export class RowGenerator {
       const xRight = xCenter + halfWidth;
       const xRightCement = xRight + cementThickness;
 
-      // Calculate UV coordinates for this block (repeating: 0 to N)
-      // This allows texture to repeat N times across the row while sharing vertices
+      // UV coordinates (repeating: 0 to N for texture repetition)
       const uLeft = col;
       const uRight = col + 1;
-      const uRightCement = col + 1; // Same as uRight for seamless texture
+      const uRightCement = col + 1;
 
       // === BRICK VERTICES ===
       let v0, v1, v2, v3, v4, v5, v6, v7;
 
       if (col === 0) {
         // First block: create all vertices
-        v0 = addVertex(xLeft, yBottom, zFront, uLeft, 0);
-        v1 = addVertex(xRight, yBottom, zFront, uRight, 0);
-        v2 = addVertex(xRight, yTopBrick, zFront, uRight, 1);
-        v3 = addVertex(xLeft, yTopBrick, zFront, uLeft, 1);
-        v4 = addVertex(xLeft, yBottom, zBack, uLeft, 0);
-        v5 = addVertex(xRight, yBottom, zBack, uRight, 0);
-        v6 = addVertex(xRight, yTopBrick, zBack, uRight, 1);
-        v7 = addVertex(xLeft, yTopBrick, zBack, uLeft, 1);
+        v0 = builder.addVertex(xLeft, yBottom, zFront, uLeft, 0);
+        v1 = builder.addVertex(xRight, yBottom, zFront, uRight, 0);
+        v2 = builder.addVertex(xRight, yTopBrick, zFront, uRight, 1);
+        v3 = builder.addVertex(xLeft, yTopBrick, zFront, uLeft, 1);
+        v4 = builder.addVertex(xLeft, yBottom, zBack, uLeft, 0);
+        v5 = builder.addVertex(xRight, yBottom, zBack, uRight, 0);
+        v6 = builder.addVertex(xRight, yTopBrick, zBack, uRight, 1);
+        v7 = builder.addVertex(xLeft, yTopBrick, zBack, uLeft, 1);
 
-        // Store left edge for left cap
-        firstBlockLeftVertices = [v0, v3, v4, v7]; // bottomFront, topFront, bottomBack, topBack
-
-        prevRightBrickVertices = [v1, v2, v5, v6];
+        firstBlockLeftVertices = [v0, v3, v4, v7];
       } else {
         // Subsequent blocks: reuse right edge from previous block as left edge
-        v0 = prevRightCementVertices[0]; // bottomFront from prev right cement
-        v3 = prevRightCementVertices[1]; // topFront from prev right cement
-        v4 = prevRightCementVertices[2]; // bottomBack from prev right cement
-        v7 = prevRightCementVertices[3]; // topBack from prev right cement
+        v0 = prevRightCementVertices[0];
+        v3 = prevRightCementVertices[1];
+        v4 = prevRightCementVertices[2];
+        v7 = prevRightCementVertices[3];
 
         // Create new vertices for right edge
-        v1 = addVertex(xRight, yBottom, zFront, uRight, 0);
-        v2 = addVertex(xRight, yTopBrick, zFront, uRight, 1);
-        v5 = addVertex(xRight, yBottom, zBack, uRight, 0);
-        v6 = addVertex(xRight, yTopBrick, zBack, uRight, 1);
-
-        prevRightBrickVertices = [v1, v2, v5, v6];
+        v1 = builder.addVertex(xRight, yBottom, zFront, uRight, 0);
+        v2 = builder.addVertex(xRight, yTopBrick, zFront, uRight, 1);
+        v5 = builder.addVertex(xRight, yBottom, zBack, uRight, 0);
+        v6 = builder.addVertex(xRight, yTopBrick, zBack, uRight, 1);
       }
 
       // Brick faces
-      addQuad(v0, v1, v2, v3, false); // Front
-      addQuad(v5, v4, v7, v6, false); // Back
-      addQuad(v4, v5, v1, v0, false); // Bottom
+      builder.addQuad(v0, v1, v2, v3, false); // Front
+      builder.addQuad(v5, v4, v7, v6, false); // Back
+      builder.addQuad(v4, v5, v1, v0, false); // Bottom
 
       // === CEMENT PORTION ===
       if (cementThickness > 0) {
-        // Top cement cap vertices
         let vt0, vt1, vt2, vt3;
         if (col === 0) {
-          vt0 = addVertex(xLeft, yTopCement, zFront, uLeft, 1);
-          vt1 = addVertex(xRight, yTopCement, zFront, uRight, 1);
-          vt2 = addVertex(xLeft, yTopCement, zBack, uLeft, 1);
-          vt3 = addVertex(xRight, yTopCement, zBack, uRight, 1);
+          vt0 = builder.addVertex(xLeft, yTopCement, zFront, uLeft, 1);
+          vt1 = builder.addVertex(xRight, yTopCement, zFront, uRight, 1);
+          vt2 = builder.addVertex(xLeft, yTopCement, zBack, uLeft, 1);
+          vt3 = builder.addVertex(xRight, yTopCement, zBack, uRight, 1);
 
-          // Store left top edge for left cap
-          firstBlockLeftTopVertices = [vt0, vt2]; // topFront, topBack
-
-          prevRightTopCementVertices = [vt1, vt3];
+          firstBlockLeftTopVertices = [vt0, vt2];
         } else {
-          // Reuse from previous block
           vt0 = prevRightCornerVertices[0];
           vt2 = prevRightCornerVertices[1];
-          vt1 = addVertex(xRight, yTopCement, zFront, uRight, 1);
-          vt3 = addVertex(xRight, yTopCement, zBack, uRight, 1);
-
-          prevRightTopCementVertices = [vt1, vt3];
+          vt1 = builder.addVertex(xRight, yTopCement, zFront, uRight, 1);
+          vt3 = builder.addVertex(xRight, yTopCement, zBack, uRight, 1);
         }
 
         // Top cement faces
-        addQuad(v3, v2, vt1, vt0, true); // Front
-        addQuad(v6, v7, vt2, vt3, true); // Back
-        addQuad(vt0, vt1, vt3, vt2, true); // Top
+        builder.addQuad(v3, v2, vt1, vt0, true); // Front
+        builder.addQuad(v6, v7, vt2, vt3, true); // Back
+        builder.addQuad(vt0, vt1, vt3, vt2, true); // Top
 
         // Right cement strip vertices
-        const vr0 = addVertex(xRightCement, yBottom, zFront, uRightCement, 0);
-        const vr1 = addVertex(xRightCement, yTopBrick, zFront, uRightCement, 0.8);
-        const vr2 = addVertex(xRightCement, yBottom, zBack, uRightCement, 0);
-        const vr3 = addVertex(xRightCement, yTopBrick, zBack, uRightCement, 0.8);
+        const vr0 = builder.addVertex(xRightCement, yBottom, zFront, uRightCement, 0);
+        const vr1 = builder.addVertex(xRightCement, yTopBrick, zFront, uRightCement, 0.8);
+        const vr2 = builder.addVertex(xRightCement, yBottom, zBack, uRightCement, 0);
+        const vr3 = builder.addVertex(xRightCement, yTopBrick, zBack, uRightCement, 0.8);
 
         // Right cement faces
-        addQuad(v1, vr0, vr1, v2, true); // Front
-        addQuad(vr2, v5, v6, vr3, true); // Back
-        addQuad(v5, vr2, vr0, v1, true); // Bottom of cement strip
+        builder.addQuad(v1, vr0, vr1, v2, true); // Front
+        builder.addQuad(vr2, v5, v6, vr3, true); // Back
+        builder.addQuad(v5, vr2, vr0, v1, true); // Bottom of cement strip
 
         // Corner cement vertices
-        const vc0 = addVertex(xRightCement, yTopCement, zFront, uRightCement, 1);
-        const vc1 = addVertex(xRightCement, yTopCement, zBack, uRightCement, 1);
+        const vc0 = builder.addVertex(xRightCement, yTopCement, zFront, uRightCement, 1);
+        const vc1 = builder.addVertex(xRightCement, yTopCement, zBack, uRightCement, 1);
 
         // Corner faces
-        addQuad(v2, vr1, vc0, vt1, true); // Front
-        addQuad(vr3, v6, vt3, vc1, true); // Back
-        addQuad(vt1, vc0, vc1, vt3, true); // Top
+        builder.addQuad(v2, vr1, vc0, vt1, true); // Front
+        builder.addQuad(vr3, v6, vt3, vc1, true); // Back
+        builder.addQuad(vt1, vc0, vc1, vt3, true); // Top
 
-        // Store for next block
         prevRightCementVertices = [vr0, vr1, vr2, vr3];
         prevRightCornerVertices = [vc0, vc1];
       }
     }
 
     // === END CAPS ===
-    // Left cap - reuse first block's left edge vertices for manifold geometry
-    const vl0 = firstBlockLeftVertices[0]; // bottomFront
-    const vl1 = firstBlockLeftVertices[1]; // topFront
-    const vl2 = firstBlockLeftVertices[2]; // bottomBack
-    const vl3 = firstBlockLeftVertices[3]; // topBack
-    const vl4 = firstBlockLeftTopVertices[0]; // topCementFront
-    const vl5 = firstBlockLeftTopVertices[1]; // topCementBack
+    // Left cap
+    const vl0 = firstBlockLeftVertices[0];
+    const vl1 = firstBlockLeftVertices[1];
+    const vl2 = firstBlockLeftVertices[2];
+    const vl3 = firstBlockLeftVertices[3];
+    const vl4 = firstBlockLeftTopVertices[0];
+    const vl5 = firstBlockLeftTopVertices[1];
 
-    addQuad(vl2, vl0, vl1, vl3, false); // Brick cap
-    addQuad(vl3, vl1, vl4, vl5, true);  // Cement cap
+    builder.addQuad(vl2, vl0, vl1, vl3, false); // Brick cap
+    builder.addQuad(vl3, vl1, vl4, vl5, true);  // Cement cap
 
-    // Right cap - reuse last block's right cement vertices for manifold geometry
-    const vr0 = prevRightCementVertices[0]; // bottomFront
-    const vr1 = prevRightCementVertices[1]; // topFront
-    const vr2 = prevRightCementVertices[2]; // bottomBack
-    const vr3 = prevRightCementVertices[3]; // topBack
-    const vr4 = prevRightCornerVertices[0]; // topCementFront
-    const vr5 = prevRightCornerVertices[1]; // topCementBack
+    // Right cap
+    const vrCap0 = prevRightCementVertices[0];
+    const vrCap1 = prevRightCementVertices[1];
+    const vrCap2 = prevRightCementVertices[2];
+    const vrCap3 = prevRightCementVertices[3];
+    const vrCap4 = prevRightCornerVertices[0];
+    const vrCap5 = prevRightCornerVertices[1];
 
-    addQuad(vr0, vr2, vr3, vr1, true); // Lower cement cap (brick height)
-    addQuad(vr1, vr3, vr5, vr4, true); // Upper cement cap (cement thickness)
+    builder.addQuad(vrCap0, vrCap2, vrCap3, vrCap1, true); // Lower cement cap
+    builder.addQuad(vrCap1, vrCap3, vrCap5, vrCap4, true); // Upper cement cap
 
-    // Set attributes
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-    geometry.setAttribute('uv2', new THREE.Float32BufferAttribute(uvs, 2));
-
-    // Set indices
-    const allIndices = [...brickIndices, ...cementIndices];
-    geometry.setIndex(allIndices);
-
-    // Set material groups
-    geometry.clearGroups();
-    geometry.addGroup(0, brickIndices.length, 0); // Brick
-    geometry.addGroup(brickIndices.length, cementIndices.length, 1); // Cement
-
-    // Compute normals
-    geometry.computeVertexNormals();
-
+    const { brick, cement } = builder.getIndexCounts();
     console.log(`[RowGenerator] Built row with continuous UV mapping:
-      Total vertices: ${vertexIndex}
+      Total vertices: ${builder.getVertexCount()}
       Blocks: ${blocksHorizontal}
       Expected without sharing: ${blocksHorizontal * 18 + 12}
-      Vertices saved: ${(blocksHorizontal * 18 + 12) - vertexIndex}`);
+      Vertices saved: ${(blocksHorizontal * 18 + 12) - builder.getVertexCount()}`);
 
-    return geometry;
+    return builder.build();
   }
 
   /**
@@ -302,7 +250,7 @@ export class RowGenerator {
     ];
 
     // Check if the row is manifold using enhanced BVH-based validation
-    const manifoldResult = GeometryUtils.isManifoldWithBVH(rowGeometry);
+    const manifoldResult = isManifoldWithBVH(rowGeometry);
     console.log(`[RowGenerator] Enhanced Manifold Check: ${manifoldResult.isManifold ? '✅' : '❌'} ${manifoldResult.message}`);
     console.log(`[RowGenerator] Details:`, manifoldResult.details);
 

@@ -5,7 +5,7 @@
  * Delegates specialized logic to dedicated processors:
  * - OpeningGenerator: openings, lintels, visualization
  * - InfillGenerator: top infill
- * - WallCsgProcessor: all CSG operations
+ * - OpeningCutter: all CSG operations for cutting openings
  */
 
 import * as THREE from 'three';
@@ -14,7 +14,7 @@ import { WallManager } from '../WallManager';
 import { OpeningGenerator, type OpeningData } from '../OpeningGenerator';
 import { WallVisualizer } from '../visualization/WallVisualizer';
 import { InfillGenerator } from '../InfillGenerator';
-import { processWallCsg } from '../../utils/WallCsgProcessor';
+import { cutOpenings } from '../processing/OpeningCutter';
 
 // Singleton WallManager instance (reuses textures/materials)
 const wallManagerInstance = new WallManager();
@@ -167,11 +167,11 @@ export class WallBuilder {
     return this;
   }
 
-  /** Step 5: Apply all CSG operations (delegated to WallCsgProcessor) */
+  /** Step 5: Apply all CSG operations (delegated to OpeningCutter) */
   applyCsgOperations(): this {
     if (!this.ctx.wallGroup) return this;
 
-    processWallCsg({
+    cutOpenings({
       wallGroup: this.ctx.wallGroup,
       wallWidth: this.ctx.wallWidth,
       wallHeight: this.ctx.wallHeight,

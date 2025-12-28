@@ -14,17 +14,14 @@ import { N8AOPostPass } from 'n8ao';
 export class SceneRenderer {
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
-  private renderer: THREE.WebGLRenderer;
-  private composer: EffectComposer;
-  private controls: OrbitControls;
+  private renderer!: THREE.WebGLRenderer;
+  private composer!: EffectComposer;
+  private controls!: OrbitControls;
   private animationId: number | null = null;
-  private canvas: HTMLCanvasElement;
-
-  // Lighting
-
+  private canvas!: HTMLCanvasElement;
 
   constructor(container: HTMLElement) {
-    // Check WebGL support
+    // Check WebGL support (fail-fast)
     if (!window.WebGLRenderingContext) {
       throw new Error('WebGL is not supported by your browser');
     }
@@ -40,10 +37,22 @@ export class SceneRenderer {
       0.1,
       1000
     );
-    this.camera.position.set(15, 15, 15); // Adjusted position for better view
+    this.camera.position.set(15, 15, 15);
     this.camera.lookAt(0, 0, 0);
 
-    // Initialize renderer
+    // Delegated initialization
+    this.initializeRenderer(container);
+    this.initializeControls();
+    this.initializeLighting();
+    this.generateEnvironment();
+    this.initializePostProcessing();
+    this.registerEventHandlers();
+  }
+
+  /**
+   * Initializes WebGL renderer with configuration
+   */
+  private initializeRenderer(container: HTMLElement): void {
     this.renderer = new THREE.WebGLRenderer({
       antialias: false, // Disabled for post-processing
       alpha: false,
@@ -52,41 +61,43 @@ export class SceneRenderer {
       depth: false
     });
 
-    // Configure renderer
+    // Tone mapping and color space
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.5;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    // Shadow configuration
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    // Set size with validation
+    // Size and pixel ratio
     this.setSafeSize(window.innerWidth - 320, window.innerHeight);
-
-    // Limit pixel ratio to prevent excessive buffer sizes on high-DPI displays
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-    // Append canvas to container
+    // DOM integration
     container.appendChild(this.renderer.domElement);
-
-    // Store canvas reference
     this.canvas = this.renderer.domElement;
 
-    // Add WebGL context lost/restore handlers
+    // Context loss handlers
     this.canvas.addEventListener('webglcontextlost', this.handleContextLost.bind(this));
     this.canvas.addEventListener('webglcontextrestored', this.handleContextRestored.bind(this));
+  }
 
-    // Initialize controls
+  /**
+   * Initializes OrbitControls for camera interaction
+   */
+  private initializeControls(): void {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.05;
     this.controls.target.set(0, 0, 0);
     this.controls.update();
+  }
 
-    // Initialize lighting
-
-
-
-
+  /**
+   * Initializes scene lighting
+   */
+  private initializeLighting(): void {
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
     directionalLight.position.set(-5, 10, 5);
     directionalLight.castShadow = true;
@@ -95,18 +106,19 @@ export class SceneRenderer {
     directionalLight.shadow.bias = -0.0001;
     directionalLight.shadow.radius = 4;
     this.scene.add(directionalLight);
+  }
 
-    // Generate Procedural Environment
-    this.generateEnvironment();
-
-    // Initialize Post-Processing
+  /**
+   * Initializes post-processing pipeline (EffectComposer, SSAO, Bloom)
+   */
+  private initializePostProcessing(): void {
     this.composer = new EffectComposer(this.renderer);
 
-    // Render Pass
+    // Render pass
     const renderPass = new RenderPass(this.scene, this.camera);
     this.composer.addPass(renderPass);
 
-    // N8AO Pass (SSAO)
+    // N8AO pass (Screen-Space Ambient Occlusion)
     const n8aoPass = new N8AOPostPass(
       this.scene,
       this.camera,
@@ -117,7 +129,7 @@ export class SceneRenderer {
     n8aoPass.configuration.intensity = 7.0;
     this.composer.addPass(n8aoPass);
 
-    // Bloom Pass
+    // Bloom pass
     const bloomEffect = new BloomEffect({
       luminanceThreshold: 1.0,
       intensity: 1.0,
@@ -126,11 +138,13 @@ export class SceneRenderer {
     });
     const effectPass = new EffectPass(this.camera, bloomEffect);
     this.composer.addPass(effectPass);
+  }
 
-    // Handle window resize
+  /**
+   * Registers event handlers and starts animation loop
+   */
+  private registerEventHandlers(): void {
     window.addEventListener('resize', this.handleResize.bind(this));
-
-    // Start animation loop
     this.animate();
   }
 

@@ -13,6 +13,8 @@ import { buildMasonryWall } from './buildMasonryWall';
 import { WallVisualizer } from './wall/visualization/WallVisualizer';
 import type { BuildMasonryWallParams, ExtractedWall } from './types';
 
+const DEGREES_TO_RADIANS = Math.PI / 180;
+
 // ===== TYPE RE-EXPORTS =====
 // Re-export types for external consumption
 export type { BuildMasonryWallParams };
@@ -127,25 +129,34 @@ function init(): void {
 
     // WALL VIEW and WALL OUTPUT VIEW (both use buildMasonryWall)
     // Both modes use all user parameters, but wall-output shows only the exported THREE.Group
-    // Construct parameters for buildMasonryWall
+
+    /**
+     * Dimension Mapping (UI → BuildMasonryWallParams):
+     *
+     * Wall size:  l = depth (front-to-back), w = width (left-to-right), h = height
+     * Block size: l = block width (horizontal), h = block height, w = unused
+     *
+     * Note: The asymmetry exists because walls are oriented perpendicular to blocks.
+     * A wall's "length" (l) is its depth, while blocks are laid horizontally across
+     * the wall's "width" (w).
+     */
     const buildParams: BuildMasonryWallParams = {
       wall: {
-        // Map UI inputs to WallParams
         size: {
-          l: params.wallLength, // Depth
-          w: params.wallWidth,  // Horizontal Width
-          h: params.wallHeight  // Vertical Height
+          l: params.wallLength,  // Depth (front-to-back)
+          w: params.wallWidth,   // Width (left-to-right)
+          h: params.wallHeight   // Height (bottom-to-top)
         },
         blockSize: {
-          l: params.blockWidth, // Horizontal
-          w: 0, // Unused
-          h: params.blockHeight // Vertical
+          l: params.blockWidth,  // Block horizontal width
+          h: params.blockHeight, // Block vertical height
+          w: 0                   // Unused for blocks
         },
         cementThickness: params.cementThickness,
         placement: {
           parent: null,
           position: { x: params.positionX, y: params.positionY, z: params.positionZ },
-          direction: { yaw: params.yawDegrees * (Math.PI / 180) } // Convert to radians for params
+          direction: { yaw: params.yawDegrees * DEGREES_TO_RADIANS }
         },
         materials: {
           masonry: { albedo: '', metalness: 0, roughness: 0 },

@@ -9,6 +9,9 @@ import type {
   ExtractedWall
 } from '../types';
 
+const STATUS_COLORS = { success: '#4CAF50', error: '#f44336' } as const;
+const STATUS_DISPLAY_MS = 3000;
+
 /**
  * UploadConfiguration - UI component for uploading JSON wall configuration files
  * Creates a file upload interface positioned below the "Wall Configurator" heading
@@ -156,18 +159,25 @@ export class UploadConfiguration {
   }
 
   /**
-   * Extracts all walls from the configuration, computing world positions
+   * Extracts all walls from the configuration, computing world positions.
+   *
+   * Coordinate System Conversion (IFC → Three.js):
+   * ┌─────────────┬─────────────┐
+   * │ IFC (Z-up)  │ Three.js    │
+   * ├─────────────┼─────────────┤
+   * │ X (horiz)   │ X (horiz)   │
+   * │ Y (depth)   │ Z (depth)   │
+   * │ Z (vertical)│ Y (vertical)│
+   * └─────────────┴─────────────┘
    */
   private extractWalls(config: ProjectConfiguration): ExtractedWall[] {
     const walls: ExtractedWall[] = [];
 
-    // Convert from IFC coordinate system (Z-up) to Three.js coordinate system (Y-up)
-    // IFC: X = horizontal, Y = horizontal (depth), Z = vertical (height)
-    // Three.js: X = horizontal, Y = vertical (height), Z = horizontal (depth)
-    const getPos = (pos?: { x: number; y: number; z: number } | null) => ({
+    // IFC Z-up → Three.js Y-up coordinate conversion
+    const convertPosition = (pos?: { x: number; y: number; z: number } | null) => ({
       x: pos?.x ?? 0,
-      y: pos?.z ?? 0,  // IFC Z becomes Three.js Y (vertical)
-      z: pos?.y ?? 0   // IFC Y becomes Three.js Z (depth)
+      y: pos?.z ?? 0,  // IFC Z (vertical) → Three.js Y
+      z: pos?.y ?? 0   // IFC Y (depth) → Three.js Z
     });
 
     const getYaw = (dir?: { yaw: number } | null) => dir?.yaw ?? 0;
@@ -183,7 +193,7 @@ export class UploadConfiguration {
       parentPos: { x: number; y: number; z: number },
       parentYaw: number
     ) => {
-      const wallPos = getPos(wall.position);
+      const wallPos = convertPosition(wall.position);
       const wallYaw = getYaw(wall.direction);
 
       walls.push({
@@ -200,7 +210,7 @@ export class UploadConfiguration {
       parentPos: { x: number; y: number; z: number },
       parentYaw: number
     ) => {
-      const spacePos = addPos(parentPos, getPos(space.position));
+      const spacePos = addPos(parentPos, convertPosition(space.position));
       const spaceYaw = parentYaw + getYaw(space.direction);
 
       for (const wall of space.walls || []) {
@@ -213,7 +223,7 @@ export class UploadConfiguration {
       parentPos: { x: number; y: number; z: number },
       parentYaw: number
     ) => {
-      const storeyPos = addPos(parentPos, getPos(storey.position));
+      const storeyPos = addPos(parentPos, convertPosition(storey.position));
       const storeyYaw = parentYaw + getYaw(storey.direction);
 
       // Process walls directly in storey
@@ -232,7 +242,7 @@ export class UploadConfiguration {
       parentPos: { x: number; y: number; z: number },
       parentYaw: number
     ) => {
-      const buildingPos = addPos(parentPos, getPos(building.position));
+      const buildingPos = addPos(parentPos, convertPosition(building.position));
       const buildingYaw = parentYaw + getYaw(building.direction);
 
       for (const storey of building.storeys || []) {
@@ -245,7 +255,7 @@ export class UploadConfiguration {
       parentPos: { x: number; y: number; z: number },
       parentYaw: number
     ) => {
-      const sitePos = addPos(parentPos, getPos(site.position));
+      const sitePos = addPos(parentPos, convertPosition(site.position));
       const siteYaw = parentYaw + getYaw(site.direction);
 
       for (const building of site.buildings || []) {
@@ -254,7 +264,7 @@ export class UploadConfiguration {
     };
 
     const processProject = (project: ConfigProject) => {
-      const projectPos = getPos(project.position);
+      const projectPos = convertPosition(project.position);
       const projectYaw = getYaw(project.direction);
 
       for (const site of project.sites || []) {
@@ -323,12 +333,11 @@ export class UploadConfiguration {
     const statusText = this.container.querySelector('#upload-status') as HTMLSpanElement;
     statusText.textContent = message;
     statusText.style.display = 'block';
-    statusText.style.color = type === 'success' ? '#4CAF50' : '#f44336';
+    statusText.style.color = STATUS_COLORS[type];
 
-    // Auto-hide after 3 seconds
     setTimeout(() => {
       statusText.style.display = 'none';
-    }, 3000);
+    }, STATUS_DISPLAY_MS);
   }
 
   /**

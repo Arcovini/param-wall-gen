@@ -1,369 +1,82 @@
-import { OpeningUI, OpeningData } from './OpeningUI';
-import { getTestScenario } from '../utils/test-scenarios';
-import { SceneUtils } from '../utils/SceneUtils';
+/**
+ * UIController - Main coordinator that composes sub-controllers
+ */
+
 import * as THREE from 'three';
+import { PlaceholdersController } from './controller/PlaceholdersController';
+import { WallParametersController, WallParams } from './controller/WallParametersController';
+import { OpeningsController, type OpeningData } from './controller/OpeningsController';
+import { ViewControlsController, type ViewMode } from './controller/ViewControlsController';
+
+export type { OpeningData };
 
 export class UIController {
-  private openingUI: OpeningUI;
-  private onUpdate: () => void;
-
-  // Input Elements
-  private wireframeToggle: HTMLInputElement | null;
-  private labelWireframe: HTMLElement | null;
-
-  private placeholderToggle: HTMLInputElement | null;
-  private labelPlaceholder: HTMLElement | null;
-
-  private actualWallToggle: HTMLInputElement | null;
-  private labelActualWall: HTMLElement | null;
-
-  private blockWidthInput: HTMLInputElement | null;
-  private blockHeightInput: HTMLInputElement | null;
-  private cementThicknessInput: HTMLInputElement | null;
-
-  private wallWidthInput: HTMLInputElement | null;
-  private wallHeightInput: HTMLInputElement | null;
-  private wallLengthInput: HTMLInputElement | null;
-
-  private positionXInput: HTMLInputElement | null;
-  private positionYInput: HTMLInputElement | null;
-  private positionZInput: HTMLInputElement | null;
-  private rotationYawInput: HTMLInputElement | null;
-
-  private completionInput: HTMLInputElement | null;
-  private viewModeSelect: HTMLSelectElement | null;
-
-  private testButtons: NodeListOf<Element>;
-  private testDescription: HTMLElement | null;
-  private wallParamsTitle: HTMLElement | null;
-  private addOpeningBtn: HTMLElement | null;
-
-  // Default values (mirrored from index.ts for fallback)
-  private readonly defaults = {
-    blockWidth: 0.39,
-    blockHeight: 0.14,
-    cementThickness: 0.02,
-    wallWidth: 4.0,
-    wallHeight: 3.0,
-    wallLength: 0.2,
-    positionX: 0,
-    positionY: 1.5,
-    positionZ: 0,
-    yawDegrees: 0,
-    completionPercentage: 100
-  };
+  private placeholders: PlaceholdersController;
+  private wallParams: WallParametersController;
+  private openings: OpeningsController;
+  private viewControls: ViewControlsController;
 
   constructor(onUpdate: () => void, scene: THREE.Scene) {
-    this.onUpdate = onUpdate;
+    // Initialize sub-controllers
+    this.placeholders = new PlaceholdersController(onUpdate, scene);
+    this.wallParams = new WallParametersController(onUpdate);
+    this.openings = new OpeningsController('openings-container', () => {
+      console.log('Openings updated:', this.openings.getOpenings());
+      onUpdate();
+    });
+    this.viewControls = new ViewControlsController(
+      onUpdate,
+      this.openings,
+      this.wallParams
+    );
 
-    // Initialize OpeningUI
-    this.openingUI = new OpeningUI('openings-container', (openings: OpeningData[]) => {
-      console.log('Openings updated:', openings);
-      this.onUpdate();
+    // Wire up cross-domain visibility updates
+    this.viewControls.onViewModeChange((mode) => {
+      this.placeholders.updateVisibilityForViewMode(mode);
+      this.openings.setControlVisibility(mode !== 'wall-output');
     });
 
-    // Select Elements
-    this.wireframeToggle = document.getElementById('wireframe-toggle') as HTMLInputElement;
-    this.labelWireframe = document.getElementById('label-wireframe');
-
-    this.placeholderToggle = document.getElementById('placeholder-toggle') as HTMLInputElement;
-    this.labelPlaceholder = document.getElementById('label-placeholder');
-
-    this.actualWallToggle = document.getElementById('actual-wall-toggle') as HTMLInputElement;
-    this.labelActualWall = document.getElementById('label-actual-wall');
-
-    this.blockWidthInput = document.getElementById('block-width') as HTMLInputElement;
-    this.blockHeightInput = document.getElementById('block-height') as HTMLInputElement;
-    this.cementThicknessInput = document.getElementById('cement-thickness') as HTMLInputElement;
-
-    this.wallWidthInput = document.getElementById('wall-width') as HTMLInputElement;
-    this.wallHeightInput = document.getElementById('wall-height') as HTMLInputElement;
-    this.wallLengthInput = document.getElementById('wall-length') as HTMLInputElement;
-
-    this.positionXInput = document.getElementById('position-x') as HTMLInputElement;
-    this.positionYInput = document.getElementById('position-y') as HTMLInputElement;
-    this.positionZInput = document.getElementById('position-z') as HTMLInputElement;
-    this.rotationYawInput = document.getElementById('rotation-yaw') as HTMLInputElement;
-
-    this.completionInput = document.getElementById('completion') as HTMLInputElement;
-
-    this.testButtons = document.querySelectorAll('.test-button');
-    this.testDescription = document.getElementById('test-description');
-    this.wallParamsTitle = document.getElementById('wall-params-title');
-    this.addOpeningBtn = document.getElementById('add-opening-btn');
-    this.viewModeSelect = document.getElementById('view-mode-select') as HTMLSelectElement;
-
-    // Attach Listeners
-    this.attachListeners(scene);
+    // Initialize visibility based on current view mode
+    const currentMode = this.viewControls.getViewMode();
+    this.placeholders.updateVisibilityForViewMode(currentMode);
+    this.openings.setControlVisibility(currentMode !== 'wall-output');
   }
 
-  private attachListeners(scene: THREE.Scene): void {
-    // Wireframe
-    if (this.wireframeToggle) {
-      this.wireframeToggle.addEventListener('change', () => {
-        const isWireframe = this.wireframeToggle!.checked;
-        SceneUtils.setWireframeMode(scene, isWireframe);
-
-        if (this.labelWireframe) {
-          if (isWireframe) {
-            this.labelWireframe.style.fontWeight = 'bold';
-            this.labelWireframe.style.color = '#333';
-          } else {
-            this.labelWireframe.style.fontWeight = 'normal';
-            this.labelWireframe.style.color = '#666';
-          }
-        }
-      });
-    }
-
-    // Placeholder Toggle
-    if (this.placeholderToggle) {
-      this.placeholderToggle.addEventListener('change', () => {
-        const showPlaceholder = this.placeholderToggle!.checked;
-
-        if (this.labelPlaceholder) {
-          if (showPlaceholder) {
-            this.labelPlaceholder.style.fontWeight = 'bold';
-            this.labelPlaceholder.style.color = '#333';
-          } else {
-            this.labelPlaceholder.style.fontWeight = 'normal';
-            this.labelPlaceholder.style.color = '#666';
-          }
-        }
-
-        this.onUpdate();
-      });
-    }
-
-    // Actual Wall Toggle
-    if (this.actualWallToggle) {
-      this.actualWallToggle.addEventListener('change', () => {
-        const showActualWall = this.actualWallToggle!.checked;
-
-        if (this.labelActualWall) {
-          if (showActualWall) {
-            this.labelActualWall.style.fontWeight = 'bold';
-            this.labelActualWall.style.color = '#333';
-          } else {
-            this.labelActualWall.style.fontWeight = 'normal';
-            this.labelActualWall.style.color = '#666';
-          }
-        }
-
-        this.onUpdate();
-      });
-    }
-
-    // Inputs
-    const inputs = [
-      this.blockWidthInput, this.blockHeightInput, this.cementThicknessInput,
-      this.wallWidthInput, this.wallHeightInput, this.wallLengthInput,
-      this.positionXInput, this.positionYInput, this.positionZInput, this.rotationYawInput,
-      this.completionInput
-    ];
-
-    inputs.forEach(input => {
-      input?.addEventListener('input', () => this.onUpdate());
-    });
-
-    // Add Opening Button
-    if (this.addOpeningBtn) {
-      this.addOpeningBtn.addEventListener('click', () => {
-        this.openingUI.addOpening();
-      });
-    }
-
-    // Collapsible Section
-    if (this.wallParamsTitle) {
-      this.wallParamsTitle.addEventListener('click', () => {
-        const section = this.wallParamsTitle!.closest('.control-section');
-        if (section) {
-          section.classList.toggle('collapsed');
-        }
-      });
-    }
-
-    // Test Buttons
-    this.testButtons.forEach((button) => {
-      button.addEventListener('click', () => {
-        const testNum = button.getAttribute('data-test');
-
-        if (testNum === 'clear') {
-          this.clearTest();
-        } else if (testNum) {
-          this.loadTestScenario(parseInt(testNum));
-        }
-      });
-    });
-
-    // View Mode Select
-    if (this.viewModeSelect) {
-      this.viewModeSelect.addEventListener('change', () => {
-        this.updateUIVisibilityForViewMode();
-        this.onUpdate();
-      });
-    }
-
-    // Initialize UI visibility based on current view mode
-    this.updateUIVisibilityForViewMode();
-  }
-
-  private setActiveTestButton(testNumber: number | null) {
-    this.testButtons.forEach((btn) => {
-      const button = btn as HTMLElement;
-      const testNum = button.getAttribute('data-test');
-      if (testNum && testNum !== 'clear') {
-        if (parseInt(testNum) === testNumber) {
-          button.classList.add('active');
-        } else {
-          button.classList.remove('active');
-        }
-      }
-    });
-  }
-
-  private loadTestScenario(testNumber: number) {
-    const wallHeight = parseFloat(this.wallHeightInput?.value || '0') || this.defaults.wallHeight;
-    const scenario = getTestScenario(testNumber, wallHeight);
-
-    if (this.testDescription) {
-      this.testDescription.innerHTML = `<strong>${scenario.name}</strong><br>${scenario.description}`;
-    }
-
-    this.openingUI.clearAll();
-
-    scenario.openings.forEach((opening: any) => {
-      this.openingUI.addOpening({
-        x: opening.placement.position.x,
-        y: opening.placement.position.y,
-        z: opening.placement.position.z,
-        width: opening.size.l,
-        height: opening.size.h,
-        length: opening.size.w,
-      });
-    });
-
-    this.setActiveTestButton(testNumber);
-    this.onUpdate();
-  }
-
-  private clearTest() {
-    this.openingUI.clearAll();
-    this.setActiveTestButton(null);
-    if (this.testDescription) {
-      this.testDescription.innerHTML = '';
-    }
-    this.onUpdate();
-  }
-
-  // Getters for Params
-  public getWallParams() {
-    // Helper to parse float with proper NaN handling (0 is a valid value, not a fallback)
-    const parseFloatOrDefault = (value: string | undefined, defaultValue: number): number => {
-      const parsed = parseFloat(value || '');
-      return isNaN(parsed) ? defaultValue : parsed;
-    };
-
-    const params = {
-      blockWidth: parseFloatOrDefault(this.blockWidthInput?.value, this.defaults.blockWidth),
-      blockHeight: parseFloatOrDefault(this.blockHeightInput?.value, this.defaults.blockHeight),
-      cementThickness: parseFloatOrDefault(this.cementThicknessInput?.value, this.defaults.cementThickness),
-      wallWidth: parseFloatOrDefault(this.wallWidthInput?.value, this.defaults.wallWidth),
-      wallHeight: parseFloatOrDefault(this.wallHeightInput?.value, this.defaults.wallHeight),
-      wallLength: parseFloatOrDefault(this.wallLengthInput?.value, this.defaults.wallLength),
-      positionX: parseFloatOrDefault(this.positionXInput?.value, this.defaults.positionX),
-      positionY: parseFloatOrDefault(this.positionYInput?.value, this.defaults.positionY),
-      positionZ: parseFloatOrDefault(this.positionZInput?.value, this.defaults.positionZ),
-      yawDegrees: parseFloatOrDefault(this.rotationYawInput?.value, this.defaults.yawDegrees),
-      completionPercentage: parseFloatOrDefault(this.completionInput?.value, this.defaults.completionPercentage)
-    };
+  // Delegate to WallParametersController
+  getWallParams(): WallParams {
+    const params = this.wallParams.getWallParams();
     console.log("UIController Params:", params);
     return params;
   }
 
-  public getOpenings() {
-    return this.openingUI.getOpenings();
+  setWallParams(params: Partial<WallParams>): void {
+    this.wallParams.setWallParams(params);
   }
 
-  public getVisualizationMode() {
-    return this.openingUI.getVisualizationMode();
+  // Delegate to OpeningsController
+  getOpenings(): OpeningData[] {
+    return this.openings.getOpenings();
   }
 
-  public getShowPlaceholder(): boolean {
-    return this.placeholderToggle ? this.placeholderToggle.checked : true;
+  getVisualizationMode(): 'red' | 'wireframe' | 'none' {
+    return this.openings.getVisualizationMode();
   }
 
-  public getShowActualWall(): boolean {
-    return this.actualWallToggle ? this.actualWallToggle.checked : false;
+  // Delegate to PlaceholdersController
+  getShowPlaceholder(): boolean {
+    return this.placeholders.getShowPlaceholder();
   }
 
-  public getViewMode(): 'block' | 'row' | 'wall' | 'wall-output' {
-    return (this.viewModeSelect?.value as 'block' | 'row' | 'wall' | 'wall-output') || 'wall';
+  getShowActualWall(): boolean {
+    return this.placeholders.getShowActualWall();
   }
 
-  public getWireframeEnabled(): boolean {
-    return this.wireframeToggle ? this.wireframeToggle.checked : false;
+  getWireframeEnabled(): boolean {
+    return this.placeholders.getWireframeEnabled();
   }
 
-  /**
-   * Programmatically sets wall parameters and updates the UI inputs
-   */
-  public setWallParams(params: {
-    wallWidth?: number;
-    wallHeight?: number;
-    wallLength?: number;
-    positionX?: number;
-    positionY?: number;
-    positionZ?: number;
-    yawDegrees?: number;
-  }): void {
-    if (params.wallWidth !== undefined && this.wallWidthInput) {
-      this.wallWidthInput.value = params.wallWidth.toString();
-    }
-    if (params.wallHeight !== undefined && this.wallHeightInput) {
-      this.wallHeightInput.value = params.wallHeight.toString();
-    }
-    if (params.wallLength !== undefined && this.wallLengthInput) {
-      this.wallLengthInput.value = params.wallLength.toString();
-    }
-    if (params.positionX !== undefined && this.positionXInput) {
-      this.positionXInput.value = params.positionX.toString();
-    }
-    if (params.positionY !== undefined && this.positionYInput) {
-      this.positionYInput.value = params.positionY.toString();
-    }
-    if (params.positionZ !== undefined && this.positionZInput) {
-      this.positionZInput.value = params.positionZ.toString();
-    }
-    if (params.yawDegrees !== undefined && this.rotationYawInput) {
-      this.rotationYawInput.value = params.yawDegrees.toString();
-    }
-
-    this.onUpdate();
-  }
-
-  /**
-   * Updates UI visibility based on the current view mode
-   * In 'wall-output' mode, hide controls for elements not in the exported THREE.Group
-   */
-  private updateUIVisibilityForViewMode(): void {
-    const viewMode = this.getViewMode();
-    const isWallOutputMode = viewMode === 'wall-output';
-
-    // Hide wall placeholder, actual wall, and opening visualization controls in wall-output mode
-    // Note: Wireframe is kept visible as it's just a rendering style, not an added object
-    const wallPlaceholderControl = document.getElementById('wall-placeholder-control');
-    const actualWallControl = document.getElementById('actual-wall-control');
-    const openingVisualizationControl = document.getElementById('opening-visualization-control');
-
-    if (wallPlaceholderControl) {
-      wallPlaceholderControl.style.display = isWallOutputMode ? 'none' : '';
-    }
-    if (actualWallControl) {
-      actualWallControl.style.display = isWallOutputMode ? 'none' : '';
-    }
-    if (openingVisualizationControl) {
-      openingVisualizationControl.style.display = isWallOutputMode ? 'none' : '';
-    }
+  // Delegate to ViewControlsController
+  getViewMode(): ViewMode {
+    return this.viewControls.getViewMode();
   }
 }

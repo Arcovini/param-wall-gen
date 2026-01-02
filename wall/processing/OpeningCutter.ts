@@ -157,21 +157,17 @@ function cutFromRow(
     ctx.cementThickness
   );
 
-  // Find openings that intersect this row
-  const openingsForRow = ctx.openings.filter(opening => {
-    const openingBounds = {
-      min: opening.placement.position.y - opening.size.h / 2,
-      max: opening.placement.position.y + opening.size.h / 2
-    };
-    return yRangesOverlap(rowBounds, openingBounds);
+  // Find openings that intersect this row (using actual mesh bounds, not original params)
+  // This accounts for openings that have been extended to wall top
+  const openingDataForRow = ctx.openingDataList.filter(data => {
+    if (!data.intersectsWall) return false;
+    const meshBounds = getMeshYBounds(data.mesh);
+    return yRangesOverlap(rowBounds, meshBounds);
   });
 
   // Cut openings
-  if (openingsForRow.length > 0) {
-    for (const opening of openingsForRow) {
-      const openingData = ctx.openingDataList.find(d => d.opening === opening);
-      if (!openingData || !openingData.intersectsWall) continue;
-
+  if (openingDataForRow.length > 0) {
+    for (const openingData of openingDataForRow) {
       csg.subtract(rowMesh, openingData.mesh, {
         logPrefix: `Row ${rowIndex} opening`,
         preserveGroups: true,

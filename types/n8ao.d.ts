@@ -21,6 +21,7 @@ declare module 'n8ao' {
     setSize(width: number, height: number): void;
     setQualityMode(mode: 'Performance' | 'Low' | 'Medium' | 'High' | 'Ultra'): void;
     setDisplayMode(mode: 'Combined' | 'AO' | 'No AO' | 'Split' | 'Split AO'): void;
+    
     dispose(): void;
   }
 

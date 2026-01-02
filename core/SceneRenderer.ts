@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { EffectComposer, RenderPass, EffectPass, BloomEffect, Pass } from 'postprocessing';
+import { EffectComposer, RenderPass, EffectPass, BloomEffect, ToneMappingEffect, ToneMappingMode, BrightnessContrastEffect } from 'postprocessing';
 
 // Type declarations for the external 'n8ao' package are provided in a separate ambient declaration file (types/n8ao.d.ts).
 
@@ -19,6 +19,7 @@ export class SceneRenderer {
   private controls!: OrbitControls;
   private animationId: number | null = null;
   private canvas!: HTMLCanvasElement;
+  private brightnessContrastEffect!: BrightnessContrastEffect;
 
   constructor(container: HTMLElement) {
     // Check WebGL support (fail-fast)
@@ -61,9 +62,8 @@ export class SceneRenderer {
       depth: false
     });
 
-    // Tone mapping and color space
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.5;
+    // Color space (tone mapping handled by ToneMappingEffect in post-processing)
+    this.renderer.toneMapping = THREE.NoToneMapping;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     // Shadow configuration
@@ -129,15 +129,58 @@ export class SceneRenderer {
     n8aoPass.configuration.intensity = 7.0;
     this.composer.addPass(n8aoPass);
 
-    // Bloom pass
+    // Bloom effect
     const bloomEffect = new BloomEffect({
       luminanceThreshold: 1.0,
       intensity: 1.0,
       mipmapBlur: true,
       levels: 7
     });
-    const effectPass = new EffectPass(this.camera, bloomEffect);
+
+    // Tone mapping effect (replaces renderer.toneMapping for EffectComposer)
+    const toneMappingEffect = new ToneMappingEffect({
+      mode: ToneMappingMode.ACES_FILMIC,
+    });
+
+    // Brightness/Contrast effect for exposure control
+    this.brightnessContrastEffect = new BrightnessContrastEffect({
+      brightness: 0,  // Range: -1 to 1, 0 = no change
+      contrast: 0,    // Range: -1 to 1, 0 = no change
+    });
+
+    // Combine effects in a single pass for efficiency
+    const effectPass = new EffectPass(this.camera, bloomEffect, this.brightnessContrastEffect, toneMappingEffect);
     this.composer.addPass(effectPass);
+  }
+
+  /**
+   * Sets the exposure value (simulated via brightness)
+   * @param value - Exposure value. 0 = default, positive = brighter, negative = darker. Range: -1 to 1
+   */
+  setExposure(value: number): void {
+    this.brightnessContrastEffect.brightness = value;
+  }
+
+  /**
+   * Gets the current exposure value
+   */
+  getExposure(): number {
+    return this.brightnessContrastEffect.brightness;
+  }
+
+  /**
+   * Sets the contrast value
+   * @param value - Contrast value. 0 = default, positive = more contrast, negative = less. Range: -1 to 1
+   */
+  setContrast(value: number): void {
+    this.brightnessContrastEffect.contrast = value;
+  }
+
+  /**
+   * Gets the current contrast value
+   */
+  getContrast(): number {
+    return this.brightnessContrastEffect.contrast;
   }
 
   /**

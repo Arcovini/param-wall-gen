@@ -2,105 +2,154 @@ import * as THREE from 'three';
 import { MaterialManager } from './MaterialManager';
 import { GeometryBuilder } from '../utils/geometry/GeometryBuilder';
 
+export interface BlockVertices {
+  rightCement: number[];
+  rightCorner: number[];
+}
+
+export interface BlockLeftVertices {
+  brick: number[];
+  cementTop: number[];
+}
+
 export class BlockGenerator {
   constructor() {
     // Materials are managed by MaterialManager
   }
 
   /**
-   * Creates an open-sided block geometry with cement on top and right side.
-   * The block consists of:
-   * - Brick portion (front, back, bottom - NO left/right sides)
-   * - Cement layer on TOP (front, back, top face)
-   * - Cement strip on RIGHT side (front, back, right face - full height)
-   * 
-   * Left side is completely open (no faces).
-   * 
-   * This method builds geometry with SHARED VERTICES from the start for proper welding.
-   * 
-   * @param width Block width (X-axis)
-   * @param height Block height (Y-axis) - brick portion only (excluding cement)
-   * @param depth Block depth (Z-axis, wallLength)
-   * @param cementThickness Thickness of cement layers
-   * @returns BufferGeometry with minimum vertex count and material groups
+   * Adds a block to an existing GeometryBuilder, optionally sharing vertices with previous block.
+   * Designed for building rows with continuous UV mapping and shared vertices.
+   *
+   * @param builder - The GeometryBuilder to add vertices and faces to
+   * @param xCenter - X center position of this block
+   * @param blockWidth - Block width
+   * @param blockHeight - Block height (brick portion only)
+   * @param depth - Block depth (Z-axis)
+   * @param cementThickness - Thickness of cement layers
+   * @param uLeft - UV left coordinate (for texture continuity across row)
+   * @param uRight - UV right coordinate
+   * @param yBottom - Y coordinate of bottom edge
+   * @param yTopBrick - Y coordinate of top of brick
+   * @param yTopCement - Y coordinate of top of cement
+   * @param prevVertices - Optional vertices from previous block to share
+   * @returns Object containing right edge vertices for next block to reuse, and left vertices for first block
    */
-  createBlockGeometry(
-    width: number,
-    height: number,
+  addBlockToBuilder(
+    builder: GeometryBuilder,
+    xCenter: number,
+    blockWidth: number,
+    blockHeight: number,
     depth: number,
-    cementThickness: number = 0
-  ): THREE.BufferGeometry {
-    const builder = new GeometryBuilder();
-
-    // Calculate positions
-    const halfWidth = width / 2;
+    cementThickness: number,
+    uLeft: number,
+    uRight: number,
+    yBottom: number,
+    yTopBrick: number,
+    yTopCement: number,
+    prevVertices?: BlockVertices
+  ): { rightVertices: BlockVertices; leftVertices?: BlockLeftVertices } {
+    const halfWidth = blockWidth / 2;
     const halfDepth = depth / 2;
-    const totalHeight = height + cementThickness;
-    const halfTotalHeight = totalHeight / 2;
 
-    const yBottom = -halfTotalHeight;
-    const yTopBrick = -halfTotalHeight + height;
-    const yTopCement = halfTotalHeight;
-
-    const xLeft = -halfWidth;
-    const xRight = halfWidth;
+    const xLeft = xCenter - halfWidth;
+    const xRight = xCenter + halfWidth;
+    const xRightCement = xRight + cementThickness;
     const zFront = halfDepth;
     const zBack = -halfDepth;
 
-    // ===== BRICK VERTICES (8 corners of the central brick box) =====
-    const v0 = builder.addVertex(xLeft, yBottom, zFront, 0, 0);
-    const v1 = builder.addVertex(xRight, yBottom, zFront, 1, 0);
-    const v2 = builder.addVertex(xRight, yTopBrick, zFront, 1, 1);
-    const v3 = builder.addVertex(xLeft, yTopBrick, zFront, 0, 1);
-    const v4 = builder.addVertex(xLeft, yBottom, zBack, 0, 0);
-    const v5 = builder.addVertex(xRight, yBottom, zBack, 1, 0);
-    const v6 = builder.addVertex(xRight, yTopBrick, zBack, 1, 1);
-    const v7 = builder.addVertex(xLeft, yTopBrick, zBack, 0, 1);
+    // === BRICK VERTICES ===
+    let v0: number, v1: number, v2: number, v3: number;
+    let v4: number, v5: number, v6: number, v7: number;
+    let leftVertices: BlockLeftVertices | undefined;
 
-    // ===== BRICK FACES =====
+    if (!prevVertices) {
+      // First block: create all vertices
+      v0 = builder.addVertex(xLeft, yBottom, zFront, uLeft, 0);
+      v1 = builder.addVertex(xRight, yBottom, zFront, uRight, 0);
+      v2 = builder.addVertex(xRight, yTopBrick, zFront, uRight, 1);
+      v3 = builder.addVertex(xLeft, yTopBrick, zFront, uLeft, 1);
+      v4 = builder.addVertex(xLeft, yBottom, zBack, uLeft, 0);
+      v5 = builder.addVertex(xRight, yBottom, zBack, uRight, 0);
+      v6 = builder.addVertex(xRight, yTopBrick, zBack, uRight, 1);
+      v7 = builder.addVertex(xLeft, yTopBrick, zBack, uLeft, 1);
+
+      leftVertices = { brick: [v0, v3, v4, v7], cementTop: [] };
+    } else {
+      // Subsequent blocks: reuse right edge from previous block as left edge
+      v0 = prevVertices.rightCement[0];
+      v3 = prevVertices.rightCement[1];
+      v4 = prevVertices.rightCement[2];
+      v7 = prevVertices.rightCement[3];
+
+      // Create new vertices for right edge
+      v1 = builder.addVertex(xRight, yBottom, zFront, uRight, 0);
+      v2 = builder.addVertex(xRight, yTopBrick, zFront, uRight, 1);
+      v5 = builder.addVertex(xRight, yBottom, zBack, uRight, 0);
+      v6 = builder.addVertex(xRight, yTopBrick, zBack, uRight, 1);
+    }
+
+    // Brick faces
     builder.addQuad(v0, v1, v2, v3, false); // Front
     builder.addQuad(v5, v4, v7, v6, false); // Back
     builder.addQuad(v4, v5, v1, v0, false); // Bottom
 
-    // ===== CEMENT PORTION =====
-    if (cementThickness > 0) {
-      // Top cement cap vertices
-      const vt0 = builder.addVertex(xLeft, yTopCement, zFront, 0, 1);
-      const vt1 = builder.addVertex(xRight, yTopCement, zFront, 1, 1);
-      const vt2 = builder.addVertex(xLeft, yTopCement, zBack, 0, 1);
-      const vt3 = builder.addVertex(xRight, yTopCement, zBack, 1, 1);
+    // === CEMENT PORTION ===
+    let rightCement: number[] = [];
+    let rightCorner: number[] = [];
 
+    if (cementThickness > 0) {
+      let vt0: number, vt1: number, vt2: number, vt3: number;
+
+      if (!prevVertices) {
+        vt0 = builder.addVertex(xLeft, yTopCement, zFront, uLeft, 1);
+        vt1 = builder.addVertex(xRight, yTopCement, zFront, uRight, 1);
+        vt2 = builder.addVertex(xLeft, yTopCement, zBack, uLeft, 1);
+        vt3 = builder.addVertex(xRight, yTopCement, zBack, uRight, 1);
+
+        if (leftVertices) {
+          leftVertices.cementTop = [vt0, vt2];
+        }
+      } else {
+        vt0 = prevVertices.rightCorner[0];
+        vt2 = prevVertices.rightCorner[1];
+        vt1 = builder.addVertex(xRight, yTopCement, zFront, uRight, 1);
+        vt3 = builder.addVertex(xRight, yTopCement, zBack, uRight, 1);
+      }
+
+      // Top cement faces
       builder.addQuad(v3, v2, vt1, vt0, true); // Front
       builder.addQuad(v6, v7, vt2, vt3, true); // Back
       builder.addQuad(vt0, vt1, vt3, vt2, true); // Top
 
       // Right cement strip vertices
-      const xRightCement = xRight + cementThickness;
-      const vr0 = builder.addVertex(xRightCement, yBottom, zFront, 1, 0);
-      const vr1 = builder.addVertex(xRightCement, yTopBrick, zFront, 1, 0.8);
-      const vr2 = builder.addVertex(xRightCement, yBottom, zBack, 1, 0);
-      const vr3 = builder.addVertex(xRightCement, yTopBrick, zBack, 1, 0.8);
+      const vr0 = builder.addVertex(xRightCement, yBottom, zFront, uRight, 0);
+      const vr1 = builder.addVertex(xRightCement, yTopBrick, zFront, uRight, 0.8);
+      const vr2 = builder.addVertex(xRightCement, yBottom, zBack, uRight, 0);
+      const vr3 = builder.addVertex(xRightCement, yTopBrick, zBack, uRight, 0.8);
 
+      // Right cement faces
       builder.addQuad(v1, vr0, vr1, v2, true); // Front
       builder.addQuad(vr2, v5, v6, vr3, true); // Back
+      builder.addQuad(v5, vr2, vr0, v1, true); // Bottom of cement strip
 
       // Corner cement vertices
-      const vc0 = builder.addVertex(xRightCement, yTopCement, zFront, 1, 1);
-      const vc1 = builder.addVertex(xRightCement, yTopCement, zBack, 1, 1);
+      const vc0 = builder.addVertex(xRightCement, yTopCement, zFront, uRight, 1);
+      const vc1 = builder.addVertex(xRightCement, yTopCement, zBack, uRight, 1);
 
+      // Corner faces
       builder.addQuad(v2, vr1, vc0, vt1, true); // Front
       builder.addQuad(vr3, v6, vt3, vc1, true); // Back
       builder.addQuad(vt1, vc0, vc1, vt3, true); // Top
+
+      rightCement = [vr0, vr1, vr2, vr3];
+      rightCorner = [vc0, vc1];
     }
 
-    const { brick, cement } = builder.getIndexCounts();
-    console.log(`[BlockGenerator] Vertex Stats:
-      Total vertices: ${builder.getVertexCount()}
-      Brick indices: ${brick}
-      Cement indices: ${cement}
-      Expected: 18 vertices (8 brick + 4 top cement + 4 right cement + 2 corner)`);
-
-    return builder.build();
+    return {
+      rightVertices: { rightCement, rightCorner },
+      leftVertices
+    };
   }
 
   /**

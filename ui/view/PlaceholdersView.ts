@@ -72,7 +72,7 @@ export class PlaceholdersView {
   }
 
   isPlaceholderChecked(): boolean {
-    return this.placeholderToggle?.checked ?? true;
+    return this.placeholderToggle?.checked ?? false;
   }
 
   isActualWallChecked(): boolean {

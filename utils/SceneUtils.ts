@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { BlockGenerator } from '../wall/BlockGenerator';
 import { RowGenerator } from '../wall/RowGenerator';
+import { GeometryBuilder } from './geometry/GeometryBuilder';
 
 /**
  * View modes for the masonry wall visualization
@@ -143,14 +144,36 @@ export class SceneUtils {
     group.name = `ViewMode_${mode}`;
 
     switch (mode) {
-      case 'block':
-        // Create a single block with cement layer
-        const blockGeo = blockGenerator.createBlockGeometry(
-          wallParams.blockWidth,
-          wallParams.blockHeight,
-          wallParams.wallLength,
-          wallParams.cementThickness
+      case 'block': {
+        // Create a single block using addBlockToBuilder
+        const builder = new GeometryBuilder();
+        const { blockWidth, blockHeight, wallLength, cementThickness } = wallParams;
+
+        const totalHeight = blockHeight + cementThickness;
+        const halfTotalHeight = totalHeight / 2;
+        const yBottom = -halfTotalHeight;
+        const yTopBrick = -halfTotalHeight + blockHeight;
+        const yTopCement = halfTotalHeight;
+
+        const result = blockGenerator.addBlockToBuilder(
+          builder, 0, blockWidth, blockHeight, wallLength, cementThickness,
+          0, 1, yBottom, yTopBrick, yTopCement
         );
+
+        // Add end caps for a closed single block
+        if (result.leftVertices && result.rightVertices) {
+          const [vl0, vl1, vl2, vl3] = result.leftVertices.brick;
+          const [vl4, vl5] = result.leftVertices.cementTop;
+          builder.addQuad(vl2, vl0, vl1, vl3, false); // Left brick cap
+          builder.addQuad(vl3, vl1, vl4, vl5, true);  // Left cement cap
+
+          const [vr0, vr1, vr2, vr3] = result.rightVertices.rightCement;
+          const [vr4, vr5] = result.rightVertices.rightCorner;
+          builder.addQuad(vr0, vr2, vr3, vr1, true); // Right lower cap
+          builder.addQuad(vr1, vr3, vr5, vr4, true); // Right upper cap
+        }
+
+        const blockGeo = builder.build();
         const materials = [
           blockGenerator.getBrickMaterial(),
           blockGenerator.getCementMaterial()
@@ -161,6 +184,7 @@ export class SceneUtils {
         blockMesh.name = 'SingleBlock';
         group.add(blockMesh);
         break;
+      }
 
       case 'row':
         // Create a single row with 8 blocks for demonstration

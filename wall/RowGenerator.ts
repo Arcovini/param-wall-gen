@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { BlockGenerator, BlockVertices, BlockLeftVertices } from './BlockGenerator';
+import { BlockGenerator, BlockVertices } from './BlockGenerator';
 import { isManifoldWithBVH } from '../utils/csg/CsgValidator';
 import { GeometryBuilder } from '../utils/geometry/GeometryBuilder';
 
@@ -52,26 +52,74 @@ export class RowGenerator {
   }
 
   /**
-   * Adds end caps to a row geometry.
+   * Adds end caps to a row geometry with proper UVs and materials.
+   * Creates dedicated vertices for caps (not shared with front/back faces).
+   *
+   * @param builder - GeometryBuilder to add vertices and faces to
+   * @param xLeft - X position of left edge (first block's left side)
+   * @param xRightBrick - X position of last brick's right edge
+   * @param xRightCement - X position of last cement strip's right edge
+   * @param yBottom - Y position of row bottom
+   * @param yTopBrick - Y position of brick top
+   * @param yTopCement - Y position of cement top (row top)
+   * @param zFront - Z position of front face
+   * @param zBack - Z position of back face
    */
   private static addRowEndCaps(
     builder: GeometryBuilder,
-    leftVertices: BlockLeftVertices,
-    rightVertices: BlockVertices
+    xLeft: number,
+    xRightBrick: number,
+    xRightCement: number,
+    yBottom: number,
+    yTopBrick: number,
+    yTopCement: number,
+    zFront: number,
+    zBack: number
   ): void {
-    // Left cap
-    const [vl0, vl1, vl2, vl3] = leftVertices.brick;
-    const [vl4, vl5] = leftVertices.cementTop;
+    // === LEFT CAP (face normal toward -X, visible from outside) ===
+    // Brick portion (larger, bottom)
+    const lb0 = builder.addVertex(xLeft, yBottom, zBack, 0, 0);       // bottom-left
+    const lb1 = builder.addVertex(xLeft, yBottom, zFront, 1, 0);      // bottom-right
+    const lb2 = builder.addVertex(xLeft, yTopBrick, zFront, 1, 1);    // top-right
+    const lb3 = builder.addVertex(xLeft, yTopBrick, zBack, 0, 1);     // top-left
+    builder.addQuad(lb0, lb1, lb2, lb3, false); // brick material
 
-    builder.addQuad(vl2, vl0, vl1, vl3, false); // Brick cap
-    builder.addQuad(vl3, vl1, vl4, vl5, true);  // Cement cap
+    // Cement portion (thinner, top)
+    const lc0 = builder.addVertex(xLeft, yTopBrick, zBack, 0, 0);     // bottom-left
+    const lc1 = builder.addVertex(xLeft, yTopBrick, zFront, 1, 0);    // bottom-right
+    const lc2 = builder.addVertex(xLeft, yTopCement, zFront, 1, 1);   // top-right
+    const lc3 = builder.addVertex(xLeft, yTopCement, zBack, 0, 1);    // top-left
+    builder.addQuad(lc0, lc1, lc2, lc3, true); // cement material
 
-    // Right cap
-    const [vrCap0, vrCap1, vrCap2, vrCap3] = rightVertices.rightCement;
-    const [vrCap4, vrCap5] = rightVertices.rightCorner;
+    // === RIGHT CAP AT BRICK EDGE (face normal toward +X, visible from outside) ===
+    // Brick portion (larger, bottom)
+    const rb0 = builder.addVertex(xRightBrick, yBottom, zFront, 0, 0);     // bottom-left
+    const rb1 = builder.addVertex(xRightBrick, yBottom, zBack, 1, 0);      // bottom-right
+    const rb2 = builder.addVertex(xRightBrick, yTopBrick, zBack, 1, 1);    // top-right
+    const rb3 = builder.addVertex(xRightBrick, yTopBrick, zFront, 0, 1);   // top-left
+    builder.addQuad(rb0, rb1, rb2, rb3, false); // brick material
 
-    builder.addQuad(vrCap0, vrCap2, vrCap3, vrCap1, true); // Lower cement cap
-    builder.addQuad(vrCap1, vrCap3, vrCap5, vrCap4, true); // Upper cement cap
+    // Cement portion (thinner, top)
+    const rc0 = builder.addVertex(xRightBrick, yTopBrick, zFront, 0, 0);   // bottom-left
+    const rc1 = builder.addVertex(xRightBrick, yTopBrick, zBack, 1, 0);    // bottom-right
+    const rc2 = builder.addVertex(xRightBrick, yTopCement, zBack, 1, 1);   // top-right
+    const rc3 = builder.addVertex(xRightBrick, yTopCement, zFront, 0, 1);  // top-left
+    builder.addQuad(rc0, rc1, rc2, rc3, true); // cement material
+
+    // === RIGHT CAP AT CEMENT STRIP EDGE (face normal toward +X, visible from outside) ===
+    // Lower portion - use brick material to match left side visual appearance
+    const cs0 = builder.addVertex(xRightCement, yBottom, zFront, 0, 0);    // bottom-left
+    const cs1 = builder.addVertex(xRightCement, yBottom, zBack, 1, 0);     // bottom-right
+    const cs2 = builder.addVertex(xRightCement, yTopBrick, zBack, 1, 1);   // top-right
+    const cs3 = builder.addVertex(xRightCement, yTopBrick, zFront, 0, 1);  // top-left
+    builder.addQuad(cs0, cs1, cs2, cs3, false); // brick material (visual consistency)
+
+    // Upper portion - cement material
+    const cc0 = builder.addVertex(xRightCement, yTopBrick, zFront, 0, 0);  // bottom-left
+    const cc1 = builder.addVertex(xRightCement, yTopBrick, zBack, 1, 0);   // bottom-right
+    const cc2 = builder.addVertex(xRightCement, yTopCement, zBack, 1, 1);  // top-right
+    const cc3 = builder.addVertex(xRightCement, yTopCement, zFront, 0, 1); // top-left
+    builder.addQuad(cc0, cc1, cc2, cc3, true); // cement material
   }
 
   /**
@@ -102,16 +150,35 @@ export class RowGenerator {
     const yTopBrick = -halfTotalHeight + blockHeight;
     const yTopCement = halfTotalHeight;
 
+    // Calculate Z coordinates (depth)
+    const halfDepth = wallLength / 2;
+    const zFront = halfDepth;
+    const zBack = -halfDepth;
+
     // Track vertices for sharing between blocks
     let prevVertices: BlockVertices | undefined;
-    let firstBlockLeftVertices: BlockLeftVertices | undefined;
-    let lastBlockRightVertices: BlockVertices | undefined;
+
+    // Track X positions for end caps
+    let xLeftCap: number | undefined;
+    let xRightBrick: number | undefined;
+    let xRightCement: number | undefined;
 
     // Build each block using BlockGenerator
     for (let col = 0; col < blocksHorizontal; col++) {
       const xCenter = col * (blockWidth + cementThickness) - halfRowWidth + (blockWidth / 2) + rowOffset;
       const uLeft = col;
       const uRight = col + 1;
+
+      // Store first block's left edge for left cap
+      if (col === 0) {
+        xLeftCap = xCenter - blockWidth / 2;
+      }
+
+      // Store last block's right edges for right caps
+      if (col === blocksHorizontal - 1) {
+        xRightBrick = xCenter + blockWidth / 2;
+        xRightCement = xCenter + blockWidth / 2 + cementThickness;
+      }
 
       const result = blockGenerator.addBlockToBuilder(
         builder,
@@ -128,19 +195,23 @@ export class RowGenerator {
         prevVertices
       );
 
-      // Store first block's left vertices for end cap
-      if (col === 0 && result.leftVertices) {
-        firstBlockLeftVertices = result.leftVertices;
-      }
-
       // Update for next iteration
       prevVertices = result.rightVertices;
-      lastBlockRightVertices = result.rightVertices;
     }
 
-    // Add end caps
-    if (firstBlockLeftVertices && lastBlockRightVertices) {
-      this.addRowEndCaps(builder, firstBlockLeftVertices, lastBlockRightVertices);
+    // Add end caps with proper positions and UVs
+    if (xLeftCap !== undefined && xRightBrick !== undefined && xRightCement !== undefined) {
+      this.addRowEndCaps(
+        builder,
+        xLeftCap,
+        xRightBrick,
+        xRightCement,
+        yBottom,
+        yTopBrick,
+        yTopCement,
+        zFront,
+        zBack
+      );
     }
 
     const { brick, cement } = builder.getIndexCounts();

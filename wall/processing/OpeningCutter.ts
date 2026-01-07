@@ -38,8 +38,8 @@ export interface OpeningCutterContext {
   blockWidth: number;
   blockHeight: number;
   cementThickness: number;
-  actualWallWidth: number;
-  actualWallHeight: number;
+  actualWallWidth?: number;  // Optional - used by clipToWallBounds
+  actualWallHeight?: number; // Optional - used by clipToWallBounds
   openings: Array<{
     placement: { position: { x: number; y: number; z: number } };
     size: { l: number; h: number; w: number };
@@ -199,42 +199,42 @@ function clipToWallBounds(
   ctx: OpeningCutterContext,
   rowMeshes: THREE.Mesh[]
 ): void {
-  if (ctx.actualWallWidth <= 0 || ctx.actualWallHeight <= 0) return;
+  // if (ctx.actualWallWidth <= 0 || ctx.actualWallHeight <= 0) return;
 
-  // Create bounds mesh (uses createBoundsMesh from GeometryMerger)
-  const positionY = -ctx.wallHeight / 2 + ctx.actualWallHeight / 2;
-  const boundsMesh = createBoundsMesh(
-    ctx.actualWallWidth,
-    ctx.actualWallHeight,
-    ctx.wallLength * 1.2,
-    positionY
-  );
+  // // Create bounds mesh (uses createBoundsMesh from GeometryMerger)
+  // const positionY = -ctx.wallHeight / 2 + ctx.actualWallHeight / 2;
+  // const boundsMesh = createBoundsMesh(
+  //   ctx.actualWallWidth,
+  //   ctx.actualWallHeight,
+  //   ctx.wallLength * 1.2,
+  //   positionY
+  // );
 
-  // Clip rows to bounds (horizontal cut)
-  for (let i = 0; i < rowMeshes.length; i++) {
-    csg.intersect(rowMeshes[i], boundsMesh, {
-      logPrefix: `Row ${i} bounds clip`,
-      preserveGroups: true,
-      remapMaterialIndex: { from: 2, to: 1 }
-    });
-  }
+  // // Clip rows to bounds (horizontal cut)
+  // for (let i = 0; i < rowMeshes.length; i++) {
+  //   csg.intersect(rowMeshes[i], boundsMesh, {
+  //     logPrefix: `Row ${i} bounds clip`,
+  //     preserveGroups: true,
+  //     remapMaterialIndex: { from: 2, to: 1 }
+  //   });
+  // }
 
-  // Clip infill to bounds
-  if (ctx.infillMesh) {
-    csg.intersect(ctx.infillMesh, boundsMesh, {
-      logPrefix: 'Infill bounds clip'
-    });
-  }
+  // // Clip infill to bounds
+  // if (ctx.infillMesh) {
+  //   csg.intersect(ctx.infillMesh, boundsMesh, {
+  //     logPrefix: 'Infill bounds clip'
+  //   });
+  // }
 
-  // Clip lintels to bounds
-  for (let i = 0; i < ctx.lintelMeshes.length; i++) {
-    csg.intersect(ctx.lintelMeshes[i], boundsMesh, {
-      logPrefix: `Lintel ${i} bounds clip`
-    });
-  }
+  // // Clip lintels to bounds
+  // for (let i = 0; i < ctx.lintelMeshes.length; i++) {
+  //   csg.intersect(ctx.lintelMeshes[i], boundsMesh, {
+  //     logPrefix: `Lintel ${i} bounds clip`
+  //   });
+  // }
 
-  // Clean up bounds mesh
-  boundsMesh.geometry.dispose();
+  // // Clean up bounds mesh
+  // boundsMesh.geometry.dispose();
 }
 
 // === Pure Math Helpers ===

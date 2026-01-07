@@ -60,7 +60,7 @@ buildMasonryWall(params)
 
 - `OpeningCutter.ts` - High-level orchestration for cutting openings from wall components. Does not use THREE.js or three-bvh-csg directly — delegates to utils.
   - `cutOpenings()` - Main entry point for CSG operations on wall components
-  - `clipToWallBounds()` - Clips geometry to actual wall dimensions (currently being restructured)
+  - `clipToWallBounds()` - DEPRECATED: No longer needed (replaced by bounds-clamping in RowGenerator)
 
 ### Geometry Utilities (utils/geometry/)
 
@@ -97,6 +97,7 @@ buildMasonryWall(params)
 - **Post-processing**: Uses `postprocessing` library with N8AO ambient occlusion (`n8ao` package)
 - **Wall pivot**: Walls are shifted to bottom-left corner as origin point
 - **JSON Config**: Wall configurations can be imported/exported via `core/UploadConfiguration.ts`
+- **Bounds-clamping**: Row geometry fits exactly within `wallWidth` by clamping block positions to wall bounds and creating partial blocks at edges. No CSG intersection needed for wall width.
 
 ## Type Definitions
 

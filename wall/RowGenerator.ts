@@ -53,6 +53,62 @@ export class RowGenerator {
   }
 
   /**
+   * Adds a single side cap (end face) at a given X position.
+   * Creates brick + cement portions with proper UVs and materials.
+   *
+   * @param builder - GeometryBuilder to add vertices and faces to
+   * @param x - X position of the cap
+   * @param yBottom - Y position of row bottom
+   * @param yTopBrick - Y position of brick top
+   * @param yTopCement - Y position of cement top (row top)
+   * @param zFront - Z position of front face
+   * @param zBack - Z position of back face
+   * @param facingRight - If true, face normal toward +X; if false, toward -X
+   */
+  private static addSingleSideCap(
+    builder: GeometryBuilder,
+    x: number,
+    yBottom: number,
+    yTopBrick: number,
+    yTopCement: number,
+    zFront: number,
+    zBack: number,
+    facingRight: boolean
+  ): void {
+    if (facingRight) {
+      // Face normal toward +X (visible from +X direction, i.e., looking left)
+      // Brick portion (larger, bottom)
+      const rb0 = builder.addVertex(x, yBottom, zFront, 0, 0);
+      const rb1 = builder.addVertex(x, yBottom, zBack, 1, 0);
+      const rb2 = builder.addVertex(x, yTopBrick, zBack, 1, 1);
+      const rb3 = builder.addVertex(x, yTopBrick, zFront, 0, 1);
+      builder.addQuad(rb0, rb1, rb2, rb3, false); // brick material
+
+      // Cement portion (thinner, top)
+      const rc0 = builder.addVertex(x, yTopBrick, zFront, 0, 0);
+      const rc1 = builder.addVertex(x, yTopBrick, zBack, 1, 0);
+      const rc2 = builder.addVertex(x, yTopCement, zBack, 1, 1);
+      const rc3 = builder.addVertex(x, yTopCement, zFront, 0, 1);
+      builder.addQuad(rc0, rc1, rc2, rc3, true); // cement material
+    } else {
+      // Face normal toward -X (visible from -X direction, i.e., looking right)
+      // Brick portion (larger, bottom)
+      const lb0 = builder.addVertex(x, yBottom, zBack, 0, 0);
+      const lb1 = builder.addVertex(x, yBottom, zFront, 1, 0);
+      const lb2 = builder.addVertex(x, yTopBrick, zFront, 1, 1);
+      const lb3 = builder.addVertex(x, yTopBrick, zBack, 0, 1);
+      builder.addQuad(lb0, lb1, lb2, lb3, false); // brick material
+
+      // Cement portion (thinner, top)
+      const lc0 = builder.addVertex(x, yTopBrick, zBack, 0, 0);
+      const lc1 = builder.addVertex(x, yTopBrick, zFront, 1, 0);
+      const lc2 = builder.addVertex(x, yTopCement, zFront, 1, 1);
+      const lc3 = builder.addVertex(x, yTopCement, zBack, 0, 1);
+      builder.addQuad(lc0, lc1, lc2, lc3, true); // cement material
+    }
+  }
+
+  /**
    * Adds end caps to a row geometry with proper UVs and materials.
    * Creates dedicated vertices for caps (not shared with front/back faces).
    * With bounds-clamping, we only need caps at the actual wall edges.
@@ -78,35 +134,10 @@ export class RowGenerator {
     zFront: number,
     zBack: number
   ): void {
-    // === LEFT CAP (face normal toward -X, visible from outside) ===
-    // Brick portion (larger, bottom)
-    const lb0 = builder.addVertex(xLeft, yBottom, zBack, 0, 0);       // bottom-left
-    const lb1 = builder.addVertex(xLeft, yBottom, zFront, 1, 0);      // bottom-right
-    const lb2 = builder.addVertex(xLeft, yTopBrick, zFront, 1, 1);    // top-right
-    const lb3 = builder.addVertex(xLeft, yTopBrick, zBack, 0, 1);     // top-left
-    builder.addQuad(lb0, lb1, lb2, lb3, false); // brick material
-
-    // Cement portion (thinner, top)
-    const lc0 = builder.addVertex(xLeft, yTopBrick, zBack, 0, 0);     // bottom-left
-    const lc1 = builder.addVertex(xLeft, yTopBrick, zFront, 1, 0);    // bottom-right
-    const lc2 = builder.addVertex(xLeft, yTopCement, zFront, 1, 1);   // top-right
-    const lc3 = builder.addVertex(xLeft, yTopCement, zBack, 0, 1);    // top-left
-    builder.addQuad(lc0, lc1, lc2, lc3, true); // cement material
-
-    // === RIGHT CAP (face normal toward +X, visible from outside) ===
-    // Brick portion (larger, bottom)
-    const rb0 = builder.addVertex(xRight, yBottom, zFront, 0, 0);     // bottom-left
-    const rb1 = builder.addVertex(xRight, yBottom, zBack, 1, 0);      // bottom-right
-    const rb2 = builder.addVertex(xRight, yTopBrick, zBack, 1, 1);    // top-right
-    const rb3 = builder.addVertex(xRight, yTopBrick, zFront, 0, 1);   // top-left
-    builder.addQuad(rb0, rb1, rb2, rb3, false); // brick material
-
-    // Cement portion (thinner, top)
-    const rc0 = builder.addVertex(xRight, yTopBrick, zFront, 0, 0);   // bottom-left
-    const rc1 = builder.addVertex(xRight, yTopBrick, zBack, 1, 0);    // bottom-right
-    const rc2 = builder.addVertex(xRight, yTopCement, zBack, 1, 1);   // top-right
-    const rc3 = builder.addVertex(xRight, yTopCement, zFront, 0, 1);  // top-left
-    builder.addQuad(rc0, rc1, rc2, rc3, true); // cement material
+    // Left cap: face normal toward -X (visible from outside)
+    this.addSingleSideCap(builder, xLeft, yBottom, yTopBrick, yTopCement, zFront, zBack, false);
+    // Right cap: face normal toward +X (visible from outside)
+    this.addSingleSideCap(builder, xRight, yBottom, yTopBrick, yTopCement, zFront, zBack, true);
   }
 
   /**
@@ -196,6 +227,10 @@ export class RowGenerator {
       let effectiveBrickRight = clampedBrickRight;
       let effectiveCementRight = clampedCementRight;
 
+      // Track if block edges were clamped by openings (for adding caps)
+      let clampedOnRightByOpening = false;
+      let clampedOnLeftByOpening = false;
+
       for (const opening of openingBounds) {
         // Check if block overlaps with opening horizontally
         if (effectiveBrickLeft < opening.right && effectiveBrickRight > opening.left) {
@@ -207,13 +242,16 @@ export class RowGenerator {
             // Case: Block spans entire opening → keep left portion only
             effectiveBrickRight = opening.left;
             effectiveCementRight = Math.min(effectiveCementRight, opening.left);
+            clampedOnRightByOpening = true;
           } else if (effectiveBrickLeft < opening.left) {
             // Case: Block overlaps opening on right → clamp right edge
             effectiveBrickRight = opening.left;
             effectiveCementRight = Math.min(effectiveCementRight, opening.left);
+            clampedOnRightByOpening = true;
           } else {
             // Case: Block overlaps opening on left → clamp left edge
             effectiveBrickLeft = opening.right;
+            clampedOnLeftByOpening = true;
           }
         }
       }
@@ -261,6 +299,18 @@ export class RowGenerator {
         yTopCement,
         prevVertices
       );
+
+      // Add opening edge caps (inner faces at opening boundaries)
+      if (clampedOnLeftByOpening) {
+        // Block was clamped on left → add cap facing -X (into the opening)
+        this.addSingleSideCap(builder, effectiveBrickLeft, yBottom, yTopBrick, yTopCement, zFront, zBack, false);
+      }
+      if (clampedOnRightByOpening) {
+        // Block was clamped on right → add cap facing +X (into the opening)
+        // Use effective right edge (brick right + cement width, or just brick right if no cement)
+        const capX = effectiveBrickRight + effectiveCementWidth;
+        this.addSingleSideCap(builder, capX, yBottom, yTopBrick, yTopCement, zFront, zBack, true);
+      }
 
       prevVertices = result.rightVertices;
       patternX += unitWidth;

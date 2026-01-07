@@ -184,21 +184,46 @@ export class RowGenerator {
       const actualBrickWidth = clampedBrickRight - clampedBrickLeft;
       const actualCementWidth = Math.max(0, clampedCementRight - clampedBrickRight);
 
-      // Skip if brick has no width (entirely outside bounds)
+      // Skip if brick has no width (entirely outside wall bounds)
       if (actualBrickWidth <= 0) {
         patternX += unitWidth;
         continue;
       }
 
-      // Pseudo-boolean: Check if this block is completely inside any opening
-      // A block is "completely inside" if its X bounds are within the opening's X bounds
-      // (Y overlap was already verified when filtering openings for this row)
-      const blockIsInsideOpening = openingBounds.some(opening =>
-        clampedBrickLeft >= opening.left && clampedBrickRight <= opening.right
-      );
+      // === OPENING BOUNDS CLAMPING ===
+      // Similar to wall bounds clamping, but openings carve out space from blocks
+      let effectiveBrickLeft = clampedBrickLeft;
+      let effectiveBrickRight = clampedBrickRight;
+      let effectiveCementRight = clampedCementRight;
 
-      if (blockIsInsideOpening) {
-        // Skip this block - it's inside an opening
+      for (const opening of openingBounds) {
+        // Check if block overlaps with opening horizontally
+        if (effectiveBrickLeft < opening.right && effectiveBrickRight > opening.left) {
+
+          if (effectiveBrickLeft >= opening.left && effectiveBrickRight <= opening.right) {
+            // Case: Block completely inside opening → mark for skip
+            effectiveBrickRight = effectiveBrickLeft;
+          } else if (effectiveBrickLeft < opening.left && effectiveBrickRight > opening.right) {
+            // Case: Block spans entire opening → keep left portion only
+            effectiveBrickRight = opening.left;
+            effectiveCementRight = Math.min(effectiveCementRight, opening.left);
+          } else if (effectiveBrickLeft < opening.left) {
+            // Case: Block overlaps opening on right → clamp right edge
+            effectiveBrickRight = opening.left;
+            effectiveCementRight = Math.min(effectiveCementRight, opening.left);
+          } else {
+            // Case: Block overlaps opening on left → clamp left edge
+            effectiveBrickLeft = opening.right;
+          }
+        }
+      }
+
+      // Recalculate widths after opening clamping
+      const effectiveBrickWidth = effectiveBrickRight - effectiveBrickLeft;
+      const effectiveCementWidth = Math.max(0, effectiveCementRight - effectiveBrickRight);
+
+      // Skip if brick has no width after opening clamping
+      if (effectiveBrickWidth <= 0) {
         skippedByOpening++;
         patternX += unitWidth;
         // Reset vertex sharing - next block can't share with previous non-adjacent block
@@ -206,23 +231,29 @@ export class RowGenerator {
         continue;
       }
 
-      // Track edge positions for end caps
-      if (actualLeftEdge === undefined) {
-        actualLeftEdge = clampedBrickLeft;
+      // Check if we need to reset vertex sharing due to opening gap
+      // (block was clamped on left side, creating discontinuity)
+      if (effectiveBrickLeft > clampedBrickLeft) {
+        prevVertices = undefined;
       }
-      actualRightEdge = clampedBrickRight + actualCementWidth;
+
+      // Track edge positions for end caps (use effective positions)
+      if (actualLeftEdge === undefined) {
+        actualLeftEdge = effectiveBrickLeft;
+      }
+      actualRightEdge = effectiveBrickRight + effectiveCementWidth;
 
       // Calculate UVs - based on position relative to pattern for "cut" appearance
-      const uLeft = uCounter + (clampedBrickLeft - idealBrickLeft) / blockWidth;
-      const uRight = uCounter + (clampedBrickRight - idealBrickLeft) / blockWidth;
+      const uLeft = uCounter + (effectiveBrickLeft - idealBrickLeft) / blockWidth;
+      const uRight = uCounter + (effectiveBrickRight - idealBrickLeft) / blockWidth;
 
-      // Add block to geometry
+      // Add block to geometry (using effective dimensions after opening clamping)
       const result = blockGenerator.addBlockToBuilder(
         builder,
-        clampedBrickLeft,
-        actualBrickWidth,
+        effectiveBrickLeft,
+        effectiveBrickWidth,
         wallLength,
-        actualCementWidth,
+        effectiveCementWidth,
         uLeft,
         uRight,
         yBottom,

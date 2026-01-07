@@ -14,9 +14,12 @@ export class PlaceholdersView {
   private placeholderLabel: HTMLElement | null;
   private actualWallToggle: HTMLInputElement | null;
   private actualWallLabel: HTMLElement | null;
+  private floorToggle: HTMLInputElement | null;
+  private floorLabel: HTMLElement | null;
 
   private placeholderControl: HTMLElement | null;
   private actualWallControl: HTMLElement | null;
+  private floorControl: HTMLElement | null;
 
   constructor() {
     this.wireframeToggle = document.getElementById('wireframe-toggle') as HTMLInputElement;
@@ -25,9 +28,12 @@ export class PlaceholdersView {
     this.placeholderLabel = document.getElementById('label-placeholder');
     this.actualWallToggle = document.getElementById('actual-wall-toggle') as HTMLInputElement;
     this.actualWallLabel = document.getElementById('label-actual-wall');
+    this.floorToggle = document.getElementById('floor-toggle') as HTMLInputElement;
+    this.floorLabel = document.getElementById('label-floor');
 
     this.placeholderControl = document.getElementById('wall-placeholder-control');
     this.actualWallControl = document.getElementById('actual-wall-control');
+    this.floorControl = document.getElementById('floor-control');
   }
 
   onWireframeChange(callback: (checked: boolean) => void): void {
@@ -48,6 +54,13 @@ export class PlaceholdersView {
     this.actualWallToggle?.addEventListener('change', () => {
       this.updateLabelStyle(this.actualWallLabel, this.actualWallToggle!.checked);
       callback(this.actualWallToggle!.checked);
+    });
+  }
+
+  onFloorChange(callback: (checked: boolean) => void): void {
+    this.floorToggle?.addEventListener('change', () => {
+      this.updateLabelStyle(this.floorLabel, this.floorToggle!.checked);
+      callback(this.floorToggle!.checked);
     });
   }
 
@@ -77,5 +90,9 @@ export class PlaceholdersView {
 
   isActualWallChecked(): boolean {
     return this.actualWallToggle?.checked ?? false;
+  }
+
+  isFloorChecked(): boolean {
+    return this.floorToggle?.checked ?? false;
   }
 }

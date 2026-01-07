@@ -49,11 +49,14 @@ function init(): void {
   // Track the current wall group
   let currentWallGroup: THREE.Group | null = null;
 
-  // 4. Create floor at ground level (but don't add it yet)
+  // 4. Create floor at ground level (starts disabled)
   const floor = SceneUtils.createFloor(10, 10, 0);
 
   // Initialize UIController
   uiController = new UIController(() => updateWall(), scene);
+
+  // Pass floor to UIController for toggle control
+  uiController.setFloor(floor);
 
   // Initialize Upload Configuration UI
   uploadConfiguration = new UploadConfiguration();
@@ -87,14 +90,6 @@ function init(): void {
     const openings = uiController.getOpenings();
     const completion = params.completionPercentage / 100;
     const viewMode = uiController.getViewMode();
-
-    // Manage floor: add/remove based on view mode (floor is not part of exported THREE.Group)
-    const shouldShowFloor = viewMode !== 'wall-output';
-    if (shouldShowFloor && !floor.parent) {
-      scene.add(floor);
-    } else if (!shouldShowFloor && floor.parent) {
-      scene.remove(floor);
-    }
 
     // Remove previous wall if exists
     if (currentWallGroup) {

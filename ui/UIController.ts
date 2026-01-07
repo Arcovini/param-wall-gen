@@ -75,6 +75,10 @@ export class UIController {
     return this.placeholders.getWireframeEnabled();
   }
 
+  setFloor(floor: THREE.Mesh): void {
+    this.placeholders.setFloor(floor);
+  }
+
   // Delegate to ViewControlsController
   getViewMode(): ViewMode {
     return this.viewControls.getViewMode();

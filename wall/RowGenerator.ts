@@ -54,11 +54,12 @@ export class RowGenerator {
   /**
    * Adds end caps to a row geometry with proper UVs and materials.
    * Creates dedicated vertices for caps (not shared with front/back faces).
+   * With bounds-clamping, we only need caps at the actual wall edges.
    *
    * @param builder - GeometryBuilder to add vertices and faces to
-   * @param xLeft - X position of left edge (first block's left side)
-   * @param xRightBrick - X position of last brick's right edge
-   * @param xRightCement - X position of last cement strip's right edge
+   * @param xLeft - X position of left edge
+   * @param xRight - X position of right edge
+   * @param _unused - Kept for API compatibility (deprecated)
    * @param yBottom - Y position of row bottom
    * @param yTopBrick - Y position of brick top
    * @param yTopCement - Y position of cement top (row top)
@@ -68,8 +69,8 @@ export class RowGenerator {
   private static addRowEndCaps(
     builder: GeometryBuilder,
     xLeft: number,
-    xRightBrick: number,
-    xRightCement: number,
+    xRight: number,
+    _unused: number,
     yBottom: number,
     yTopBrick: number,
     yTopCement: number,
@@ -91,40 +92,27 @@ export class RowGenerator {
     const lc3 = builder.addVertex(xLeft, yTopCement, zBack, 0, 1);    // top-left
     builder.addQuad(lc0, lc1, lc2, lc3, true); // cement material
 
-    // === RIGHT CAP AT BRICK EDGE (face normal toward +X, visible from outside) ===
+    // === RIGHT CAP (face normal toward +X, visible from outside) ===
     // Brick portion (larger, bottom)
-    const rb0 = builder.addVertex(xRightBrick, yBottom, zFront, 0, 0);     // bottom-left
-    const rb1 = builder.addVertex(xRightBrick, yBottom, zBack, 1, 0);      // bottom-right
-    const rb2 = builder.addVertex(xRightBrick, yTopBrick, zBack, 1, 1);    // top-right
-    const rb3 = builder.addVertex(xRightBrick, yTopBrick, zFront, 0, 1);   // top-left
+    const rb0 = builder.addVertex(xRight, yBottom, zFront, 0, 0);     // bottom-left
+    const rb1 = builder.addVertex(xRight, yBottom, zBack, 1, 0);      // bottom-right
+    const rb2 = builder.addVertex(xRight, yTopBrick, zBack, 1, 1);    // top-right
+    const rb3 = builder.addVertex(xRight, yTopBrick, zFront, 0, 1);   // top-left
     builder.addQuad(rb0, rb1, rb2, rb3, false); // brick material
 
     // Cement portion (thinner, top)
-    const rc0 = builder.addVertex(xRightBrick, yTopBrick, zFront, 0, 0);   // bottom-left
-    const rc1 = builder.addVertex(xRightBrick, yTopBrick, zBack, 1, 0);    // bottom-right
-    const rc2 = builder.addVertex(xRightBrick, yTopCement, zBack, 1, 1);   // top-right
-    const rc3 = builder.addVertex(xRightBrick, yTopCement, zFront, 0, 1);  // top-left
+    const rc0 = builder.addVertex(xRight, yTopBrick, zFront, 0, 0);   // bottom-left
+    const rc1 = builder.addVertex(xRight, yTopBrick, zBack, 1, 0);    // bottom-right
+    const rc2 = builder.addVertex(xRight, yTopCement, zBack, 1, 1);   // top-right
+    const rc3 = builder.addVertex(xRight, yTopCement, zFront, 0, 1);  // top-left
     builder.addQuad(rc0, rc1, rc2, rc3, true); // cement material
-
-    // === RIGHT CAP AT CEMENT STRIP EDGE (face normal toward +X, visible from outside) ===
-    // Lower portion - use brick material to match left side visual appearance
-    const cs0 = builder.addVertex(xRightCement, yBottom, zFront, 0, 0);    // bottom-left
-    const cs1 = builder.addVertex(xRightCement, yBottom, zBack, 1, 0);     // bottom-right
-    const cs2 = builder.addVertex(xRightCement, yTopBrick, zBack, 1, 1);   // top-right
-    const cs3 = builder.addVertex(xRightCement, yTopBrick, zFront, 0, 1);  // top-left
-    builder.addQuad(cs0, cs1, cs2, cs3, false); // brick material (visual consistency)
-
-    // Upper portion - cement material
-    const cc0 = builder.addVertex(xRightCement, yTopBrick, zFront, 0, 0);  // bottom-left
-    const cc1 = builder.addVertex(xRightCement, yTopBrick, zBack, 1, 0);   // bottom-right
-    const cc2 = builder.addVertex(xRightCement, yTopCement, zBack, 1, 1);  // top-right
-    const cc3 = builder.addVertex(xRightCement, yTopCement, zFront, 0, 1); // top-left
-    builder.addQuad(cc0, cc1, cc2, cc3, true); // cement material
   }
 
   /**
-   * Creates row geometry with continuous UV mapping and shared vertices.
-   * Uses BlockGenerator.addBlockToBuilder() for each block, sharing vertices between adjacent blocks.
+   * Creates row geometry with bounds-clamping approach.
+   * Generates blocks within wall bounds, creating partial blocks at edges as needed.
+   * No boolean/CSG operations required - geometry fits exactly within actualWallWidth.
+   *
    * @param rowIndex - The index of the row (0-based). Odd rows will be offset by half a block width.
    */
   static createRowGeometry(
@@ -137,11 +125,17 @@ export class RowGenerator {
     rowIndex: number = 0
   ): THREE.BufferGeometry {
     const builder = new GeometryBuilder();
-    const halfRowWidth = actualWallWidth / 2;
-    const blocksHorizontal = Math.round(actualWallWidth / (blockWidth + cementThickness));
+    const unitWidth = blockWidth + cementThickness;
 
-    // Calculate offset for odd rows (half a block width to the right)
+    // Wall bounds
+    const rowLeft = -actualWallWidth / 2;
+    const rowRight = actualWallWidth / 2;
+
+    // Calculate offset for odd rows (stagger pattern)
     const rowOffset = (rowIndex % 2 === 1) ? (blockWidth / 2) : 0;
+
+    // Pattern starts at rowLeft minus offset (may be before wall edge for odd rows)
+    const patternStart = rowLeft - rowOffset;
 
     // Calculate Y coordinates
     const totalHeight = blockHeight + cementThickness;
@@ -158,35 +152,55 @@ export class RowGenerator {
     // Track vertices for sharing between blocks
     let prevVertices: BlockVertices | undefined;
 
-    // Track X positions for end caps
-    let xLeftCap: number | undefined;
-    let xRightBrick: number | undefined;
-    let xRightCement: number | undefined;
+    // Track actual wall edge positions for end caps
+    let actualLeftEdge: number | undefined;
+    let actualRightEdge: number | undefined;
 
-    // Build each block using BlockGenerator
-    for (let col = 0; col < blocksHorizontal; col++) {
-      const xCenter = col * (blockWidth + cementThickness) - halfRowWidth + (blockWidth / 2) + rowOffset;
-      const uLeft = col;
-      const uRight = col + 1;
+    // UV counter for texture continuity
+    let uCounter = 0;
 
-      // Store first block's left edge for left cap
-      if (col === 0) {
-        xLeftCap = xCenter - blockWidth / 2;
+    // Generate blocks by iterating through pattern positions
+    let patternX = patternStart;
+    let blockCount = 0;
+
+    while (patternX < rowRight) {
+      // Ideal block boundaries (before clamping)
+      const idealBrickLeft = patternX;
+      const idealBrickRight = patternX + blockWidth;
+      const idealCementRight = patternX + unitWidth;
+
+      // Clamp to wall bounds
+      const clampedBrickLeft = Math.max(idealBrickLeft, rowLeft);
+      const clampedBrickRight = Math.min(idealBrickRight, rowRight);
+      const clampedCementRight = Math.min(idealCementRight, rowRight);
+
+      // Calculate actual widths after clamping
+      const actualBrickWidth = clampedBrickRight - clampedBrickLeft;
+      const actualCementWidth = Math.max(0, clampedCementRight - clampedBrickRight);
+
+      // Skip if brick has no width (entirely outside bounds)
+      if (actualBrickWidth <= 0) {
+        patternX += unitWidth;
+        continue;
       }
 
-      // Store last block's right edges for right caps
-      if (col === blocksHorizontal - 1) {
-        xRightBrick = xCenter + blockWidth / 2;
-        xRightCement = xCenter + blockWidth / 2 + cementThickness;
+      // Track edge positions for end caps
+      if (actualLeftEdge === undefined) {
+        actualLeftEdge = clampedBrickLeft;
       }
+      actualRightEdge = clampedBrickRight + actualCementWidth;
 
+      // Calculate UVs - based on position relative to pattern for "cut" appearance
+      const uLeft = uCounter + (clampedBrickLeft - idealBrickLeft) / blockWidth;
+      const uRight = uCounter + (clampedBrickRight - idealBrickLeft) / blockWidth;
+
+      // Add block to geometry
       const result = blockGenerator.addBlockToBuilder(
         builder,
-        xCenter,
-        blockWidth,
-        blockHeight,
+        clampedBrickLeft,
+        actualBrickWidth,
         wallLength,
-        cementThickness,
+        actualCementWidth,
         uLeft,
         uRight,
         yBottom,
@@ -195,17 +209,19 @@ export class RowGenerator {
         prevVertices
       );
 
-      // Update for next iteration
       prevVertices = result.rightVertices;
+      patternX += unitWidth;
+      uCounter += 1;
+      blockCount++;
     }
 
-    // Add end caps with proper positions and UVs
-    if (xLeftCap !== undefined && xRightBrick !== undefined && xRightCement !== undefined) {
+    // Add end caps with actual edge positions
+    if (actualLeftEdge !== undefined && actualRightEdge !== undefined) {
       this.addRowEndCaps(
         builder,
-        xLeftCap,
-        xRightBrick,
-        xRightCement,
+        actualLeftEdge,
+        actualRightEdge, // Right edge (brick or cement depending on last block)
+        actualRightEdge, // Same as above since we clamp to wall bounds
         yBottom,
         yTopBrick,
         yTopCement,
@@ -214,12 +230,9 @@ export class RowGenerator {
       );
     }
 
-    const { brick, cement } = builder.getIndexCounts();
-    console.log(`[RowGenerator] Built row with continuous UV mapping:
-      Total vertices: ${builder.getVertexCount()}
-      Blocks: ${blocksHorizontal}
-      Expected without sharing: ${blocksHorizontal * 18 + 12}
-      Vertices saved: ${(blocksHorizontal * 18 + 12) - builder.getVertexCount()}`);
+    console.log(`[RowGenerator] Built row ${rowIndex} with bounds-clamping:
+      Wall width: ${actualWallWidth}, Blocks: ${blockCount}
+      Left edge: ${actualLeftEdge?.toFixed(3)}, Right edge: ${actualRightEdge?.toFixed(3)}`);
 
     return builder.build();
   }

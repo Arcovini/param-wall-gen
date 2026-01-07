@@ -155,23 +155,44 @@ export class SceneUtils {
         const yTopBrick = -halfTotalHeight + blockHeight;
         const yTopCement = halfTotalHeight;
 
-        const result = blockGenerator.addBlockToBuilder(
-          builder, 0, blockWidth, blockHeight, wallLength, cementThickness,
+        // Block centered at origin: xLeft = -blockWidth/2
+        const xLeft = -blockWidth / 2;
+        const xRight = xLeft + blockWidth + cementThickness;
+        const halfDepth = wallLength / 2;
+        const zFront = halfDepth;
+        const zBack = -halfDepth;
+
+        blockGenerator.addBlockToBuilder(
+          builder, xLeft, blockWidth, wallLength, cementThickness,
           0, 1, yBottom, yTopBrick, yTopCement
         );
 
         // Add end caps for a closed single block
-        if (result.leftVertices && result.rightVertices) {
-          const [vl0, vl1, vl2, vl3] = result.leftVertices.brick;
-          const [vl4, vl5] = result.leftVertices.cementTop;
-          builder.addQuad(vl2, vl0, vl1, vl3, false); // Left brick cap
-          builder.addQuad(vl3, vl1, vl4, vl5, true);  // Left cement cap
+        // Left cap (brick + cement)
+        const lb0 = builder.addVertex(xLeft, yBottom, zBack, 0, 0);
+        const lb1 = builder.addVertex(xLeft, yBottom, zFront, 1, 0);
+        const lb2 = builder.addVertex(xLeft, yTopBrick, zFront, 1, 1);
+        const lb3 = builder.addVertex(xLeft, yTopBrick, zBack, 0, 1);
+        builder.addQuad(lb0, lb1, lb2, lb3, false);
 
-          const [vr0, vr1, vr2, vr3] = result.rightVertices.rightCement;
-          const [vr4, vr5] = result.rightVertices.rightCorner;
-          builder.addQuad(vr0, vr2, vr3, vr1, true); // Right lower cap
-          builder.addQuad(vr1, vr3, vr5, vr4, true); // Right upper cap
-        }
+        const lc0 = builder.addVertex(xLeft, yTopBrick, zBack, 0, 0);
+        const lc1 = builder.addVertex(xLeft, yTopBrick, zFront, 1, 0);
+        const lc2 = builder.addVertex(xLeft, yTopCement, zFront, 1, 1);
+        const lc3 = builder.addVertex(xLeft, yTopCement, zBack, 0, 1);
+        builder.addQuad(lc0, lc1, lc2, lc3, true);
+
+        // Right cap (brick + cement)
+        const rb0 = builder.addVertex(xRight, yBottom, zFront, 0, 0);
+        const rb1 = builder.addVertex(xRight, yBottom, zBack, 1, 0);
+        const rb2 = builder.addVertex(xRight, yTopBrick, zBack, 1, 1);
+        const rb3 = builder.addVertex(xRight, yTopBrick, zFront, 0, 1);
+        builder.addQuad(rb0, rb1, rb2, rb3, false);
+
+        const rc0 = builder.addVertex(xRight, yTopBrick, zFront, 0, 0);
+        const rc1 = builder.addVertex(xRight, yTopBrick, zBack, 1, 0);
+        const rc2 = builder.addVertex(xRight, yTopCement, zBack, 1, 1);
+        const rc3 = builder.addVertex(xRight, yTopCement, zFront, 0, 1);
+        builder.addQuad(rc0, rc1, rc2, rc3, true);
 
         const blockGeo = builder.build();
         const materials = [

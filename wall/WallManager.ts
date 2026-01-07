@@ -90,33 +90,24 @@ export class WallManager {
       blocksVertical, completion, rowsToShow
     });
 
-    // Calculate actual wall dimensions based on blocks that fit
-    // Don't include cement thickness after the last block
-    const actualWallWidth = blocksHorizontal > 0
-      ? blocksHorizontal * blockWidth + (blocksHorizontal - 1) * cementThickness
-      : 0;
+    // Calculate completed wall height based on visible rows
     const completedWallHeight = rowsToShow > 0
       ? rowsToShow * blockHeight + (rowsToShow - 1) * cementThickness
       : 0;
 
-    // Add extra blocks for horizontal truncation (one on each side)
-    const expandedBlocksHorizontal = blocksHorizontal + 2;
-    const expandedWallWidth = expandedBlocksHorizontal > 0
-      ? expandedBlocksHorizontal * blockWidth + (expandedBlocksHorizontal - 1) * cementThickness
-      : 0;
-
     // Generate Rows - create separate meshes for each row
+    // With bounds-clamping, RowGenerator creates partial blocks at edges
+    // to fit exactly within wallWidth (no CSG clipping needed)
     for (let row = 0; row < rowsToShow; row++) {
       // Calculate Y position for this row
       // Align to bottom of the wall (target height)
       // Start at -wallHeight/2
       const rowY = -wallHeight / 2 + row * (blockHeight + cementThickness) + (blockHeight / 2);
 
-      // Create Row (returns a welded mesh with shared vertices)
-      // Use expandedWallWidth to generate extra blocks
+      // Create Row with target wallWidth (bounds-clamping handles partial blocks)
       const rowMesh = RowGenerator.createRow(
         this.blockGenerator,
-        expandedWallWidth,
+        wallWidth,  // Target width - RowGenerator creates partial blocks to fit exactly
         wallLength,
         blockWidth,
         blockHeight,

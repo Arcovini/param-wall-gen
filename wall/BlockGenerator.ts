@@ -20,13 +20,13 @@ export class BlockGenerator {
   /**
    * Adds a block to an existing GeometryBuilder, optionally sharing vertices with previous block.
    * Designed for building rows with continuous UV mapping and shared vertices.
+   * Supports variable brick and cement widths for partial blocks at row edges.
    *
    * @param builder - The GeometryBuilder to add vertices and faces to
-   * @param xCenter - X center position of this block
-   * @param blockWidth - Block width
-   * @param blockHeight - Block height (brick portion only)
+   * @param xLeft - X position of brick's left edge
+   * @param brickWidth - Actual brick width (may be partial for edge blocks)
    * @param depth - Block depth (Z-axis)
-   * @param cementThickness - Thickness of cement layers
+   * @param cementWidth - Actual cement width (may be 0 or partial for edge blocks)
    * @param uLeft - UV left coordinate (for texture continuity across row)
    * @param uRight - UV right coordinate
    * @param yBottom - Y coordinate of bottom edge
@@ -37,11 +37,10 @@ export class BlockGenerator {
    */
   addBlockToBuilder(
     builder: GeometryBuilder,
-    xCenter: number,
-    blockWidth: number,
-    blockHeight: number,
+    xLeft: number,
+    brickWidth: number,
     depth: number,
-    cementThickness: number,
+    cementWidth: number,
     uLeft: number,
     uRight: number,
     yBottom: number,
@@ -49,12 +48,10 @@ export class BlockGenerator {
     yTopCement: number,
     prevVertices?: BlockVertices
   ): { rightVertices: BlockVertices; leftVertices?: BlockLeftVertices } {
-    const halfWidth = blockWidth / 2;
     const halfDepth = depth / 2;
 
-    const xLeft = xCenter - halfWidth;
-    const xRight = xCenter + halfWidth;
-    const xRightCement = xRight + cementThickness;
+    const xRight = xLeft + brickWidth;
+    const xRightCement = xRight + cementWidth;
     const zFront = halfDepth;
     const zBack = -halfDepth;
 
@@ -94,34 +91,35 @@ export class BlockGenerator {
     builder.addQuad(v5, v4, v7, v6, false); // Back
     builder.addQuad(v4, v5, v1, v0, false); // Bottom
 
-    // === CEMENT PORTION ===
+    // === TOP CEMENT PORTION (always exists - mortar between rows) ===
+    let vt0: number, vt1: number, vt2: number, vt3: number;
+
+    if (!prevVertices) {
+      vt0 = builder.addVertex(xLeft, yTopCement, zFront, uLeft, 1);
+      vt1 = builder.addVertex(xRight, yTopCement, zFront, uRight, 1);
+      vt2 = builder.addVertex(xLeft, yTopCement, zBack, uLeft, 1);
+      vt3 = builder.addVertex(xRight, yTopCement, zBack, uRight, 1);
+
+      if (leftVertices) {
+        leftVertices.cementTop = [vt0, vt2];
+      }
+    } else {
+      vt0 = prevVertices.rightCorner[0];
+      vt2 = prevVertices.rightCorner[1];
+      vt1 = builder.addVertex(xRight, yTopCement, zFront, uRight, 1);
+      vt3 = builder.addVertex(xRight, yTopCement, zBack, uRight, 1);
+    }
+
+    // Top cement faces (above brick)
+    builder.addQuad(v3, v2, vt1, vt0, true); // Front
+    builder.addQuad(v6, v7, vt2, vt3, true); // Back
+    builder.addQuad(vt0, vt1, vt3, vt2, true); // Top
+
+    // === RIGHT CEMENT STRIP (only if cementWidth > 0) ===
     let rightCement: number[] = [];
     let rightCorner: number[] = [];
 
-    if (cementThickness > 0) {
-      let vt0: number, vt1: number, vt2: number, vt3: number;
-
-      if (!prevVertices) {
-        vt0 = builder.addVertex(xLeft, yTopCement, zFront, uLeft, 1);
-        vt1 = builder.addVertex(xRight, yTopCement, zFront, uRight, 1);
-        vt2 = builder.addVertex(xLeft, yTopCement, zBack, uLeft, 1);
-        vt3 = builder.addVertex(xRight, yTopCement, zBack, uRight, 1);
-
-        if (leftVertices) {
-          leftVertices.cementTop = [vt0, vt2];
-        }
-      } else {
-        vt0 = prevVertices.rightCorner[0];
-        vt2 = prevVertices.rightCorner[1];
-        vt1 = builder.addVertex(xRight, yTopCement, zFront, uRight, 1);
-        vt3 = builder.addVertex(xRight, yTopCement, zBack, uRight, 1);
-      }
-
-      // Top cement faces
-      builder.addQuad(v3, v2, vt1, vt0, true); // Front
-      builder.addQuad(v6, v7, vt2, vt3, true); // Back
-      builder.addQuad(vt0, vt1, vt3, vt2, true); // Top
-
+    if (cementWidth > 0) {
       // Right cement strip vertices
       const vr0 = builder.addVertex(xRightCement, yBottom, zFront, uRight, 0);
       const vr1 = builder.addVertex(xRightCement, yTopBrick, zFront, uRight, 0.8);
@@ -144,6 +142,10 @@ export class BlockGenerator {
 
       rightCement = [vr0, vr1, vr2, vr3];
       rightCorner = [vc0, vc1];
+    } else {
+      // No cement strip - use brick right edge vertices for sharing
+      rightCement = [v1, v2, v5, v6];
+      rightCorner = [vt1, vt3];
     }
 
     return {

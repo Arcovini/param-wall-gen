@@ -44,16 +44,23 @@ buildMasonryWall(params)
 ### Specialized Generators (wall/)
 
 - `BlockGenerator.ts` - Individual block geometry creation
-- `RowGenerator.ts` - Row layout with proper UV mapping
+  - `addBlockToBuilder(xLeft, brickWidth, depth, cementWidth, ...)` - Adds block with variable dimensions
+  - Supports partial blocks (variable brick/cement widths for edge blocks)
+  - When `cementWidth = 0`, returns brick edge vertices for sharing
+- `RowGenerator.ts` - Row layout using bounds-clamping approach
+  - `createRowGeometry()` - Builds row with partial blocks at edges (no CSG needed)
+  - `addRowEndCaps()` - Creates side caps with proper UVs and materials (brick on bottom, cement on top)
 - `OpeningGenerator.ts` - Door/window openings
 - `LintelGenerator.ts` - Structural elements above openings
 - `InfillGenerator.ts` - Top infill blocks (encunhamento)
-- `MaterialManager.ts` - PBR materials for masonry textures
+- `MaterialManager.ts` - PBR materials for masonry textures (singleton pattern)
 - `WallPlacement.ts` - Spatial transformations
 
 ### Opening Processing (wall/processing/)
 
 - `OpeningCutter.ts` - High-level orchestration for cutting openings from wall components. Does not use THREE.js or three-bvh-csg directly — delegates to utils.
+  - `cutOpenings()` - Main entry point for CSG operations on wall components
+  - `clipToWallBounds()` - Clips geometry to actual wall dimensions (currently being restructured)
 
 ### Geometry Utilities (utils/geometry/)
 
@@ -73,13 +80,16 @@ buildMasonryWall(params)
 - ✅ Separated CSG operations into clean layers (CsgOperations, CsgValidator)
 - ✅ Created `OpeningCutter` as high-level orchestrator (no direct THREE.js/CSG imports)
 - ✅ Organized utils into `geometry/` and `csg/` subfolders
+- ✅ Fixed row end caps with dedicated vertices, proper UVs, and correct materials (brick/cement)
+- ✅ Implemented bounds-clamping approach for row generation (replaces CSG intersection for wall width)
 
 ### Remaining
 
-- **Long functions**: `SceneRenderer` constructor (110 lines), `RowGenerator.createRowGeometry` (160+ lines)
+- **Long functions**: `SceneRenderer` constructor (110 lines)
 - **SRP violations**: `UIController` (5 responsibilities), `UploadConfiguration` (4 responsibilities)
 - **Unclear naming**: `actualWallWidth` vs `wallWidth`, `completion` semantic unclear
 - **Tight coupling**: Hard-coded DOM IDs in UIController, direct instantiation in WallBuilder
+- **Cleanup**: Remove deprecated `clipToWallBounds()` from OpeningCutter (no longer needed)
 
 ## Key Technical Details
 

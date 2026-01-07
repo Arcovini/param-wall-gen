@@ -9,9 +9,9 @@
  */
 
 import * as THREE from 'three';
-import type { BuildMasonryWallParams } from '../../types';
+import type { BuildMasonryWallParams, OpeningBoundsForRow } from '../../types';
 import { WallManager } from '../WallManager';
-import { OpeningGenerator, type OpeningData } from '../OpeningGenerator';
+import { OpeningGenerator, type OpeningData, snapToRowBoundaries } from '../OpeningGenerator';
 import { WallVisualizer } from '../visualization/WallVisualizer';
 import { InfillGenerator } from '../InfillGenerator';
 import { cutOpenings } from '../processing/OpeningCutter';
@@ -43,6 +43,9 @@ interface WallBuildContext {
   actualWallHeight: number;
   actualWallWidth: number;
 
+  // Pre-computed opening bounds for pseudo-boolean row generation
+  openingBoundsForRows: OpeningBoundsForRow[];
+
   // Build state
   wallGroup: THREE.Group | null;
   openingDataList: OpeningData[];
@@ -70,6 +73,7 @@ export class WallBuilder {
       blockWidth: 0, blockHeight: 0, cementThickness: 0,
       positionX: 0, positionY: 0, positionZ: 0, yawDegrees: 0,
       totalRows: 0, visibleRows: 0, actualWallHeight: 0, actualWallWidth: 0,
+      openingBoundsForRows: [],
       wallGroup: null, openingDataList: [], infillMesh: null, lintelMeshes: []
     };
   }
@@ -99,13 +103,40 @@ export class WallBuilder {
     return this;
   }
 
+  /** Step 1.5: Pre-compute opening bounds for pseudo-boolean row generation */
+  precomputeOpeningBounds(): this {
+    const { openings } = this.params;
+    if (!openings || openings.length === 0) return this;
+
+    this.ctx.openingBoundsForRows = openings.map(opening => {
+      const snappedBounds = snapToRowBoundaries(
+        opening.placement.position.y,
+        opening.size.h,
+        this.ctx.wallHeight,
+        this.ctx.blockHeight,
+        this.ctx.cementThickness
+      );
+
+      return {
+        left: opening.placement.position.x - opening.size.l / 2,
+        right: opening.placement.position.x + opening.size.l / 2,
+        snappedBottomY: snappedBounds.snappedBottomY,
+        snappedTopY: snappedBounds.snappedTopY
+      };
+    });
+
+    console.log(`[WallBuilder] Pre-computed ${this.ctx.openingBoundsForRows.length} opening bounds for row generation`);
+    return this;
+  }
+
   /** Step 2: Generate base wall with rows */
   generateBaseWall(): this {
     this.ctx.wallGroup = wallManagerInstance.generateWallGroup(
       this.ctx.wallWidth, this.ctx.wallHeight, this.ctx.wallLength,
       this.ctx.blockWidth, this.ctx.blockHeight, this.ctx.cementThickness,
       this.ctx.positionX, this.ctx.positionY, this.ctx.positionZ,
-      this.ctx.yawDegrees, this.params.task.completion
+      this.ctx.yawDegrees, this.params.task.completion,
+      this.ctx.openingBoundsForRows  // Pass opening bounds for pseudo-boolean
     );
     this.ctx.actualWallWidth = this.ctx.wallGroup.userData.actualWallWidth || this.ctx.wallWidth;
     return this;
@@ -152,12 +183,18 @@ export class WallBuilder {
     );
 
     // Explicitly handle visualization using WallVisualizer
+    // Shows both original (red) and snapped (blue) opening bounds
     const visualizationMode = this.params.visualization;
     if (visualizationMode && visualizationMode !== 'none') {
       openingDataList.forEach(data => {
-        const visMesh = WallVisualizer.createOpeningVisualization(data.mesh, visualizationMode);
-        if (visMesh) {
-          this.ctx.wallGroup!.add(visMesh);
+        const visMeshes = WallVisualizer.createOpeningVisualization(
+          data.originalMesh,      // Exact params dimensions
+          data.snappedVisMesh,    // Exact snapped dimensions (not the oversized CSG mesh)
+          visualizationMode
+        );
+        if (visMeshes) {
+          this.ctx.wallGroup!.add(visMeshes.originalVisMesh);  // Red: original from params
+          this.ctx.wallGroup!.add(visMeshes.snappedVisMesh);   // Blue: row-snapped
         }
       });
     }

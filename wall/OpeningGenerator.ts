@@ -7,9 +7,12 @@ import { LintelGenerator } from './LintelGenerator';
  */
 export interface OpeningData {
   opening: OpeningParams;
-  mesh: THREE.Mesh;
+  mesh: THREE.Mesh;                    // The snapped + oversized opening mesh (used for CSG)
+  originalMesh: THREE.Mesh;            // The original opening mesh (exact params, for red visualization)
+  snappedVisMesh: THREE.Mesh;          // The snapped opening mesh (exact snapped dims, for blue visualization)
   lintelMesh: THREE.Mesh | null;
   intersectsWall: boolean;
+  snappedBounds: SnappedBounds | null; // Snapping information (null if snapping not applied)
 }
 
 /**
@@ -57,6 +60,85 @@ export function calculateInfillBaseY(
 }
 
 /**
+ * Snapped opening bounds result
+ */
+export interface SnappedBounds {
+  originalBottomY: number;
+  originalTopY: number;
+  snappedBottomY: number;
+  snappedTopY: number;
+  originalHeight: number;
+  snappedHeight: number;
+}
+
+/**
+ * Snaps opening top and bottom to row block edges.
+ *
+ * Row structure (from bottom to top):
+ * ```
+ * ┌─────────────────────────┐ ← Block top (snap point for opening TOP)
+ * │         BLOCK           │  blockHeight
+ * ├─────────────────────────┤ ← Block bottom (snap point for opening BOTTOM)
+ * │        CEMENT           │  cementThickness
+ * └─────────────────────────┘
+ * ```
+ *
+ * IMPORTANT: Geometry offset correction
+ * - RowGenerator builds geometry centered on row-center (total height)
+ * - WallManager positions mesh at block-center
+ * - This creates an offset of -cementThickness/2 for actual block positions
+ *
+ * Actual snap points (accounting for geometry offset):
+ * - Block bottoms at: wallBottomY + i * rowHeight - cementThickness/2
+ * - Block tops at: wallBottomY + i * rowHeight + blockHeight - cementThickness/2
+ *
+ * Snapping rules:
+ * - Opening bottom → snaps DOWN to nearest block bottom (floor)
+ * - Opening top → snaps UP to nearest block top (ceil)
+ *
+ * This ensures the snapped opening always ENCOMPASSES the original opening
+ * and aligns with complete block edges (not cement joints).
+ */
+export function snapToRowBoundaries(
+  openingCenterY: number,
+  openingHeight: number,
+  wallHeight: number,
+  blockHeight: number,
+  cementThickness: number
+): SnappedBounds {
+  const rowHeight = blockHeight + cementThickness;
+  const wallBottomY = -wallHeight / 2;
+
+  // Geometry offset: rows are centered on row-center but positioned at block-center
+  const geometryOffset = -cementThickness / 2;
+
+  const originalBottomY = openingCenterY - openingHeight / 2;
+  const originalTopY = openingCenterY + openingHeight / 2;
+
+  // Actual block bottoms are at: wallBottomY + i * rowHeight + geometryOffset
+  const bottomRowIndex = Math.floor((originalBottomY - wallBottomY - geometryOffset) / rowHeight);
+  const snappedBottomY = wallBottomY + bottomRowIndex * rowHeight + geometryOffset;
+
+  // Actual block tops are at: wallBottomY + i * rowHeight + blockHeight + geometryOffset
+  const topRowIndex = Math.ceil((originalTopY - wallBottomY - blockHeight - geometryOffset) / rowHeight);
+  let snappedTopY = wallBottomY + topRowIndex * rowHeight + blockHeight + geometryOffset;
+
+  // Ensure minimum height of one block
+  if (snappedTopY <= snappedBottomY) {
+    snappedTopY = snappedBottomY + blockHeight;
+  }
+
+  return {
+    originalBottomY,
+    originalTopY,
+    snappedBottomY,
+    snappedTopY,
+    originalHeight: openingHeight,
+    snappedHeight: snappedTopY - snappedBottomY
+  };
+}
+
+/**
  * OpeningGenerator - Generates and processes wall openings
  * 
  * Handles:
@@ -76,36 +158,115 @@ export class OpeningGenerator {
   }
 
   /**
-   * Creates a mesh representing an opening
+   * Creates an original (non-snapped) mesh for visualization purposes
    * @param params Parameters for the opening
-   * @param oversizeFactor Optional factor to oversize the opening for cleaner CSG cuts (default: 1.05)
-   * @param extendToTop Optional: if provided, extends opening to wall top when above infill
-   * @returns A THREE.Mesh representing the opening
+   * @returns A THREE.Mesh representing the original opening dimensions
    */
-  createOpeningMesh(
+  createOriginalMesh(params: OpeningParams): THREE.Mesh {
+    const { size, placement } = params;
+
+    const geometry = new THREE.BoxGeometry(size.l, size.h, size.w);
+
+    // Ensure uv2 exists for consistency
+    if (!geometry.attributes.uv2) {
+      geometry.setAttribute('uv2', geometry.attributes.uv.clone());
+    }
+
+    const mesh = new THREE.Mesh(geometry, this.material);
+    mesh.position.set(
+      placement.position.x,
+      placement.position.y,
+      placement.position.z
+    );
+
+    return mesh;
+  }
+
+  /**
+   * Creates a snapped visualization mesh (exact snapped dimensions, no oversizing)
+   * Used for blue visualization to show the row-aligned opening bounds
+   * @param params Parameters for the opening (for width/depth)
+   * @param snappedBounds The snapped Y bounds
+   * @returns A THREE.Mesh representing the snapped opening dimensions
+   */
+  createSnappedVisualizationMesh(
     params: OpeningParams,
-    oversizeFactor: number = 1.05,
-    extendToTop?: { wallHeight: number; infillBaseY: number | null }
+    snappedBounds: SnappedBounds
   ): THREE.Mesh {
     const { size, placement } = params;
 
-    let effectiveHeight = size.h;
-    let effectiveCenterY = placement.position.y;
+    // Use exact snapped height, original width and depth
+    const snappedHeight = snappedBounds.snappedHeight;
+    const snappedCenterY = snappedBounds.snappedBottomY + snappedHeight / 2;
 
-    // Check if opening should extend to wall top
-    // If opening TOP is above infill base, it cuts into infill region → extend to wall top
-    if (extendToTop && extendToTop.infillBaseY !== null) {
-      const openingTopY = placement.position.y + size.h / 2;
-      const openingBottomY = placement.position.y - size.h / 2;
-      const wallTopY = extendToTop.wallHeight / 2;
+    const geometry = new THREE.BoxGeometry(size.l, snappedHeight, size.w);
 
-      // If opening cuts into infill region (its top is above infill base), extend to wall top
-      if (openingTopY > extendToTop.infillBaseY) {
-        effectiveHeight = wallTopY - openingBottomY;
-        effectiveCenterY = openingBottomY + effectiveHeight / 2;
-        console.log(`[OpeningGenerator] Opening extended to wall top: original h=${size.h.toFixed(3)}, new h=${effectiveHeight.toFixed(3)}, infillBaseY=${extendToTop.infillBaseY.toFixed(3)}, openingTopY=${openingTopY.toFixed(3)}`);
+    // Ensure uv2 exists for consistency
+    if (!geometry.attributes.uv2) {
+      geometry.setAttribute('uv2', geometry.attributes.uv.clone());
+    }
+
+    const mesh = new THREE.Mesh(geometry, this.material);
+    mesh.position.set(
+      placement.position.x,
+      snappedCenterY,
+      placement.position.z
+    );
+
+    return mesh;
+  }
+
+  /**
+   * Creates a mesh representing an opening with row-snapped bounds
+   * @param params Parameters for the opening
+   * @param ctx Context with wall/block dimensions for snapping
+   * @param oversizeFactor Optional factor to oversize the opening for cleaner CSG cuts (default: 1.05)
+   * @returns Object with snapped mesh and snapping information
+   */
+  createOpeningMesh(
+    params: OpeningParams,
+    ctx: OpeningProcessContext,
+    oversizeFactor: number = 1.05
+  ): { mesh: THREE.Mesh; snappedBounds: SnappedBounds } {
+    const { size, placement } = params;
+
+    // Snap opening bounds to row boundaries
+    const snappedBounds = snapToRowBoundaries(
+      placement.position.y,
+      size.h,
+      ctx.wallHeight,
+      ctx.blockHeight,
+      ctx.cementThickness
+    );
+
+    // Calculate effective height and center Y from snapped bounds
+    let effectiveHeight = snappedBounds.snappedHeight;
+    let effectiveCenterY = snappedBounds.snappedBottomY + effectiveHeight / 2;
+
+    // Also check if snapped opening should extend to wall top (infill region)
+    const infillBaseY = calculateInfillBaseY(
+      ctx.wallHeight,
+      ctx.blockHeight,
+      ctx.cementThickness
+    );
+
+    if (infillBaseY !== null) {
+      const snappedTopY = snappedBounds.snappedTopY;
+      const wallTopY = ctx.wallHeight / 2;
+
+      // If snapped opening cuts into infill region, extend to wall top
+      if (snappedTopY > infillBaseY) {
+        effectiveHeight = wallTopY - snappedBounds.snappedBottomY;
+        effectiveCenterY = snappedBounds.snappedBottomY + effectiveHeight / 2;
+        console.log(`[OpeningGenerator] Opening extended to wall top after snapping: snapped h=${snappedBounds.snappedHeight.toFixed(3)}, extended h=${effectiveHeight.toFixed(3)}`);
       }
     }
+
+    console.log(`[OpeningGenerator] Row snapping details:`);
+    console.log(`  Original: centerY=${placement.position.y.toFixed(3)}, height=${size.h.toFixed(3)}`);
+    console.log(`  Original bounds: [${snappedBounds.originalBottomY.toFixed(3)} to ${snappedBounds.originalTopY.toFixed(3)}]`);
+    console.log(`  Snapped bounds:  [${snappedBounds.snappedBottomY.toFixed(3)} to ${snappedBounds.snappedTopY.toFixed(3)}]`);
+    console.log(`  Snapped height: ${snappedBounds.snappedHeight.toFixed(3)}, Effective height: ${effectiveHeight.toFixed(3)}`);
 
     // Oversize the opening significantly to ensure clean CSG cuts
     const oversizedL = size.l * oversizeFactor;
@@ -126,7 +287,7 @@ export class OpeningGenerator {
       placement.position.z
     );
 
-    return mesh;
+    return { mesh, snappedBounds };
   }
 
   /**
@@ -190,12 +351,11 @@ export class OpeningGenerator {
 
   /**
    * Processes all openings and returns OpeningData array with meshes
-   * 
+   *
    * @param openings Array of opening parameters
    * @param wallBounds Wall bounds for intersection testing
    * @param ctx Context with wall/block dimensions
    * @param wallGroup Group to add meshes to
-   * @param visualization Visualization mode for openings
    * @returns Array of OpeningData with all generated meshes
    */
   processAllOpenings(
@@ -207,19 +367,15 @@ export class OpeningGenerator {
     const openingDataList: OpeningData[] = [];
     const lintelMeshes: THREE.Mesh[] = [];
 
-    // Calculate infill base Y for extending openings to wall top
-    const infillBaseY = calculateInfillBaseY(
-      ctx.wallHeight,
-      ctx.blockHeight,
-      ctx.cementThickness
-    );
-
     openings.forEach((opening, index) => {
-      // Create opening mesh (with potential extension to wall top)
-      const openingMesh = this.createOpeningMesh(opening, 1.05, {
-        wallHeight: ctx.wallHeight,
-        infillBaseY
-      });
+      // Create original mesh for visualization (non-snapped, exact params) - RED
+      const originalMesh = this.createOriginalMesh(opening);
+
+      // Create snapped opening mesh (with row-snapping and potential infill extension) - for CSG
+      const { mesh: openingMesh, snappedBounds } = this.createOpeningMesh(opening, ctx, 1.05);
+
+      // Create snapped visualization mesh (exact snapped dims, no oversizing) - BLUE
+      const snappedVisMesh = this.createSnappedVisualizationMesh(opening, snappedBounds);
 
       // Check intersection
       const intersects = this.checkIntersection(opening, wallBounds);
@@ -252,8 +408,11 @@ export class OpeningGenerator {
       openingDataList.push({
         opening,
         mesh: openingMesh,
+        originalMesh,
+        snappedVisMesh,
         lintelMesh,
-        intersectsWall: intersects
+        intersectsWall: intersects,
+        snappedBounds
       });
 
       this.logDebug(index + 1, opening, openingMesh, lintelMesh);

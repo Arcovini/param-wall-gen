@@ -103,3 +103,53 @@ buildMasonryWall(params)
 
 - `types.ts` - Core type definitions including `BuildMasonryWallParams`, opening types
 - `types/n8ao.d.ts` - Type declarations for the n8ao package
+
+## Documentation Style
+
+When explaining code changes or architectural decisions, use ASCII diagrams and data flow representations:
+
+### ASCII Diagrams for Structures
+
+```
+Row Structure (from bottom to top):
+┌─────────────────────────┐ ← Block top
+│         BLOCK           │  blockHeight
+├─────────────────────────┤ ← Block bottom
+│        CEMENT           │  cementThickness
+└─────────────────────────┘
+```
+
+### Before/After Comparisons
+
+```
+Before (bug):                After (fix):
+    ┌───────┐                    ┌───────┐  ← Expanded
+    │       │                    │       │
+    │       │         →          │       │
+    │       │                    │       │
+    └───────┘                    └───────┘  ← Expanded
+       ↓ ↑                     Only expands outward
+   Both moved in
+```
+
+### Data Flow Diagrams
+
+```
+Opening Parameters
+       ↓
+createOriginalMesh()        → RED visualization (exact params)
+       ↓
+snapToRowBoundaries()       → Calculate snapped bounds
+       ↓
+createSnappedVisMesh()      → BLUE visualization (exact snapped dims)
+       ↓
+createOpeningMesh()         → CSG mesh (oversized for cutting)
+```
+
+### Visual Legends
+
+```
+Visualization Colors:
+- RED (0xff0000)  = Original opening from parameters
+- BLUE (0x0066ff) = Row-snapped opening (aligned to block edges)
+```

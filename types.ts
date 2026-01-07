@@ -92,6 +92,17 @@ export type OpeningParams = {
   size: Size;
 };
 
+/**
+ * Pre-computed opening bounds for row generation (pseudo-boolean approach).
+ * Used to skip blocks that fall completely inside an opening.
+ */
+export interface OpeningBoundsForRow {
+  left: number;          // X min (position.x - size.l/2)
+  right: number;         // X max (position.x + size.l/2)
+  snappedBottomY: number; // Snapped bottom Y (aligned to row block edge)
+  snappedTopY: number;    // Snapped top Y (aligned to row block edge)
+}
+
 type TaskParams = {
   completion: number;  // 0..1
 };

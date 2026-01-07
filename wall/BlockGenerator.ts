@@ -89,7 +89,7 @@ export class BlockGenerator {
     // Brick faces
     builder.addQuad(v0, v1, v2, v3, false); // Front
     builder.addQuad(v5, v4, v7, v6, false); // Back
-    builder.addQuad(v4, v5, v1, v0, false); // Bottom
+    // Bottom face removed - not visible in wall construction
 
     // === TOP CEMENT PORTION (always exists - mortar between rows) ===
     let vt0: number, vt1: number, vt2: number, vt3: number;
@@ -113,7 +113,7 @@ export class BlockGenerator {
     // Top cement faces (above brick)
     builder.addQuad(v3, v2, vt1, vt0, true); // Front
     builder.addQuad(v6, v7, vt2, vt3, true); // Back
-    builder.addQuad(vt0, vt1, vt3, vt2, true); // Top
+    // Top face removed - covered by row above
 
     // === RIGHT CEMENT STRIP (only if cementWidth > 0) ===
     let rightCement: number[] = [];
@@ -129,7 +129,7 @@ export class BlockGenerator {
       // Right cement faces
       builder.addQuad(v1, vr0, vr1, v2, true); // Front
       builder.addQuad(vr2, v5, v6, vr3, true); // Back
-      builder.addQuad(v5, vr2, vr0, v1, true); // Bottom of cement strip
+      // Bottom face removed - not visible in wall construction
 
       // Corner cement vertices
       const vc0 = builder.addVertex(xRightCement, yTopCement, zFront, uRight, 1);
@@ -138,7 +138,7 @@ export class BlockGenerator {
       // Corner faces
       builder.addQuad(v2, vr1, vc0, vt1, true); // Front
       builder.addQuad(vr3, v6, vt3, vc1, true); // Back
-      builder.addQuad(vt1, vc0, vc1, vt3, true); // Top
+      // Top face removed - covered by row above
 
       rightCement = [vr0, vr1, vr2, vr3];
       rightCorner = [vc0, vc1];

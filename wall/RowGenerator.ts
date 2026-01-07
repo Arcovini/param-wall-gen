@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { OpeningBoundsForRow } from '../types';
 import { BlockGenerator, BlockVertices } from './BlockGenerator';
 import { isManifoldWithBVH } from '../utils/csg/CsgValidator';
 import { GeometryBuilder } from '../utils/geometry/GeometryBuilder';
@@ -113,7 +114,10 @@ export class RowGenerator {
    * Generates blocks within wall bounds, creating partial blocks at edges as needed.
    * No boolean/CSG operations required - geometry fits exactly within actualWallWidth.
    *
+   * Pseudo-boolean: Skips blocks that are completely inside any opening bounds.
+   *
    * @param rowIndex - The index of the row (0-based). Odd rows will be offset by half a block width.
+   * @param openingBounds - Opening bounds that affect this row (pre-filtered by Y overlap).
    */
   static createRowGeometry(
     blockGenerator: BlockGenerator,
@@ -122,7 +126,8 @@ export class RowGenerator {
     blockWidth: number,
     blockHeight: number,
     cementThickness: number,
-    rowIndex: number = 0
+    rowIndex: number = 0,
+    openingBounds: OpeningBoundsForRow[] = []
   ): THREE.BufferGeometry {
     const builder = new GeometryBuilder();
     const unitWidth = blockWidth + cementThickness;
@@ -162,6 +167,7 @@ export class RowGenerator {
     // Generate blocks by iterating through pattern positions
     let patternX = patternStart;
     let blockCount = 0;
+    let skippedByOpening = 0;
 
     while (patternX < rowRight) {
       // Ideal block boundaries (before clamping)
@@ -181,6 +187,22 @@ export class RowGenerator {
       // Skip if brick has no width (entirely outside bounds)
       if (actualBrickWidth <= 0) {
         patternX += unitWidth;
+        continue;
+      }
+
+      // Pseudo-boolean: Check if this block is completely inside any opening
+      // A block is "completely inside" if its X bounds are within the opening's X bounds
+      // (Y overlap was already verified when filtering openings for this row)
+      const blockIsInsideOpening = openingBounds.some(opening =>
+        clampedBrickLeft >= opening.left && clampedBrickRight <= opening.right
+      );
+
+      if (blockIsInsideOpening) {
+        // Skip this block - it's inside an opening
+        skippedByOpening++;
+        patternX += unitWidth;
+        // Reset vertex sharing - next block can't share with previous non-adjacent block
+        prevVertices = undefined;
         continue;
       }
 
@@ -231,7 +253,7 @@ export class RowGenerator {
     }
 
     console.log(`[RowGenerator] Built row ${rowIndex} with bounds-clamping:
-      Wall width: ${actualWallWidth}, Blocks: ${blockCount}
+      Wall width: ${actualWallWidth}, Blocks: ${blockCount}, Skipped by openings: ${skippedByOpening}
       Left edge: ${actualLeftEdge?.toFixed(3)}, Right edge: ${actualRightEdge?.toFixed(3)}`);
 
     return builder.build();
@@ -241,6 +263,7 @@ export class RowGenerator {
    * Creates a complete row as a single welded mesh.
    * Uses createRowGeometry() to build geometry with shared vertices from the start.
    * @param rowIndex - The index of the row (0-based). Odd rows will be offset by half a block width.
+   * @param openingBounds - Opening bounds that affect this row (pre-filtered by Y overlap).
    */
   static createRow(
     blockGenerator: BlockGenerator,
@@ -249,7 +272,8 @@ export class RowGenerator {
     blockWidth: number,
     blockHeight: number,
     cementThickness: number,
-    rowIndex: number = 0
+    rowIndex: number = 0,
+    openingBounds: OpeningBoundsForRow[] = []
   ): THREE.Mesh {
     // Build row geometry with shared vertices
     const rowGeometry = this.createRowGeometry(
@@ -259,7 +283,8 @@ export class RowGenerator {
       blockWidth,
       blockHeight,
       cementThickness,
-      rowIndex
+      rowIndex,
+      openingBounds
     );
 
     // Get materials

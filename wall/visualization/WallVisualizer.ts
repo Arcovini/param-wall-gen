@@ -81,22 +81,40 @@ export class WallVisualizer {
   }
 
   /**
-   * Creates a visualization mesh for an opening
+   * Creates visualization meshes for an opening showing both original and snapped bounds
+   *
+   * @param originalMesh The original opening mesh (exact params, for red visualization)
+   * @param snappedVisMesh The snapped visualization mesh (exact snapped dims, for blue visualization)
+   * @param mode Visualization mode
+   * @returns Object with red (original) and blue (snapped) visualization meshes, or null if mode is 'none'
    */
-  static createOpeningVisualization(openingMesh: THREE.Mesh, mode: VisualizationMode): THREE.Mesh | null {
+  static createOpeningVisualization(
+    originalMesh: THREE.Mesh,
+    snappedVisMesh: THREE.Mesh,
+    mode: VisualizationMode
+  ): { originalVisMesh: THREE.Mesh; snappedVisMesh: THREE.Mesh } | null {
     if (mode === 'none') {
       return null;
     }
 
-    const visMesh = openingMesh.clone();
-
+    // Red mesh: Original opening from parameters (exact size)
+    const originalVisMeshClone = originalMesh.clone();
     if (mode === 'wireframe') {
-      visMesh.material = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
+      originalVisMeshClone.material = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
     } else {
-      visMesh.material = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.5 });
+      originalVisMeshClone.material = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.5 });
     }
+    originalVisMeshClone.name = 'OpeningVisualization_Original';
 
-    visMesh.name = 'OpeningVisualization';
-    return visMesh;
+    // Blue mesh: Snapped opening (row-aligned, exact snapped dimensions)
+    const snappedVisMeshClone = snappedVisMesh.clone();
+    if (mode === 'wireframe') {
+      snappedVisMeshClone.material = new THREE.MeshBasicMaterial({ color: 0x0066ff, wireframe: true });
+    } else {
+      snappedVisMeshClone.material = new THREE.MeshBasicMaterial({ color: 0x0066ff, transparent: true, opacity: 0.35 });
+    }
+    snappedVisMeshClone.name = 'OpeningVisualization_Snapped';
+
+    return { originalVisMesh: originalVisMeshClone, snappedVisMesh: snappedVisMeshClone };
   }
 }

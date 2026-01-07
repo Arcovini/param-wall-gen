@@ -27,6 +27,9 @@ export class ViewControlsController {
     this.view = new ViewControlsView();
 
     this.setupEventHandlers();
+
+    // Load test scenario 5 by default (multiple openings)
+    this.loadTestScenario(5);
   }
 
   private setupEventHandlers(): void {

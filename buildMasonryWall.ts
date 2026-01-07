@@ -23,6 +23,7 @@ import { WallBuilder } from './wall/builders/WallBuilder';
 export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
   return new WallBuilder(params)
     .parseParameters()
+    .precomputeOpeningBounds()  // Pre-compute for pseudo-boolean row generation
     .generateBaseWall()
     .addInfill()
     .createOpenings()

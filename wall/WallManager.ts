@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { OpeningBoundsForRow } from '../types';
 import { applyPlacement } from './WallPlacement';
 import { RowGenerator } from './RowGenerator';
 import { BlockGenerator } from './BlockGenerator';
@@ -60,6 +61,9 @@ export class WallManager {
   /**
    * Generates a wall group without adding it to the scene
    * Useful for external consumers like buildMasonryWall
+   *
+   * @param openingBounds - Pre-computed opening bounds for pseudo-boolean row generation.
+   *                        Blocks completely inside these bounds will be skipped.
    */
   generateWallGroup(
     wallWidth: number,
@@ -72,7 +76,8 @@ export class WallManager {
     positionY: number = 0,
     positionZ: number = 0,
     yawDegrees: number = 0,
-    completion: number = 1.0
+    completion: number = 1.0,
+    openingBounds: OpeningBoundsForRow[] = []
   ): THREE.Group {
     // Create a new group to hold all wall meshes
     const wallGroup = new THREE.Group();
@@ -87,13 +92,19 @@ export class WallManager {
 
     console.log("WallManager:", {
       wallWidth, wallHeight, blockHeight, cementThickness,
-      blocksVertical, completion, rowsToShow
+      blocksVertical, completion, rowsToShow,
+      openingBoundsCount: openingBounds.length
     });
 
     // Calculate completed wall height based on visible rows
     const completedWallHeight = rowsToShow > 0
       ? rowsToShow * blockHeight + (rowsToShow - 1) * cementThickness
       : 0;
+
+    // Geometry offset (same as in snapToRowBoundaries)
+    const geometryOffset = -cementThickness / 2;
+    const rowHeight = blockHeight + cementThickness;
+    const wallBottomY = -wallHeight / 2;
 
     // Generate Rows - create separate meshes for each row
     // With bounds-clamping, RowGenerator creates partial blocks at edges
@@ -104,7 +115,17 @@ export class WallManager {
       // Start at -wallHeight/2
       const rowY = -wallHeight / 2 + row * (blockHeight + cementThickness) + (blockHeight / 2);
 
-      // Create Row with target wallWidth (bounds-clamping handles partial blocks)
+      // Calculate actual block Y bounds for this row (with geometry offset)
+      const blockBottomY = wallBottomY + row * rowHeight + geometryOffset;
+      const blockTopY = blockBottomY + blockHeight;
+
+      // Filter openings that completely cover this row vertically
+      // (row blocks are inside opening's snapped Y bounds)
+      const openingsForRow = openingBounds.filter(opening =>
+        opening.snappedBottomY <= blockBottomY && opening.snappedTopY >= blockTopY
+      );
+
+      // Create Row with target wallWidth and opening bounds for pseudo-boolean
       const rowMesh = RowGenerator.createRow(
         this.blockGenerator,
         wallWidth,  // Target width - RowGenerator creates partial blocks to fit exactly
@@ -112,7 +133,8 @@ export class WallManager {
         blockWidth,
         blockHeight,
         cementThickness,
-        row
+        row,
+        openingsForRow  // Pass openings that affect this row
       );
 
       // Position the row mesh

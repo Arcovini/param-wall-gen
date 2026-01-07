@@ -25,9 +25,19 @@ export interface OpeningData {
     placement: { position: { x: number; y: number; z: number } };
     size: { l: number; h: number; w: number };
   };
-  mesh: THREE.Mesh;
+  mesh: THREE.Mesh;                    // The snapped + oversized opening mesh (used for CSG)
+  originalMesh?: THREE.Mesh;           // The original opening mesh (for red visualization, optional for cutter)
+  snappedVisMesh?: THREE.Mesh;         // The snapped visualization mesh (for blue visualization, optional for cutter)
   lintelMesh: THREE.Mesh | null;
   intersectsWall: boolean;
+  snappedBounds?: {                    // Snapping information (optional for cutter)
+    originalBottomY: number;
+    originalTopY: number;
+    snappedBottomY: number;
+    snappedTopY: number;
+    originalHeight: number;
+    snappedHeight: number;
+  } | null;
 }
 
 export interface OpeningCutterContext {
@@ -52,30 +62,55 @@ export interface OpeningCutterContext {
 // === Public API ===
 
 /**
- * Main entry point: Cuts all openings from wall components.
+ * Main entry point: Cuts openings and lintels from wall components.
+ *
+ * CSG Flow:
+ * 1. Creates a CSG session to manage boolean operations
+ * 2. (ACTIVE) Subtracts opening meshes from the top infill (encunhamento)
+ * 3. (ACTIVE) Subtracts opening meshes from lintels (vergas)
+ * 4. For each row:
+ *    - (DISABLED) Subtracts opening meshes from row geometry
+ *    - (ACTIVE) Subtracts lintel meshes from row geometry
+ * 5. (Deprecated) Clips all components to wall bounds
+ *
+ * Opening cutting from rows is disabled and can be re-enabled
+ * by uncommenting the relevant section in cutFromRow().
+ *
+ * All subtract operations use a mesh as the "tool" to carve out
+ * material from the target mesh (infill, lintel, or row).
  */
 export function cutOpenings(ctx: OpeningCutterContext): void {
+  // Create a CSG session - this wraps three-bvh-csg operations
+  // and provides a clean API for boolean operations
   const csg = createSession();
 
-  // Get row meshes from wall group
+  // Extract row meshes from the wall group (named "RowMesh0", "RowMesh1", etc.)
   const rowMeshes = getRowMeshes(ctx.wallGroup);
 
-  // Cut openings from infill
+  // Phase 1: Cut openings from infill (top gap fill)
+  // The infill sits at the top of the wall, filling the gap between
+  // the last row of blocks and the wall's target height
   if (ctx.infillMesh && ctx.openingDataList.length > 0) {
     cutFromInfill(csg, ctx.infillMesh, ctx.openingDataList);
   }
 
-  // Cut openings from lintels
+  // Phase 2: Cut openings from lintels
+  // Lintels are structural elements above openings - if an opening
+  // overlaps with a lintel, we need to subtract the opening from it
   if (ctx.lintelMeshes.length > 0 && ctx.openingDataList.length > 0) {
     cutFromLintels(csg, ctx.lintelMeshes, ctx.openingDataList);
   }
 
-  // Cut openings from rows
+  // Phase 3: Cut openings and lintels from each row
+  // This is the main CSG work - each row may be cut by multiple openings
+  // and multiple lintels depending on vertical overlap
   if (rowMeshes.length > 0) {
     cutFromAllRows(csg, rowMeshes, ctx);
   }
 
-  // Clip components to actual wall bounds
+  // Phase 4: Clip to wall bounds (currently disabled)
+  // Was used to trim geometry to exact wall dimensions via CSG intersection,
+  // but now replaced by bounds-clamping approach in RowGenerator
   clipToWallBounds(csg, ctx, rowMeshes);
 }
 
@@ -157,25 +192,28 @@ function cutFromRow(
     ctx.cementThickness
   );
 
+  // DISABLED: Opening cutting from rows - only lintel cutting remains active
   // Find openings that intersect this row (using actual mesh bounds, not original params)
   // This accounts for openings that have been extended to wall top
-  const openingDataForRow = ctx.openingDataList.filter(data => {
-    if (!data.intersectsWall) return false;
-    const meshBounds = getMeshYBounds(data.mesh);
-    return yRangesOverlap(rowBounds, meshBounds);
-  });
+  // const openingDataForRow = ctx.openingDataList.filter(data => {
+  //   if (!data.intersectsWall) return false;
+  //   const meshBounds = getMeshYBounds(data.mesh);
+  //   return yRangesOverlap(rowBounds, meshBounds);
+  // });
 
-  // Cut openings
-  if (openingDataForRow.length > 0) {
-    for (const openingData of openingDataForRow) {
-      csg.subtract(rowMesh, openingData.mesh, {
-        logPrefix: `Row ${rowIndex} opening`,
-        preserveGroups: true,
-        remapMaterialIndex: { from: 2, to: 1 }
-      });
-    }
-  }
+  // Cut openings from row using CSG subtraction
+  // The opening mesh acts as the "tool" that carves material from the row
+  // if (openingDataForRow.length > 0) {
+  //   for (const openingData of openingDataForRow) {
+  //     csg.subtract(rowMesh, openingData.mesh, {
+  //       logPrefix: `Row ${rowIndex} opening`,
+  //       preserveGroups: true,
+  //       remapMaterialIndex: { from: 2, to: 1 }
+  //     });
+  //   }
+  // }
 
+  // ACTIVE: Lintel cutting from rows
   // Find lintels that intersect this row (uses getMeshYBounds from GeometryMerger)
   const lintelsForRow = ctx.openingDataList.filter(data => {
     if (!data.lintelMesh) return false;
@@ -183,7 +221,9 @@ function cutFromRow(
     return yRangesOverlap(rowBounds, lintelBounds);
   });
 
-  // Cut lintels from row
+  // Cut lintels from row using CSG subtraction
+  // The lintel mesh acts as the "tool" that carves space from the row
+  // This creates the cavity where the lintel (verga) will sit above the opening
   if (lintelsForRow.length > 0) {
     for (const data of lintelsForRow) {
       if (!data.lintelMesh) continue;

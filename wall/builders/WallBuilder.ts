@@ -136,7 +136,7 @@ export class WallBuilder {
       this.ctx.blockWidth, this.ctx.blockHeight, this.ctx.cementThickness,
       this.ctx.positionX, this.ctx.positionY, this.ctx.positionZ,
       this.ctx.yawDegrees, this.params.task.completion,
-      this.ctx.openingBoundsForRows  // Pass opening bounds for pseudo-boolean
+      this.ctx.openingBoundsForRows
     );
     this.ctx.actualWallWidth = this.ctx.wallGroup.userData.actualWallWidth || this.ctx.wallWidth;
     return this;
@@ -183,18 +183,17 @@ export class WallBuilder {
     );
 
     // Explicitly handle visualization using WallVisualizer
-    // Shows both original (red) and snapped (blue) opening bounds
     const visualizationMode = this.params.visualization;
     if (visualizationMode && visualizationMode !== 'none') {
       openingDataList.forEach(data => {
         const visMeshes = WallVisualizer.createOpeningVisualization(
-          data.originalMesh,      // Exact params dimensions
-          data.snappedVisMesh,    // Exact snapped dimensions (not the oversized CSG mesh)
+          data.originalMesh,
+          data.snappedVisMesh,
           visualizationMode
         );
         if (visMeshes) {
-          this.ctx.wallGroup!.add(visMeshes.originalVisMesh);  // Red: original from params
-          this.ctx.wallGroup!.add(visMeshes.snappedVisMesh);   // Blue: row-snapped
+          this.ctx.wallGroup!.add(visMeshes.originalVisMesh);
+          this.ctx.wallGroup!.add(visMeshes.snappedVisMesh);
         }
       });
     }
@@ -216,8 +215,8 @@ export class WallBuilder {
       blockWidth: this.ctx.blockWidth,
       blockHeight: this.ctx.blockHeight,
       cementThickness: this.ctx.cementThickness,
-      // actualWallWidth: this.ctx.actualWallWidth,
-      // actualWallHeight: this.ctx.actualWallHeight,
+      actualWallWidth: this.ctx.actualWallWidth,
+      actualWallHeight: this.ctx.actualWallHeight,
       openings: this.params.openings || [],
       openingDataList: this.ctx.openingDataList,
       infillMesh: this.ctx.infillMesh,

@@ -18,7 +18,7 @@ export type { OpeningData };
 export class OpeningsController {
   private view: OpeningsView;
   private openings: OpeningData[] = [];
-  private visualizationMode: 'red' | 'wireframe' | 'none' = 'red';
+  private visualizationMode: 'red' | 'wireframe' | 'none' = 'none';
   private onUpdate: (openings: OpeningData[]) => void;
 
   constructor(containerId: string, onUpdate: (openings: OpeningData[]) => void) {

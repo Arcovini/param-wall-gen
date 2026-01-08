@@ -58,6 +58,14 @@ function init(): void {
   // Pass floor to UIController for toggle control
   uiController.setFloor(floor);
 
+  // Wire up ambient occlusion toggle
+  const aoToggle = document.getElementById('ao-toggle') as HTMLInputElement;
+  if (aoToggle) {
+    aoToggle.addEventListener('change', () => {
+      renderer.setAmbientOcclusionEnabled(aoToggle.checked);
+    });
+  }
+
   // Initialize Upload Configuration UI
   uploadConfiguration = new UploadConfiguration();
   uploadConfiguration.setOnWallsLoaded((walls: ExtractedWall[]) => {

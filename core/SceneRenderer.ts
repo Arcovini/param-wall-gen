@@ -20,6 +20,7 @@ export class SceneRenderer {
   private animationId: number | null = null;
   private canvas!: HTMLCanvasElement;
   private brightnessContrastEffect!: BrightnessContrastEffect;
+  private n8aoPass!: N8AOPostPass;
 
   constructor(container: HTMLElement) {
     // Check WebGL support (fail-fast)
@@ -119,15 +120,16 @@ export class SceneRenderer {
     this.composer.addPass(renderPass);
 
     // N8AO pass (Screen-Space Ambient Occlusion)
-    const n8aoPass = new N8AOPostPass(
+    this.n8aoPass = new N8AOPostPass(
       this.scene,
       this.camera,
       window.innerWidth - 320,
       window.innerHeight
     );
-    n8aoPass.configuration.aoRadius = 3.0;
-    n8aoPass.configuration.intensity = 7.0;
-    this.composer.addPass(n8aoPass);
+    this.n8aoPass.configuration.aoRadius = 3.0;
+    this.n8aoPass.configuration.intensity = 7.0;
+    this.n8aoPass.enabled = false; // Start disabled
+    this.composer.addPass(this.n8aoPass);
 
     // Bloom effect
     const bloomEffect = new BloomEffect({
@@ -181,6 +183,21 @@ export class SceneRenderer {
    */
   getContrast(): number {
     return this.brightnessContrastEffect.contrast;
+  }
+
+  /**
+   * Sets the ambient occlusion enabled state
+   * @param enabled - Whether ambient occlusion should be enabled
+   */
+  setAmbientOcclusionEnabled(enabled: boolean): void {
+    this.n8aoPass.enabled = enabled;
+  }
+
+  /**
+   * Gets whether ambient occlusion is currently enabled
+   */
+  isAmbientOcclusionEnabled(): boolean {
+    return this.n8aoPass.enabled;
   }
 
   /**

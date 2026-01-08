@@ -25,6 +25,7 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
     .parseParameters()
     .precomputeOpeningBounds()  // Pre-compute for pseudo-boolean row generation
     .generateBaseWall()
+    .addWallTopCap()            // Add horizontal cap at top of completed wall
     .addInfill()
     .createOpenings()
     .applyCsgOperations()

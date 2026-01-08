@@ -27,7 +27,9 @@ Wall generation uses a fluent builder pattern in `wall/builders/WallBuilder.ts`:
 ```typescript
 buildMasonryWall(params)
   .parseParameters()
+  .precomputeOpeningBounds()
   .generateBaseWall()
+  .addWallTopCap()
   .addInfill()
   .createOpenings()
   .applyCsgOperations()
@@ -53,6 +55,7 @@ buildMasonryWall(params)
   - `createRowGeometry()` - Builds row with partial blocks at edges (no CSG needed)
   - `addRowEndCaps()` - Creates side caps at wall edges with proper UVs and materials (brick on bottom, cement on top)
   - `addSingleSideCap()` - Creates side caps at opening edges when blocks are clamped by openings
+  - `createWallTopCap()` - Creates horizontal cap at top of completed wall showing brick+cement pattern
   - **Opening side caps logic** (see detailed section below)
 - `OpeningGenerator.ts` - Door/window openings
   - `createOpeningBottomCap()` - Creates sill (bottom cap) showing brick+cement pattern aligned with row below
@@ -92,6 +95,8 @@ buildMasonryWall(params)
 - ✅ Fixed opening side caps staircase pattern by ensuring caps at consistent positions
 - ✅ Added block extension logic to fill gaps in front/back faces at opening edges (due to brick stagger pattern)
 - ✅ Added multi-opening safety checks to prevent block extension conflicts
+- ✅ Added wall top cap showing brick+cement pattern at top of completed wall (RowGenerator.createWallTopCap)
+- ✅ Fixed lintel visibility check to use snapped bounds instead of original opening parameters
 
 ### Remaining
 

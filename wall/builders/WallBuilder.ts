@@ -14,6 +14,7 @@ import { WallManager } from '../WallManager';
 import { OpeningGenerator, type OpeningData, snapToRowBoundaries } from '../OpeningGenerator';
 import { WallVisualizer } from '../visualization/WallVisualizer';
 import { InfillGenerator } from '../InfillGenerator';
+import { RowGenerator } from '../RowGenerator';
 import { cutOpenings } from '../processing/OpeningCutter';
 
 // Singleton WallManager instance (reuses textures/materials)
@@ -139,6 +140,41 @@ export class WallBuilder {
       this.ctx.openingBoundsForRows
     );
     this.ctx.actualWallWidth = this.ctx.wallGroup.userData.actualWallWidth || this.ctx.wallWidth;
+    return this;
+  }
+
+  /** Step 2.5: Add top cap to the wall (horizontal face at top of completed wall) */
+  addWallTopCap(): this {
+    // Skip top cap if:
+    // - No wall group or no rows
+    // - Wall is 100% complete (infill will cover the top)
+    if (!this.ctx.wallGroup || this.ctx.visibleRows === 0) return this;
+    if (this.params.task.completion >= 1.0) return this;
+
+    // Calculate the Y position of the top of the completed wall
+    // Wall bottom is at -wallHeight/2, top of completed rows is at bottom + actualWallHeight
+    const wallBottomY = -this.ctx.wallHeight / 2;
+    const topY = wallBottomY + this.ctx.actualWallHeight;
+
+    // Top row index (0-based) - used for stagger pattern calculation
+    const topRowIndex = this.ctx.visibleRows - 1;
+
+    // Create the wall top cap
+    const topCap = RowGenerator.createWallTopCap(
+      this.ctx.actualWallWidth,
+      this.ctx.wallLength,
+      this.ctx.blockWidth,
+      this.ctx.blockHeight,
+      this.ctx.cementThickness,
+      topRowIndex,
+      topY,
+      this.ctx.openingBoundsForRows
+    );
+
+    if (topCap) {
+      this.ctx.wallGroup.add(topCap);
+    }
+
     return this;
   }
 

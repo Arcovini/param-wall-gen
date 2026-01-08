@@ -3,6 +3,7 @@ import type { OpeningBoundsForRow } from '../types';
 import { BlockGenerator, BlockVertices } from './BlockGenerator';
 import { isManifoldWithBVH } from '../utils/csg/CsgValidator';
 import { GeometryBuilder } from '../utils/geometry/GeometryBuilder';
+import { MaterialManager } from './MaterialManager';
 
 
 export interface RowSpecification {
@@ -449,4 +450,227 @@ export class RowGenerator {
   }
 
   // Removed createRowSideMesh as it is now integrated
+
+  /**
+   * Creates a top cap for the wall showing the brick + cement pattern of the topmost row.
+   * Creates horizontal faces (facing up +Y) at the top of the completed wall.
+   *
+   * Wall Top Cap Structure:
+   * ```
+   *                    Wall Width
+   *     ◄─────────────────────────────────────────►
+   *     ┌─────┬─┬─────┬─┬─────┬─┬─────┬─┬─────┬─┐  ← Top cap surface (Y = topY)
+   *     │BRICK│C│BRICK│C│BRICK│C│BRICK│C│BRICK│C│     Facing up (+Y)
+   *     └─────┴─┴─────┴─┴─────┴─┴─────┴─┴─────┴─┘
+   *                         C = Cement joint
+   *
+   * Opening regions are skipped:
+   *     ┌─────┬─┬─────┐     ┌─────┬─┬─────┬─┐
+   *     │BRICK│C│BRICK│ GAP │BRICK│C│BRICK│C│
+   *     └─────┴─┴─────┘     └─────┴─┴─────┴─┘
+   *                   └─────┘
+   *                   Opening
+   * ```
+   *
+   * @param actualWallWidth - The actual wall width
+   * @param wallLength - Wall depth (Z-axis)
+   * @param blockWidth - Width of each block
+   * @param blockHeight - Height of each block (unused but kept for consistency)
+   * @param cementThickness - Thickness of cement layer
+   * @param topRowIndex - Index of the topmost row (for stagger pattern calculation)
+   * @param topY - Y position of the top surface
+   * @param openingBounds - Opening bounds to skip (openings that reach the top)
+   * @returns Top cap mesh (null if wall has no rows)
+   */
+  static createWallTopCap(
+    actualWallWidth: number,
+    wallLength: number,
+    blockWidth: number,
+    blockHeight: number,
+    cementThickness: number,
+    topRowIndex: number,
+    topY: number,
+    openingBounds: OpeningBoundsForRow[] = []
+  ): THREE.Mesh | null {
+    if (topRowIndex < 0) {
+      return null; // No rows, no cap needed
+    }
+
+    const brickMaterial = MaterialManager.getInstance().getBrickMaterial();
+    const cementMaterial = MaterialManager.getInstance().getCementMaterial();
+
+    const halfDepth = wallLength / 2;
+    const zFront = halfDepth;
+    const zBack = -halfDepth;
+
+    const wallLeft = -actualWallWidth / 2;
+    const wallRight = actualWallWidth / 2;
+
+    // Separate arrays for brick and cement geometry
+    const brickPositions: number[] = [];
+    const brickUvs: number[] = [];
+    const brickIndices: number[] = [];
+    let brickVertexIndex = 0;
+
+    const cementPositions: number[] = [];
+    const cementUvs: number[] = [];
+    const cementIndices: number[] = [];
+    let cementVertexIndex = 0;
+
+    // Match RowGenerator's stagger logic: odd rows have offset
+    const rowOffset = (topRowIndex % 2 === 1) ? (blockWidth / 2) : 0;
+
+    // Unit width (block + cement joint)
+    const unitWidth = blockWidth + cementThickness;
+
+    // Pattern starts from wall left edge with row offset
+    const patternStart = wallLeft - rowOffset;
+
+    // Helper to add a horizontal brick quad (facing up +Y)
+    const addBrickHorizontalQuad = (x1: number, x2: number, y: number) => {
+      const startIdx = brickVertexIndex;
+      brickPositions.push(
+        x1, y, zFront,
+        x2, y, zFront,
+        x2, y, zBack,
+        x1, y, zBack
+      );
+      // Normalized UVs for proper texture tiling
+      const uScale = (x2 - x1) / blockWidth;
+      brickUvs.push(0, 0, uScale, 0, uScale, 1, 0, 1);
+      brickIndices.push(
+        startIdx + 0, startIdx + 1, startIdx + 2,
+        startIdx + 0, startIdx + 2, startIdx + 3
+      );
+      brickVertexIndex += 4;
+    };
+
+    // Helper to add a horizontal cement quad (facing up +Y)
+    const addCementHorizontalQuad = (x1: number, x2: number, y: number) => {
+      const startIdx = cementVertexIndex;
+      cementPositions.push(
+        x1, y, zFront,
+        x2, y, zFront,
+        x2, y, zBack,
+        x1, y, zBack
+      );
+      cementUvs.push(0, 0, 1, 0, 1, 1, 0, 1);
+      cementIndices.push(
+        startIdx + 0, startIdx + 1, startIdx + 2,
+        startIdx + 0, startIdx + 2, startIdx + 3
+      );
+      cementVertexIndex += 4;
+    };
+
+    // Filter openings that reach the top (their snappedTopY >= topY - tolerance)
+    // These are openings that should create gaps in the top cap
+    const tolerance = 0.001;
+    const topOpenings = openingBounds.filter(opening =>
+      opening.snappedTopY >= topY - tolerance
+    );
+
+    // Generate block pattern across the full wall width
+    let patternX = patternStart;
+    let brickFaces = 0;
+    let cementFaces = 0;
+
+    while (patternX < wallRight) {
+      const brickLeft = patternX;
+      const brickRight = patternX + blockWidth;
+      const cementRight = patternX + unitWidth;
+
+      // Clamp to wall bounds
+      let clampedBrickLeft = Math.max(brickLeft, wallLeft);
+      let clampedBrickRight = Math.min(brickRight, wallRight);
+      let clampedCementRight = Math.min(cementRight, wallRight);
+
+      // Skip if completely outside wall bounds
+      if (clampedBrickRight <= clampedBrickLeft) {
+        patternX += unitWidth;
+        continue;
+      }
+
+      // Apply opening clamping - skip or clamp blocks that overlap openings
+      for (const opening of topOpenings) {
+        // Check if brick overlaps this opening horizontally
+        if (clampedBrickLeft < opening.right && clampedBrickRight > opening.left) {
+          if (clampedBrickLeft >= opening.left && clampedBrickRight <= opening.right) {
+            // Completely inside opening → skip
+            clampedBrickRight = clampedBrickLeft;
+          } else if (clampedBrickLeft < opening.left && clampedBrickRight > opening.right) {
+            // Spans entire opening → keep left part only
+            clampedBrickRight = opening.left;
+            clampedCementRight = Math.min(clampedCementRight, opening.left);
+          } else if (clampedBrickLeft < opening.left) {
+            // Overlaps right into opening → clamp right edge
+            clampedBrickRight = opening.left;
+            clampedCementRight = Math.min(clampedCementRight, opening.left);
+          } else {
+            // Overlaps left from opening → clamp left edge
+            clampedBrickLeft = opening.right;
+          }
+        }
+
+        // Clamp cement to opening bounds
+        if (clampedCementRight > clampedBrickRight) {
+          if (clampedBrickRight < opening.right && clampedCementRight > opening.left) {
+            if (clampedBrickRight >= opening.left) {
+              clampedCementRight = Math.min(clampedCementRight, opening.left);
+            }
+          }
+        }
+      }
+
+      // Add brick top face if visible after clamping
+      if (clampedBrickRight > clampedBrickLeft) {
+        addBrickHorizontalQuad(clampedBrickLeft, clampedBrickRight, topY);
+        brickFaces++;
+      }
+
+      // Add cement joint face if visible
+      if (clampedCementRight > clampedBrickRight && clampedBrickRight > wallLeft) {
+        addCementHorizontalQuad(clampedBrickRight, clampedCementRight, topY);
+        cementFaces++;
+      }
+
+      patternX += unitWidth;
+    }
+
+    // Skip if no geometry was created
+    if (brickFaces === 0 && cementFaces === 0) {
+      console.log(`[RowGenerator] Wall top cap skipped - no visible faces`);
+      return null;
+    }
+
+    // Combine brick and cement geometry (brick first, then cement)
+    const allPositions = [...brickPositions, ...cementPositions];
+    const allUvs = [...brickUvs, ...cementUvs];
+
+    // Offset cement indices by brick vertex count
+    const brickVertexCount = brickPositions.length / 3;
+    const offsetCementIndices = cementIndices.map(i => i + brickVertexCount);
+    const allIndices = [...brickIndices, ...offsetCementIndices];
+
+    // Create geometry
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.Float32BufferAttribute(allPositions, 3));
+    geom.setAttribute('uv', new THREE.Float32BufferAttribute(allUvs, 2));
+    geom.setIndex(allIndices);
+
+    // Set material groups: brick first, then cement
+    geom.addGroup(0, brickIndices.length, 0);
+    geom.addGroup(brickIndices.length, offsetCementIndices.length, 1);
+
+    geom.computeVertexNormals();
+
+    // Create mesh with both materials
+    const topCap = new THREE.Mesh(geom, [brickMaterial, cementMaterial]);
+    topCap.name = 'WallTopCap';
+    topCap.castShadow = true;
+    topCap.receiveShadow = true;
+
+    console.log(`[RowGenerator] Created wall top cap at Y=${topY.toFixed(3)}, row ${topRowIndex} pattern (offset=${rowOffset.toFixed(3)}), ${brickFaces} brick faces, ${cementFaces} cement faces, ${topOpenings.length} openings skipped`);
+
+    return topCap;
+  }
 }

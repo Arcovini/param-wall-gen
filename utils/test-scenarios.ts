@@ -116,7 +116,7 @@ export function getTest5Openings(wallHeight: number = 3.0) {
     },
     // Window at center
     {
-      placement: createPlacement(0.5, 0, 0), // Center-right, mid-height (y=0 is center)
+      placement: createPlacement(0.1, 0, 0), // Center-right, mid-height (y=0 is center)
       size: {
         l: 1.0,
         w: 1.0,

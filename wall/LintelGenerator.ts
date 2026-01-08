@@ -78,6 +78,8 @@ export class LintelGenerator {
     const lintelHeight = blockHeight / 2;
 
     // Width: openingWidth + blockWidth (half block on each side)
+    // Note: CSG operations in OpeningCutter will clip this to wall bounds
+    // and subtract other openings as needed
     const lintelWidth = openingWidth + blockWidth;
 
     // Depth: wall thickness

@@ -67,17 +67,16 @@ export interface OpeningCutterContext {
  * CSG Flow:
  * 1. Creates a CSG session to manage boolean operations
  * 2. (ACTIVE) Subtracts opening meshes from the top infill (encunhamento)
- * 3. (ACTIVE) Subtracts opening meshes from lintels (vergas)
+ * 3. (ACTIVE) Clips lintels to wall bounds and subtracts other openings
  * 4. For each row:
  *    - (DISABLED) Subtracts opening meshes from row geometry
  *    - (ACTIVE) Subtracts lintel meshes from row geometry
  * 5. (Deprecated) Clips all components to wall bounds
  *
- * Opening cutting from rows is disabled and can be re-enabled
- * by uncommenting the relevant section in cutFromRow().
+ * Opening cutting from rows is disabled (handled by bounds-clamping in RowGenerator).
  *
  * All subtract operations use a mesh as the "tool" to carve out
- * material from the target mesh (infill, lintel, or row).
+ * material from the target mesh (infill or row).
  */
 export function cutOpenings(ctx: OpeningCutterContext): void {
   // Create a CSG session - this wraps three-bvh-csg operations
@@ -94,11 +93,11 @@ export function cutOpenings(ctx: OpeningCutterContext): void {
     cutFromInfill(csg, ctx.infillMesh, ctx.openingDataList);
   }
 
-  // Phase 2: Cut openings from lintels
-  // Lintels are structural elements above openings - if an opening
-  // overlaps with a lintel, we need to subtract the opening from it
-  if (ctx.lintelMeshes.length > 0 && ctx.openingDataList.length > 0) {
-    cutFromLintels(csg, ctx.lintelMeshes, ctx.openingDataList);
+  // Phase 2: Clip lintels to wall bounds and subtract other openings
+  // - Intersection with wall bounds clips lintel to wall edges
+  // - Subtraction of original openings (not oversized) removes overlap with other openings
+  if (ctx.lintelMeshes.length > 0) {
+    processLintels(csg, ctx.lintelMeshes, ctx.openingDataList, ctx);
   }
 
   // Phase 3: Cut openings and lintels from each row
@@ -142,28 +141,61 @@ function cutFromInfill(
   }
 }
 
-function cutFromLintels(
+/**
+ * Processes lintels with CSG operations:
+ * 1. Intersects each lintel with wall bounds (clips to wall edges)
+ * 2. Subtracts other openings (original, not oversized) to remove overlap
+ */
+function processLintels(
   csg: CsgSession,
   lintelMeshes: THREE.Mesh[],
-  openingDataList: OpeningData[]
+  openingDataList: OpeningData[],
+  ctx: OpeningCutterContext
 ): void {
-  console.log(`[OpeningCutter] Processing ${lintelMeshes.length} lintel(s)`);
+  console.log(`[OpeningCutter] Processing ${lintelMeshes.length} lintel(s) with CSG`);
+
+  // Create wall bounds mesh for intersection (clips lintels to wall edges)
+  const wallBoundsMesh = createBoundsMesh(
+    ctx.wallWidth,
+    ctx.wallHeight,
+    ctx.wallLength * 1.2,  // Slightly larger depth to ensure clean cuts
+    0  // Centered at origin Y
+  );
 
   for (let i = 0; i < lintelMeshes.length; i++) {
     const lintelMesh = lintelMeshes[i];
-    const intersecting = filterIntersecting(lintelMesh, openingDataList.filter(d => d.intersectsWall));
 
-    if (intersecting.length === 0) continue;
+    // Find which opening this lintel belongs to
+    const ownOpeningData = openingDataList.find(d => d.lintelMesh === lintelMesh);
 
-    console.log(`[OpeningCutter] Lintel ${i}: Cutting ${intersecting.length} opening(s)`);
+    // 1. Intersect with wall bounds (clips lintel to wall edges)
+    csg.intersect(lintelMesh, wallBoundsMesh, {
+      logPrefix: `Lintel ${i} wall clip`
+    });
 
-    for (const data of intersecting) {
-      csg.subtract(lintelMesh, data.mesh, {
-        logPrefix: `Lintel ${i}`,
-        remapMaterialIndex: { from: 1, to: 0 }
-      });
+    // 2. Subtract OTHER openings (not the one this lintel belongs to)
+    // Use originalMesh (not oversized mesh) for subtraction
+    for (const data of openingDataList) {
+      // Skip if this is the opening that owns this lintel
+      if (data === ownOpeningData) continue;
+      // Skip if no original mesh available
+      if (!data.originalMesh) continue;
+      // Skip if opening doesn't intersect wall
+      if (!data.intersectsWall) continue;
+
+      // Check if this opening intersects with the lintel horizontally
+      const intersecting = filterIntersecting(lintelMesh, [{ ...data, mesh: data.originalMesh }]);
+      if (intersecting.length > 0) {
+        console.log(`[OpeningCutter] Lintel ${i}: Subtracting opening`);
+        csg.subtract(lintelMesh, data.originalMesh, {
+          logPrefix: `Lintel ${i} opening subtract`
+        });
+      }
     }
   }
+
+  // Clean up bounds mesh
+  wallBoundsMesh.geometry.dispose();
 }
 
 function cutFromAllRows(

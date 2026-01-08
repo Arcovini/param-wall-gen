@@ -313,17 +313,34 @@ export class OpeningGenerator {
 
 
   /**
-   * Positions a lintel mesh above its corresponding opening
-   * Uses the mesh position (which may differ from original params if opening was extended)
+   * Calculates the effective top Y for an opening (accounting for infill extension)
+   *
+   * Note: When a row is skipped inside an opening, both the brick AND the cement
+   * above it are removed (they're part of the same row mesh). snappedTopY represents
+   * the top of the brick, so we add cementThickness to get the visual opening top.
    */
-  private positionLintel(lintelMesh: THREE.Mesh, openingMesh: THREE.Mesh): void {
+  private getEffectiveTopY(snappedBounds: SnappedBounds, ctx: OpeningProcessContext): number {
+    const infillBaseY = calculateInfillBaseY(ctx.wallHeight, ctx.blockHeight, ctx.cementThickness);
+
+    if (infillBaseY !== null && snappedBounds.snappedTopY > infillBaseY) {
+      return ctx.wallHeight / 2;  // Extended to wall top (no cement gap here)
+    }
+
+    // Add cementThickness because the visual opening includes the cement layer
+    // that was part of the last skipped row
+    return snappedBounds.snappedTopY + ctx.cementThickness;
+  }
+
+  /**
+   * Positions a lintel mesh above its corresponding opening
+   * Uses effectiveTopY (from snapped bounds) for accurate positioning
+   */
+  private positionLintel(lintelMesh: THREE.Mesh, openingMesh: THREE.Mesh, effectiveTopY: number): void {
     lintelMesh.position.x = openingMesh.position.x;
     lintelMesh.position.z = openingMesh.position.z;
 
-    const openingHeight = (openingMesh.geometry as THREE.BoxGeometry).parameters.height;
-    const openingTopY = openingMesh.position.y + openingHeight / 2;
     const lintelHeight = (lintelMesh.geometry as THREE.BoxGeometry).parameters.height;
-    lintelMesh.position.y = openingTopY + lintelHeight / 2;
+    lintelMesh.position.y = effectiveTopY + lintelHeight / 2;
   }
 
   /**
@@ -398,7 +415,8 @@ export class OpeningGenerator {
         );
 
         if (lintelMesh) {
-          this.positionLintel(lintelMesh, openingMesh);
+          const effectiveTopY = this.getEffectiveTopY(snappedBounds, ctx);
+          this.positionLintel(lintelMesh, openingMesh, effectiveTopY);
           lintelMeshes.push(lintelMesh);
           wallGroup.add(lintelMesh);
         }

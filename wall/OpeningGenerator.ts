@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { OpeningParams } from '../types';
+import type { OpeningParams, OpeningBoundsForRow } from '../types';
 import { LintelGenerator } from './LintelGenerator';
 import { MaterialManager } from './MaterialManager';
 
@@ -478,6 +478,7 @@ export class OpeningGenerator {
    * @param blockWidth Width of each block
    * @param blockHeight Height of each block
    * @param actualWallWidth The actual wall width (for pattern alignment)
+   * @param otherOpeningBounds Bounds of other openings (to clamp/skip overlapping sill blocks)
    * @returns Bottom cap mesh (null if not needed)
    */
   createOpeningBottomCap(
@@ -488,7 +489,8 @@ export class OpeningGenerator {
     cementThickness: number,
     blockWidth: number,
     blockHeight: number,
-    actualWallWidth: number
+    actualWallWidth: number,
+    otherOpeningBounds: OpeningBoundsForRow[] = []
   ): THREE.Mesh | null {
     const openingWidth = opening.size.l;
     const openingCenterX = opening.placement.position.x;
@@ -540,6 +542,10 @@ export class OpeningGenerator {
     // Pattern starts from wall left edge with row offset
     const patternStart = -actualWallWidth / 2 - rowOffset;
 
+    // Wall bounds for clamping (sill should not extend beyond wall)
+    const wallLeft = -actualWallWidth / 2;
+    const wallRight = actualWallWidth / 2;
+
     // Helper to add a horizontal brick quad (facing up +Y)
     const addBrickHorizontalQuad = (x1: number, x2: number, y: number) => {
       const startIdx = brickVertexIndex;
@@ -576,18 +582,56 @@ export class OpeningGenerator {
     };
 
     // Generate block pattern within opening width - all at sill surface level
+    // Applies multi-stage clamping: opening bounds → wall bounds → other openings
     let patternX = patternStart;
     while (patternX < xRight) {
       const brickLeft = patternX;
       const brickRight = patternX + blockWidth;
       const cementRight = patternX + unitWidth;
 
-      // Clamp to opening bounds
-      const clampedBrickLeft = Math.max(brickLeft, xLeft);
-      const clampedBrickRight = Math.min(brickRight, xRight);
-      const clampedCementRight = Math.min(cementRight, xRight);
+      // Stage 1: Clamp to opening bounds
+      let clampedBrickLeft = Math.max(brickLeft, xLeft);
+      let clampedBrickRight = Math.min(brickRight, xRight);
+      let clampedCementRight = Math.min(cementRight, xRight);
 
-      // Add brick top face if visible within opening
+      // Stage 2: Clamp to wall bounds
+      clampedBrickLeft = Math.max(clampedBrickLeft, wallLeft);
+      clampedBrickRight = Math.min(clampedBrickRight, wallRight);
+      clampedCementRight = Math.min(clampedCementRight, wallRight);
+
+      // Stage 3: Apply other-opening clamping (skip/clamp blocks that overlap other openings)
+      for (const other of otherOpeningBounds) {
+        // Skip self (match by bounds within tolerance)
+        if (Math.abs(other.left - xLeft) < 0.001 && Math.abs(other.right - xRight) < 0.001) {
+          continue;
+        }
+
+        // Check if brick overlaps this other opening
+        if (clampedBrickLeft < other.right && clampedBrickRight > other.left) {
+          if (clampedBrickLeft >= other.left && clampedBrickRight <= other.right) {
+            // Completely inside other opening → skip
+            clampedBrickRight = clampedBrickLeft;
+          } else if (clampedBrickLeft < other.left && clampedBrickRight > other.right) {
+            // Spans other opening → keep left part only
+            clampedBrickRight = other.left;
+          } else if (clampedBrickLeft < other.left) {
+            // Overlaps right into other opening → clamp right edge
+            clampedBrickRight = other.left;
+          } else {
+            // Overlaps left from other opening → clamp left edge
+            clampedBrickLeft = other.right;
+          }
+        }
+
+        // Clamp cement to other opening bounds
+        if (clampedCementRight > clampedBrickRight && clampedCementRight > other.left && clampedBrickRight < other.right) {
+          if (clampedBrickRight >= other.left) {
+            clampedCementRight = Math.min(clampedCementRight, other.left);
+          }
+        }
+      }
+
+      // Add brick top face if visible after clamping
       if (clampedBrickRight > clampedBrickLeft) {
         addBrickHorizontalQuad(clampedBrickLeft, clampedBrickRight, ySillSurface);
       }

@@ -200,8 +200,19 @@ export class WallBuilder {
 
     // Create bottom caps (sills) for each opening
     // Note: Top caps are not needed since lintels already cover that area
-    openingDataList.forEach(data => {
+    openingDataList.forEach((data, index) => {
       if (!data.snappedBounds) return;
+
+      // Build bounds for OTHER openings (exclude self) for clamping
+      const otherBounds: OpeningBoundsForRow[] = openingDataList
+        .filter((_, i) => i !== index)
+        .filter(d => d.snappedBounds)
+        .map(d => ({
+          left: d.opening.placement.position.x - d.opening.size.l / 2,
+          right: d.opening.placement.position.x + d.opening.size.l / 2,
+          snappedBottomY: d.snappedBounds!.snappedBottomY,
+          snappedTopY: d.snappedBounds!.snappedTopY
+        }));
 
       const bottomCap = this.openingGenerator.createOpeningBottomCap(
         data.opening,
@@ -211,7 +222,8 @@ export class WallBuilder {
         this.ctx.cementThickness,
         this.ctx.blockWidth,
         this.ctx.blockHeight,
-        this.ctx.actualWallWidth
+        this.ctx.actualWallWidth,
+        otherBounds
       );
 
       if (bottomCap) {

@@ -186,21 +186,32 @@ export class OpeningGenerator {
   /**
    * Creates a snapped visualization mesh (exact snapped dimensions, no oversizing)
    * Used for blue visualization to show the row-aligned opening bounds
+   * Also used for infill CSG when extended to wall top
    * @param params Parameters for the opening (for width/depth)
    * @param snappedBounds The snapped Y bounds
+   * @param extendToWallTop Optional: extend mesh to wall top (+ small buffer) for infill CSG
    * @returns A THREE.Mesh representing the snapped opening dimensions
    */
   createSnappedVisualizationMesh(
     params: OpeningParams,
-    snappedBounds: SnappedBounds
+    snappedBounds: SnappedBounds,
+    extendToWallTop?: { wallHeight: number }
   ): THREE.Mesh {
     const { size, placement } = params;
 
-    // Use exact snapped height, original width and depth
-    const snappedHeight = snappedBounds.snappedHeight;
-    const snappedCenterY = snappedBounds.snappedBottomY + snappedHeight / 2;
+    // Calculate effective height and center Y
+    let effectiveHeight = snappedBounds.snappedHeight;
+    let effectiveCenterY = snappedBounds.snappedBottomY + effectiveHeight / 2;
 
-    const geometry = new THREE.BoxGeometry(size.l, snappedHeight, size.w);
+    // If extension requested, extend slightly above wall top for clean CSG cuts
+    if (extendToWallTop) {
+      const wallTopY = extendToWallTop.wallHeight / 2;
+      const buffer = 0.01;  // Small buffer for clean CSG
+      effectiveHeight = (wallTopY + buffer) - snappedBounds.snappedBottomY;
+      effectiveCenterY = snappedBounds.snappedBottomY + effectiveHeight / 2;
+    }
+
+    const geometry = new THREE.BoxGeometry(size.l, effectiveHeight, size.w);
 
     // Ensure uv2 exists for consistency
     if (!geometry.attributes.uv2) {
@@ -210,7 +221,7 @@ export class OpeningGenerator {
     const mesh = new THREE.Mesh(geometry, this.material);
     mesh.position.set(
       placement.position.x,
-      snappedCenterY,
+      effectiveCenterY,
       placement.position.z
     );
 
@@ -255,8 +266,9 @@ export class OpeningGenerator {
       const snappedTopY = snappedBounds.snappedTopY;
       const wallTopY = ctx.wallHeight / 2;
 
-      // If snapped opening cuts into infill region, extend to wall top
-      if (snappedTopY > infillBaseY) {
+      // If lintel top would overlap infill region, extend opening to wall top
+      const lintelHeight = ctx.blockHeight / 2;
+      if (snappedTopY + lintelHeight > infillBaseY) {
         effectiveHeight = wallTopY - snappedBounds.snappedBottomY;
         effectiveCenterY = snappedBounds.snappedBottomY + effectiveHeight / 2;
         console.log(`[OpeningGenerator] Opening extended to wall top after snapping: snapped h=${snappedBounds.snappedHeight.toFixed(3)}, extended h=${effectiveHeight.toFixed(3)}`);
@@ -392,8 +404,19 @@ export class OpeningGenerator {
       // Create snapped opening mesh (with row-snapping and potential infill extension) - for CSG
       const { mesh: openingMesh, snappedBounds } = this.createOpeningMesh(opening, ctx, 1.05);
 
+      // Check if opening should extend to wall top (for infill CSG)
+      const infillBaseY = calculateInfillBaseY(ctx.wallHeight, ctx.blockHeight, ctx.cementThickness);
+      const lintelHeight = ctx.blockHeight / 2;
+      const shouldExtendToWallTop = infillBaseY !== null &&
+        (snappedBounds.snappedTopY + lintelHeight > infillBaseY);
+
       // Create snapped visualization mesh (exact snapped dims, no oversizing) - BLUE
-      const snappedVisMesh = this.createSnappedVisualizationMesh(opening, snappedBounds);
+      // Extended to wall top when lintel would overlap infill (used for infill CSG)
+      const snappedVisMesh = this.createSnappedVisualizationMesh(
+        opening,
+        snappedBounds,
+        shouldExtendToWallTop ? { wallHeight: ctx.wallHeight } : undefined
+      );
 
       // Check intersection
       const intersects = this.checkIntersection(opening, wallBounds);

@@ -144,9 +144,71 @@ createOriginalMesh()        → RED visualization (exact params)
        ↓
 snapToRowBoundaries()       → Calculate snapped bounds
        ↓
-createSnappedVisMesh()      → BLUE visualization (exact snapped dims)
+createSnappedVisMesh()      → BLUE visualization (snapped + extended if lintel overlaps infill)
        ↓
-createOpeningMesh()         → CSG mesh (oversized for cutting)
+createOpeningMesh()         → CSG mesh (oversized 1.05x for cutting rows)
+```
+
+### Opening Mesh Types
+
+Three mesh types are created for each opening in `OpeningGenerator.processAllOpenings()`:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           OPENING MESH TYPES                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  1. originalMesh (RED)           2. snappedVisMesh (BLUE)                   │
+│  ────────────────────            ─────────────────────────                   │
+│  • Exact user params             • Snapped to row boundaries                 │
+│  • size.l × size.h × size.w      • Extended to wall top (+0.01 buffer)      │
+│  • Position from params            when lintelTop > infillBaseY             │
+│  • NO snapping                   • Used for infill CSG subtraction          │
+│  • NO extension                  • NO oversizing                            │
+│  • NO oversizing                                                            │
+│                                                                              │
+│  3. data.mesh (CSG)                                                         │
+│  ──────────────────                                                         │
+│  • Snapped to rows                                                          │
+│  • Extended to wall top (same condition as snappedVisMesh)                  │
+│  • OVERSIZED (1.05x) for clean CSG cuts                                     │
+│  • Used for row CSG subtraction                                             │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Extension Condition:
+  snappedTopY + lintelHeight > infillBaseY
+  (where lintelHeight = blockHeight / 2)
+
+When extended:
+  - Opening extends to wallHeight/2 + 0.01 (small buffer for clean CSG)
+  - Lintel is NOT created (skipped via isOpeningExtendedToTop check)
+  - snappedVisMesh cuts the infill via CSG subtraction
+```
+
+### Visual Comparison (Extension)
+
+```
+User specifies opening near top of wall:
+
+                        Wall Top (wallHeight/2)
+                        ┌────────────────────────────────────────┐
+                        │              INFILL                    │
+─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ├─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┤─ infillBaseY
+                        │            ┌───────┐ ← BLUE extends   │
+    lintelTop ──────────│─ ─ ─ ─ ─ ─ │       │   to wall top    │
+    (snappedTop+lintelH)│            │       │   (no lintel)    │
+                        │      ┌─────│───────│─────┐            │
+    snappedTopY ────────│──────│     │ BLUE  │     │────────────│
+                        │      │ RED │       │     │            │
+                        │      │     │       │     │            │
+                        │      └─────│───────│─────┘            │
+    snappedBottomY ─────│────────────└───────┘──────────────────│
+                        └────────────────────────────────────────┘
+
+Legend:
+  RED  = originalMesh (exact user params, never extended)
+  BLUE = snappedVisMesh (extended when lintelTop > infillBaseY)
 ```
 
 ### Visual Legends
@@ -154,7 +216,7 @@ createOpeningMesh()         → CSG mesh (oversized for cutting)
 ```
 Visualization Colors:
 - RED (0xff0000)  = Original opening from parameters
-- BLUE (0x0066ff) = Row-snapped opening (aligned to block edges)
+- BLUE (0x0066ff) = Row-snapped opening (extended to wall top when lintel would overlap infill)
 ```
 
 ### Opening Cap Structure

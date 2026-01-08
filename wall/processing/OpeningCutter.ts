@@ -127,14 +127,20 @@ function cutFromInfill(
   infillMesh: THREE.Mesh,
   openingDataList: OpeningData[]
 ): void {
-  const intersecting = filterIntersecting(infillMesh, openingDataList.filter(d => d.intersectsWall));
+  // Filter openings that have snappedVisMesh and intersect infill
+  // snappedVisMesh is extended to wall top when lintel would overlap infill
+  const openingsWithSnappedVis = openingDataList
+    .filter(d => d.intersectsWall && d.snappedVisMesh)
+    .map(d => ({ ...d, mesh: d.snappedVisMesh! }));
+
+  const intersecting = filterIntersecting(infillMesh, openingsWithSnappedVis);
 
   if (intersecting.length === 0) return;
 
-  console.log(`[OpeningCutter] Infill: Cutting ${intersecting.length} opening(s)`);
+  console.log(`[OpeningCutter] Infill: Cutting ${intersecting.length} opening(s) using snappedVisMesh`);
 
   for (const data of intersecting) {
-    csg.subtract(infillMesh, data.mesh, {
+    csg.subtract(infillMesh, data.mesh, {  // data.mesh is now snappedVisMesh
       logPrefix: 'Infill opening',
       remapMaterialIndex: { from: 2, to: 1 }
     });

@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**IMPORTANT**: Update this file whenever making relevant architectural changes, bug fixes, or adding new features. Keep documentation in sync with the codebase.
+
 ## Project Overview
 
 A TypeScript/Three.js web application for generating 3D parametric masonry walls with ceramic blocks and cement joints. Supports customizable wall dimensions, openings (doors/windows) with automatic lintels, construction completion simulation, and interactive 3D visualization.
@@ -51,6 +53,7 @@ buildMasonryWall(params)
   - `createRowGeometry()` - Builds row with partial blocks at edges (no CSG needed)
   - `addRowEndCaps()` - Creates side caps at wall edges with proper UVs and materials (brick on bottom, cement on top)
   - `addSingleSideCap()` - Creates side caps at opening edges when blocks are clamped by openings
+  - **Opening side caps logic** (see detailed section below)
 - `OpeningGenerator.ts` - Door/window openings
   - `createOpeningBottomCap()` - Creates sill (bottom cap) showing brick+cement pattern aligned with row below
 - `LintelGenerator.ts` - Structural elements above openings
@@ -85,6 +88,10 @@ buildMasonryWall(params)
 - ✅ Fixed row end caps with dedicated vertices, proper UVs, and correct materials (brick/cement)
 - ✅ Implemented bounds-clamping approach for row generation (replaces CSG intersection for wall width)
 - ✅ Added opening caps: side caps in RowGenerator (at opening edges) and bottom cap (sill) in OpeningGenerator
+- ✅ Fixed wall end caps to use fixed wall bounds (rowLeft/rowRight) instead of variable block positions
+- ✅ Fixed opening side caps staircase pattern by ensuring caps at consistent positions
+- ✅ Added block extension logic to fill gaps in front/back faces at opening edges (due to brick stagger pattern)
+- ✅ Added multi-opening safety checks to prevent block extension conflicts
 
 ### Remaining
 
@@ -238,4 +245,89 @@ Opening in Wall (cross-section view from side):
 Side caps: Vertical faces (brick bottom, cement top) at opening left/right edges
 Bottom cap: Horizontal faces (brick+cement joints) flush with opening bottom
 Top cap: Not needed - lintels already cover the top of openings
+```
+
+### Opening Side Caps Algorithm (RowGenerator)
+
+The opening side caps logic in `createRowGeometry()` handles several cases to ensure proper caps at opening edges:
+
+```
+Opening Bounds Clamping Cases:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Case 1: Block overlaps opening                                              │
+│ ─────────────────────────────────                                           │
+│ • Block completely inside → skip (effectiveBrickRight = effectiveBrickLeft) │
+│ • Block spans entire opening → keep left portion, clamp right to opening    │
+│ • Block overlaps on right → clamp effectiveBrickRight to opening.left       │
+│ • Block overlaps on left → clamp effectiveBrickLeft to opening.right        │
+│                                                                              │
+│ Case 2: Block just AFTER opening (within unitWidth)                         │
+│ ─────────────────────────────────────────────────────                        │
+│ • Extend effectiveBrickLeft back to opening.right                           │
+│ • Fills gap in front/back faces between opening edge and block start        │
+│ • Only if extension won't overlap another opening                           │
+│                                                                              │
+│ Case 3: Block just BEFORE opening (within unitWidth)                        │
+│ ─────────────────────────────────────────────────────                        │
+│ • Extend effectiveBrickRight (not cement!) to opening.left                  │
+│ • Fills gap with brick texture (avoids ugly wide mortar joints)             │
+│ • Only if extension won't overlap another opening                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Why block extension is needed:**
+
+Due to brick stagger pattern, blocks in alternating rows may not naturally overlap an opening edge:
+
+```
+Row 0: Block naturally overlaps → clamped to opening edge ✓
+Row 1: Block starts AFTER opening edge → GAP in front/back faces!
+
+Opening edge: 0.45    Block starts: 0.46
+             |        |
+             |<--GAP->|  ← Missing front/back faces here!
+
+Fix: Extend block left edge from 0.46 to 0.45
+```
+
+**Multi-opening safety:**
+
+Before extending a block, check if extension would overlap another opening:
+
+```typescript
+const wouldOverlapOther = openingBounds.some(other =>
+  other !== opening && extendedLeft < other.right && effectiveBrickRight > other.left
+);
+if (!wouldOverlapOther) {
+  // Safe to extend
+}
+```
+
+**Missing caps fallback:**
+
+After processing all blocks, check each opening edge for missing caps:
+
+```typescript
+for (const opening of openingBounds) {
+  if (!cappedOpeningEdges.has(leftKey)) {
+    addSingleSideCap(opening.left, ...);  // Add missing left cap
+  }
+  if (!cappedOpeningEdges.has(rightKey)) {
+    addSingleSideCap(opening.right, ...); // Add missing right cap
+  }
+}
+```
+
+**Wall end caps:**
+
+Wall end caps are added at fixed wall bounds (`rowLeft`/`rowRight`), NOT at variable block positions:
+
+```typescript
+// Only add if block touches wall bound AND wasn't clamped by an opening there
+if (needLeftWallCap) {
+  addSingleSideCap(rowLeft, ...);
+}
+if (needRightWallCap) {
+  addSingleSideCap(rowRight, ...);
+}
 ```

@@ -188,12 +188,18 @@ export class RowGenerator {
     // Track vertices for sharing between blocks
     let prevVertices: BlockVertices | undefined;
 
-    // Track actual wall edge positions for end caps
-    let actualLeftEdge: number | undefined;
-    let actualRightEdge: number | undefined;
+    // Track if we need wall end caps at the fixed wall bounds
+    // (only when a block actually touches the wall boundary, not an opening boundary)
+    let needLeftWallCap = false;
+    let needRightWallCap = false;
 
     // UV counter for texture continuity
     let uCounter = 0;
+
+    // Track which opening edges have caps (to add missing ones at the end)
+    // Key: opening edge X position (rounded for floating point comparison)
+    const cappedOpeningEdges = new Set<string>();
+    const roundForKey = (x: number) => x.toFixed(4);
 
     // Generate blocks by iterating through pattern positions
     let patternX = patternStart;
@@ -230,10 +236,15 @@ export class RowGenerator {
       // Track if block edges were clamped by openings (for adding caps)
       let clampedOnRightByOpening = false;
       let clampedOnLeftByOpening = false;
+      // Track which opening edges this block provides caps for
+      let capsOpeningLeft: number | undefined;
+      let capsOpeningRight: number | undefined;
 
       for (const opening of openingBounds) {
-        // Check if block overlaps with opening horizontally
-        if (effectiveBrickLeft < opening.right && effectiveBrickRight > opening.left) {
+        // Check if block overlaps with or touches opening horizontally
+        // Use inclusive bounds (<=, >=) to handle blocks whose edges coincide exactly
+        // with opening boundaries - these still need caps even without clamping
+        if (effectiveBrickLeft <= opening.right && effectiveBrickRight >= opening.left) {
 
           if (effectiveBrickLeft >= opening.left && effectiveBrickRight <= opening.right) {
             // Case: Block completely inside opening → mark for skip
@@ -243,15 +254,45 @@ export class RowGenerator {
             effectiveBrickRight = opening.left;
             effectiveCementRight = Math.min(effectiveCementRight, opening.left);
             clampedOnRightByOpening = true;
+            capsOpeningLeft = opening.left;
           } else if (effectiveBrickLeft < opening.left) {
             // Case: Block overlaps opening on right → clamp right edge
             effectiveBrickRight = opening.left;
             effectiveCementRight = Math.min(effectiveCementRight, opening.left);
             clampedOnRightByOpening = true;
+            capsOpeningLeft = opening.left;
           } else {
             // Case: Block overlaps opening on left → clamp left edge
             effectiveBrickLeft = opening.right;
             clampedOnLeftByOpening = true;
+            capsOpeningRight = opening.right;
+          }
+        } else if (effectiveBrickLeft > opening.right && effectiveBrickLeft <= opening.right + unitWidth) {
+          // Case: Block starts just after opening (within one unit width)
+          // Check if extending would cause overlap with another opening
+          const extendedLeft = opening.right;
+          const wouldOverlapOther = openingBounds.some(other =>
+            other !== opening && extendedLeft < other.right && effectiveBrickRight > other.left
+          );
+          if (!wouldOverlapOther) {
+            // Safe to extend block back to opening edge
+            effectiveBrickLeft = extendedLeft;
+            clampedOnLeftByOpening = true;
+            capsOpeningRight = opening.right;
+          }
+        } else if (effectiveBrickRight < opening.left && effectiveCementRight < opening.left && effectiveCementRight >= opening.left - unitWidth) {
+          // Case: Block ends just before opening (within one unit width, doesn't reach)
+          // Check if extending would cause overlap with another opening
+          const extendedRight = opening.left;
+          const wouldOverlapOther = openingBounds.some(other =>
+            other !== opening && effectiveBrickLeft < other.right && extendedRight > other.left
+          );
+          if (!wouldOverlapOther) {
+            // Safe to extend BRICK (not cement) to reach opening edge
+            effectiveBrickRight = extendedRight;
+            effectiveCementRight = extendedRight; // No cement after extended brick
+            clampedOnRightByOpening = true;
+            capsOpeningLeft = opening.left;
           }
         }
       }
@@ -275,11 +316,16 @@ export class RowGenerator {
         prevVertices = undefined;
       }
 
-      // Track edge positions for end caps (use effective positions)
-      if (actualLeftEdge === undefined) {
-        actualLeftEdge = effectiveBrickLeft;
+      // Track if this block touches wall bounds (for wall end caps)
+      // Use small tolerance for floating point comparison
+      const tolerance = 0.0001;
+      if (Math.abs(effectiveBrickLeft - rowLeft) < tolerance && !clampedOnLeftByOpening) {
+        needLeftWallCap = true;
       }
-      actualRightEdge = effectiveBrickRight + effectiveCementWidth;
+      const blockRightEdge = effectiveBrickRight + effectiveCementWidth;
+      if (Math.abs(blockRightEdge - rowRight) < tolerance && !clampedOnRightByOpening) {
+        needRightWallCap = true;
+      }
 
       // Calculate UVs - based on position relative to pattern for "cut" appearance
       const uLeft = uCounter + (effectiveBrickLeft - idealBrickLeft) / blockWidth;
@@ -301,15 +347,17 @@ export class RowGenerator {
       );
 
       // Add opening edge caps (inner faces at opening boundaries)
-      if (clampedOnLeftByOpening) {
+      if (clampedOnLeftByOpening && capsOpeningRight !== undefined) {
         // Block was clamped on left → add cap facing -X (into the opening)
         this.addSingleSideCap(builder, effectiveBrickLeft, yBottom, yTopBrick, yTopCement, zFront, zBack, false);
+        cappedOpeningEdges.add(roundForKey(capsOpeningRight) + '_R'); // Right edge of opening
       }
-      if (clampedOnRightByOpening) {
+      if (clampedOnRightByOpening && capsOpeningLeft !== undefined) {
         // Block was clamped on right → add cap facing +X (into the opening)
         // Use effective right edge (brick right + cement width, or just brick right if no cement)
         const capX = effectiveBrickRight + effectiveCementWidth;
         this.addSingleSideCap(builder, capX, yBottom, yTopBrick, yTopCement, zFront, zBack, true);
+        cappedOpeningEdges.add(roundForKey(capsOpeningLeft) + '_L'); // Left edge of opening
       }
 
       prevVertices = result.rightVertices;
@@ -318,24 +366,37 @@ export class RowGenerator {
       blockCount++;
     }
 
-    // Add end caps with actual edge positions
-    if (actualLeftEdge !== undefined && actualRightEdge !== undefined) {
-      this.addRowEndCaps(
-        builder,
-        actualLeftEdge,
-        actualRightEdge, // Right edge (brick or cement depending on last block)
-        actualRightEdge, // Same as above since we clamp to wall bounds
-        yBottom,
-        yTopBrick,
-        yTopCement,
-        zFront,
-        zBack
-      );
+    // Add wall end caps at fixed wall bounds (rowLeft/rowRight)
+    // Only add if a block actually touches that bound AND wasn't clamped by an opening there
+    if (needLeftWallCap) {
+      this.addSingleSideCap(builder, rowLeft, yBottom, yTopBrick, yTopCement, zFront, zBack, false);
+    }
+    if (needRightWallCap) {
+      this.addSingleSideCap(builder, rowRight, yBottom, yTopBrick, yTopCement, zFront, zBack, true);
+    }
+
+    // Add missing opening caps
+    // This handles the case where blocks fall completely inside an opening,
+    // and the first block after the opening doesn't reach back to the opening edge
+    for (const opening of openingBounds) {
+      const leftKey = roundForKey(opening.left) + '_L';
+      const rightKey = roundForKey(opening.right) + '_R';
+
+      if (!cappedOpeningEdges.has(leftKey)) {
+        // Missing cap at opening's left edge (blocks on the left didn't reach here)
+        // Add cap facing +X (into the opening)
+        this.addSingleSideCap(builder, opening.left, yBottom, yTopBrick, yTopCement, zFront, zBack, true);
+      }
+      if (!cappedOpeningEdges.has(rightKey)) {
+        // Missing cap at opening's right edge (blocks on the right didn't reach here)
+        // Add cap facing -X (into the opening)
+        this.addSingleSideCap(builder, opening.right, yBottom, yTopBrick, yTopCement, zFront, zBack, false);
+      }
     }
 
     console.log(`[RowGenerator] Built row ${rowIndex} with bounds-clamping:
       Wall width: ${actualWallWidth}, Blocks: ${blockCount}, Skipped by openings: ${skippedByOpening}
-      Left edge: ${actualLeftEdge?.toFixed(3)}, Right edge: ${actualRightEdge?.toFixed(3)}`);
+      Wall caps: left=${needLeftWallCap}, right=${needRightWallCap}`);
 
     return builder.build();
   }

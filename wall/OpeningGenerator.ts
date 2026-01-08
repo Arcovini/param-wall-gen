@@ -427,21 +427,32 @@ export class OpeningGenerator {
       // Generate lintel (skip if opening extends to wall top - no structure above)
       let lintelMesh: THREE.Mesh | null = null;
       if (!this.isOpeningExtendedToTop(openingMesh, ctx.wallHeight)) {
-        lintelMesh = this.lintelGenerator.createLintel(
-          opening,
-          ctx.wallHeight,
-          ctx.wallLength,
-          ctx.blockHeight,
-          ctx.blockWidth,
-          ctx.actualWallHeight,
-          ctx.cementThickness
-        );
+        // Calculate where the lintel would actually be positioned (using snapped bounds)
+        const effectiveTopY = this.getEffectiveTopY(snappedBounds, ctx);
+        const lintelHeight = ctx.blockHeight / 2;
+        const lintelTopY = effectiveTopY + lintelHeight;
 
-        if (lintelMesh) {
-          const effectiveTopY = this.getEffectiveTopY(snappedBounds, ctx);
-          this.positionLintel(lintelMesh, openingMesh, effectiveTopY);
-          lintelMeshes.push(lintelMesh);
-          wallGroup.add(lintelMesh);
+        // Check if the lintel's final position is within the completed wall height
+        const currentWallTopY = -ctx.wallHeight / 2 + ctx.actualWallHeight;
+
+        if (lintelTopY <= currentWallTopY) {
+          lintelMesh = this.lintelGenerator.createLintel(
+            opening,
+            ctx.wallHeight,
+            ctx.wallLength,
+            ctx.blockHeight,
+            ctx.blockWidth,
+            ctx.actualWallHeight,
+            ctx.cementThickness
+          );
+
+          if (lintelMesh) {
+            this.positionLintel(lintelMesh, openingMesh, effectiveTopY);
+            lintelMeshes.push(lintelMesh);
+            wallGroup.add(lintelMesh);
+          }
+        } else {
+          console.log(`[OpeningGenerator] Skipping lintel for opening ${index + 1} (lintel top ${lintelTopY.toFixed(3)} above completed wall ${currentWallTopY.toFixed(3)})`);
         }
       } else {
         console.log(`[OpeningGenerator] Skipping lintel for opening ${index + 1} (extends to wall top)`);

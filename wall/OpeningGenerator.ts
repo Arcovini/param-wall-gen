@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { OpeningParams } from '../types';
 import { LintelGenerator } from './LintelGenerator';
+import { MaterialManager } from './MaterialManager';
 
 /**
  * Data structure for tracking opening-related meshes
@@ -419,6 +420,83 @@ export class OpeningGenerator {
     });
 
     return { openingDataList, lintelMeshes };
+  }
+
+  /**
+   * Creates bottom cap (sill) for an opening.
+   * The top cap is not needed since lintels already cover that area.
+   *
+   * Bottom cap faces upward (+Y), representing the sill of the opening.
+   * Only created if the opening doesn't extend to wall bottom.
+   *
+   * @param opening The opening parameters
+   * @param snappedBounds The snapped Y bounds of the opening
+   * @param wallHeight Total wall height
+   * @param wallLength Wall depth (Z-axis)
+   * @returns Bottom cap mesh (null if not needed)
+   */
+  createOpeningBottomCap(
+    opening: OpeningParams,
+    snappedBounds: SnappedBounds,
+    wallHeight: number,
+    wallLength: number
+  ): THREE.Mesh | null {
+    const openingWidth = opening.size.l;
+    const openingCenterX = opening.placement.position.x;
+    const halfDepth = wallLength / 2;
+
+    const wallBottom = -wallHeight / 2;
+
+    // Bottom cap (sill) - only if opening doesn't extend to wall bottom
+    if (snappedBounds.snappedBottomY <= wallBottom + 0.001) {
+      return null;
+    }
+
+    const brickMaterial = MaterialManager.getInstance().getBrickMaterial();
+
+    const xLeft = openingCenterX - openingWidth / 2;
+    const xRight = openingCenterX + openingWidth / 2;
+
+    const geom = new THREE.BufferGeometry();
+    const y = snappedBounds.snappedBottomY;
+
+    // Vertices for a quad facing up (+Y)
+    // Order: front-left, front-right, back-right, back-left
+    const vertices = new Float32Array([
+      xLeft,  y,  halfDepth,  // 0: front-left
+      xRight, y,  halfDepth,  // 1: front-right
+      xRight, y, -halfDepth,  // 2: back-right
+      xLeft,  y, -halfDepth,  // 3: back-left
+    ]);
+
+    // Indices for two triangles - CCW winding when viewed from +Y (above)
+    // For normal to point +Y, vertices must be CCW when viewed from above
+    const indices = new Uint16Array([
+      0, 1, 2,  // First triangle (front-left, front-right, back-right)
+      0, 2, 3,  // Second triangle (front-left, back-right, back-left)
+    ]);
+
+    // UVs
+    const uvs = new Float32Array([
+      0, 0,  // 0: front-left
+      1, 0,  // 1: front-right
+      1, 1,  // 2: back-right
+      0, 1,  // 3: back-left
+    ]);
+
+    geom.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+    geom.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+    geom.setIndex(new THREE.BufferAttribute(indices, 1));
+    geom.computeVertexNormals();
+
+    const bottomCap = new THREE.Mesh(geom, brickMaterial);
+    bottomCap.name = 'OpeningBottomCap';
+    bottomCap.castShadow = true;
+    bottomCap.receiveShadow = true;
+
+    console.log(`[OpeningGenerator] Created bottom cap (sill) at Y=${y.toFixed(3)}`);
+
+    return bottomCap;
   }
 
   /**

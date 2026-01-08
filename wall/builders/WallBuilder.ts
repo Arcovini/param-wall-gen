@@ -198,6 +198,23 @@ export class WallBuilder {
       });
     }
 
+    // Create bottom caps (sills) for each opening
+    // Note: Top caps are not needed since lintels already cover that area
+    openingDataList.forEach(data => {
+      if (!data.snappedBounds) return;
+
+      const bottomCap = this.openingGenerator.createOpeningBottomCap(
+        data.opening,
+        data.snappedBounds,
+        this.ctx.wallHeight,
+        this.ctx.wallLength
+      );
+
+      if (bottomCap) {
+        this.ctx.wallGroup!.add(bottomCap);
+      }
+    });
+
     this.ctx.openingDataList = openingDataList;
     this.ctx.lintelMeshes = lintelMeshes;
     return this;

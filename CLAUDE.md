@@ -49,8 +49,10 @@ buildMasonryWall(params)
   - When `cementWidth = 0`, returns brick edge vertices for sharing
 - `RowGenerator.ts` - Row layout using bounds-clamping approach
   - `createRowGeometry()` - Builds row with partial blocks at edges (no CSG needed)
-  - `addRowEndCaps()` - Creates side caps with proper UVs and materials (brick on bottom, cement on top)
+  - `addRowEndCaps()` - Creates side caps at wall edges with proper UVs and materials (brick on bottom, cement on top)
+  - `addSingleSideCap()` - Creates side caps at opening edges when blocks are clamped by openings
 - `OpeningGenerator.ts` - Door/window openings
+  - `createOpeningBottomCap()` - Creates sill (bottom cap) showing brick+cement pattern aligned with row below
 - `LintelGenerator.ts` - Structural elements above openings
 - `InfillGenerator.ts` - Top infill blocks (encunhamento)
 - `MaterialManager.ts` - PBR materials for masonry textures (singleton pattern)
@@ -82,6 +84,7 @@ buildMasonryWall(params)
 - ✅ Organized utils into `geometry/` and `csg/` subfolders
 - ✅ Fixed row end caps with dedicated vertices, proper UVs, and correct materials (brick/cement)
 - ✅ Implemented bounds-clamping approach for row generation (replaces CSG intersection for wall width)
+- ✅ Added opening caps: side caps in RowGenerator (at opening edges) and bottom cap (sill) in OpeningGenerator
 
 ### Remaining
 
@@ -152,4 +155,25 @@ createOpeningMesh()         → CSG mesh (oversized for cutting)
 Visualization Colors:
 - RED (0xff0000)  = Original opening from parameters
 - BLUE (0x0066ff) = Row-snapped opening (aligned to block edges)
+```
+
+### Opening Cap Structure
+
+```
+Opening in Wall (cross-section view from side):
+                    ┌─────────────────┐
+                    │     LINTEL      │  ← LintelGenerator
+                    ├─────────────────┤
+                    │                 │
+    Side Cap ────►  │    OPENING      │  ◄──── Side Cap (RowGenerator.addSingleSideCap)
+    (brick+cement)  │                 │        Created when blocks are clamped by openings
+                    ├─────────────────┤
+                    │   BOTTOM CAP    │  ← OpeningGenerator.createOpeningBottomCap
+                    │   (sill)        │    Shows brick+cement pattern aligned with row below
+────────────────────┴─────────────────┴────────────────────
+                         WALL
+
+Side caps: Vertical faces (brick bottom, cement top) at opening left/right edges
+Bottom cap: Horizontal faces (brick+cement joints) flush with opening bottom
+Top cap: Not needed - lintels already cover the top of openings
 ```

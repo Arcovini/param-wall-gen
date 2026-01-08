@@ -207,7 +207,11 @@ export class WallBuilder {
         data.opening,
         data.snappedBounds,
         this.ctx.wallHeight,
-        this.ctx.wallLength
+        this.ctx.wallLength,
+        this.ctx.cementThickness,
+        this.ctx.blockWidth,
+        this.ctx.blockHeight,
+        this.ctx.actualWallWidth
       );
 
       if (bottomCap) {

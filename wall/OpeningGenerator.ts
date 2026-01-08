@@ -423,23 +423,31 @@ export class OpeningGenerator {
   }
 
   /**
-   * Creates bottom cap (sill) for an opening.
-   * The top cap is not needed since lintels already cover that area.
-   *
-   * Bottom cap faces upward (+Y), representing the sill of the opening.
-   * Only created if the opening doesn't extend to wall bottom.
+   * Creates bottom cap (sill) for an opening following the block pattern below.
+   * Shows multiple brick + cement faces matching the row structure:
+   * - Brick top faces for each block
+   * - Cement joint faces between blocks (horizontal strips)
+   * - Cement rim at front/back edges (vertical mortar between rows)
    *
    * @param opening The opening parameters
    * @param snappedBounds The snapped Y bounds of the opening
    * @param wallHeight Total wall height
    * @param wallLength Wall depth (Z-axis)
+   * @param cementThickness Thickness of cement layer
+   * @param blockWidth Width of each block
+   * @param blockHeight Height of each block
+   * @param actualWallWidth The actual wall width (for pattern alignment)
    * @returns Bottom cap mesh (null if not needed)
    */
   createOpeningBottomCap(
     opening: OpeningParams,
     snappedBounds: SnappedBounds,
     wallHeight: number,
-    wallLength: number
+    wallLength: number,
+    cementThickness: number,
+    blockWidth: number,
+    blockHeight: number,
+    actualWallWidth: number
   ): THREE.Mesh | null {
     const openingWidth = opening.size.l;
     const openingCenterX = opening.placement.position.x;
@@ -453,48 +461,132 @@ export class OpeningGenerator {
     }
 
     const brickMaterial = MaterialManager.getInstance().getBrickMaterial();
+    const cementMaterial = MaterialManager.getInstance().getCementMaterial();
 
     const xLeft = openingCenterX - openingWidth / 2;
     const xRight = openingCenterX + openingWidth / 2;
+    const zFront = halfDepth;
+    const zBack = -halfDepth;
 
+    // Y coordinate - sill surface is flush with opening bottom
+    // This creates a flat surface at the opening bottom showing the block pattern
+    const ySillSurface = snappedBounds.snappedBottomY;
+
+    // Separate arrays for brick and cement geometry (to avoid interleaving issues)
+    const brickPositions: number[] = [];
+    const brickUvs: number[] = [];
+    const brickIndices: number[] = [];
+    let brickVertexIndex = 0;
+
+    const cementPositions: number[] = [];
+    const cementUvs: number[] = [];
+    const cementIndices: number[] = [];
+    let cementVertexIndex = 0;
+
+    // Calculate row index for the row BELOW the opening (whose pattern we're showing)
+    // Must account for geometry offset used in snapping
+    const rowHeight = blockHeight + cementThickness;
+    const geometryOffset = -cementThickness / 2;
+    const openingRowIndex = Math.round((snappedBounds.snappedBottomY - wallBottom - geometryOffset) / rowHeight);
+    const sillRowIndex = openingRowIndex - 1; // Row below the opening
+
+    // Match RowGenerator's stagger logic: odd rows have offset
+    const rowOffset = (sillRowIndex % 2 === 1) ? (blockWidth / 2) : 0;
+
+    // Unit width (block + cement joint)
+    const unitWidth = blockWidth + cementThickness;
+
+    // Pattern starts from wall left edge with row offset
+    const patternStart = -actualWallWidth / 2 - rowOffset;
+
+    // Helper to add a horizontal brick quad (facing up +Y)
+    const addBrickHorizontalQuad = (x1: number, x2: number, y: number) => {
+      const startIdx = brickVertexIndex;
+      brickPositions.push(
+        x1, y, zFront,
+        x2, y, zFront,
+        x2, y, zBack,
+        x1, y, zBack
+      );
+      // Normalized UVs (0-1) for proper texture tiling
+      brickUvs.push(0, 0, 1, 0, 1, 1, 0, 1);
+      brickIndices.push(
+        startIdx + 0, startIdx + 1, startIdx + 2,
+        startIdx + 0, startIdx + 2, startIdx + 3
+      );
+      brickVertexIndex += 4;
+    };
+
+    // Helper to add a horizontal cement quad (facing up +Y)
+    const addCementHorizontalQuad = (x1: number, x2: number, y: number) => {
+      const startIdx = cementVertexIndex;
+      cementPositions.push(
+        x1, y, zFront,
+        x2, y, zFront,
+        x2, y, zBack,
+        x1, y, zBack
+      );
+      cementUvs.push(0, 0, 1, 0, 1, 1, 0, 1);
+      cementIndices.push(
+        startIdx + 0, startIdx + 1, startIdx + 2,
+        startIdx + 0, startIdx + 2, startIdx + 3
+      );
+      cementVertexIndex += 4;
+    };
+
+    // Generate block pattern within opening width - all at sill surface level
+    let patternX = patternStart;
+    while (patternX < xRight) {
+      const brickLeft = patternX;
+      const brickRight = patternX + blockWidth;
+      const cementRight = patternX + unitWidth;
+
+      // Clamp to opening bounds
+      const clampedBrickLeft = Math.max(brickLeft, xLeft);
+      const clampedBrickRight = Math.min(brickRight, xRight);
+      const clampedCementRight = Math.min(cementRight, xRight);
+
+      // Add brick top face if visible within opening
+      if (clampedBrickRight > clampedBrickLeft) {
+        addBrickHorizontalQuad(clampedBrickLeft, clampedBrickRight, ySillSurface);
+      }
+
+      // Add cement joint face (horizontal strip between blocks) if visible
+      if (clampedCementRight > clampedBrickRight && clampedBrickRight >= xLeft) {
+        addCementHorizontalQuad(clampedBrickRight, clampedCementRight, ySillSurface);
+      }
+
+      patternX += unitWidth;
+    }
+
+    // Combine brick and cement geometry (brick first, then cement)
+    const allPositions = [...brickPositions, ...cementPositions];
+    const allUvs = [...brickUvs, ...cementUvs];
+
+    // Offset cement indices by brick vertex count
+    const brickVertexCount = brickPositions.length / 3;
+    const offsetCementIndices = cementIndices.map(i => i + brickVertexCount);
+    const allIndices = [...brickIndices, ...offsetCementIndices];
+
+    // Create geometry
     const geom = new THREE.BufferGeometry();
-    const y = snappedBounds.snappedBottomY;
+    geom.setAttribute('position', new THREE.Float32BufferAttribute(allPositions, 3));
+    geom.setAttribute('uv', new THREE.Float32BufferAttribute(allUvs, 2));
+    geom.setIndex(allIndices);
 
-    // Vertices for a quad facing up (+Y)
-    // Order: front-left, front-right, back-right, back-left
-    const vertices = new Float32Array([
-      xLeft,  y,  halfDepth,  // 0: front-left
-      xRight, y,  halfDepth,  // 1: front-right
-      xRight, y, -halfDepth,  // 2: back-right
-      xLeft,  y, -halfDepth,  // 3: back-left
-    ]);
+    // Set material groups: brick first, then cement
+    geom.addGroup(0, brickIndices.length, 0);
+    geom.addGroup(brickIndices.length, offsetCementIndices.length, 1);
 
-    // Indices for two triangles - CCW winding when viewed from +Y (above)
-    // For normal to point +Y, vertices must be CCW when viewed from above
-    const indices = new Uint16Array([
-      0, 1, 2,  // First triangle (front-left, front-right, back-right)
-      0, 2, 3,  // Second triangle (front-left, back-right, back-left)
-    ]);
-
-    // UVs
-    const uvs = new Float32Array([
-      0, 0,  // 0: front-left
-      1, 0,  // 1: front-right
-      1, 1,  // 2: back-right
-      0, 1,  // 3: back-left
-    ]);
-
-    geom.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-    geom.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-    geom.setIndex(new THREE.BufferAttribute(indices, 1));
     geom.computeVertexNormals();
 
-    const bottomCap = new THREE.Mesh(geom, brickMaterial);
+    // Create mesh with both materials
+    const bottomCap = new THREE.Mesh(geom, [brickMaterial, cementMaterial]);
     bottomCap.name = 'OpeningBottomCap';
     bottomCap.castShadow = true;
     bottomCap.receiveShadow = true;
 
-    console.log(`[OpeningGenerator] Created bottom cap (sill) at Y=${y.toFixed(3)}`);
+    console.log(`[OpeningGenerator] Created bottom cap (sill) at Y=${ySillSurface.toFixed(3)}, row ${sillRowIndex} pattern (offset=${rowOffset.toFixed(3)}), ${brickIndices.length / 6} brick faces, ${cementIndices.length / 6} cement faces`);
 
     return bottomCap;
   }

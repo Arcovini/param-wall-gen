@@ -283,10 +283,8 @@ export class WallBuilder {
       wallWidth: this.ctx.wallWidth,
       wallHeight: this.ctx.wallHeight,
       wallLength: this.ctx.wallLength,
-      blockWidth: this.ctx.blockWidth,
       blockHeight: this.ctx.blockHeight,
       cementThickness: this.ctx.cementThickness,
-      openings: this.params.openings || [],
       openingDataList: this.ctx.openingDataList,
       infillMesh: this.ctx.infillMesh,
       lintelMeshes: this.ctx.lintelMeshes

@@ -562,11 +562,14 @@ export class RowGenerator {
       cementVertexIndex += 4;
     };
 
-    // Filter openings that reach the top (their snappedTopY >= topY - tolerance)
-    // These are openings that should create gaps in the top cap
-    const tolerance = 0.001;
+    // Filter openings that intersect with the current wall top
+    // An opening creates a gap if it spans the topY level:
+    // - snappedBottomY <= topY (opening starts at or below cap)
+    // - snappedTopY >= topY (opening ends at or above cap)
+    // Use blockHeight as tolerance to account for geometry offset and row height differences
     const topOpenings = openingBounds.filter(opening =>
-      opening.snappedTopY >= topY - tolerance
+      opening.snappedBottomY <= topY + blockHeight &&
+      opening.snappedTopY >= topY - blockHeight
     );
 
     // Generate block pattern across the full wall width

@@ -67,12 +67,9 @@ export class LintelGenerator {
       }
     }
 
-    // Check if the wall construction has reached high enough to contain the lintel
-    // Lintel sits on top of the opening with height = blockHeight / 2
-    // Only show lintel if the wall has been built past the lintel's top
-    const prelimLintelHeight = blockHeight / 2;
-    const lintelTopY = openingTopY + prelimLintelHeight;
-    if (currentWallTopY < lintelTopY) {
+    // Check if the wall construction has reached the top of the opening
+    // If not, don't show the lintel yet
+    if (currentWallTopY <= openingTopY) {
       return null;
     }
 
@@ -123,3 +120,4 @@ export class LintelGenerator {
     // Material is managed by MaterialManager, so we don't dispose it here
   }
 }
+  

@@ -489,6 +489,7 @@ export class OpeningGenerator {
    * @param blockWidth Width of each block
    * @param blockHeight Height of each block
    * @param actualWallWidth The actual wall width (for pattern alignment)
+   * @param actualWallHeight The actual built wall height (for completion check)
    * @param otherOpeningBounds Bounds of other openings (to clamp/skip overlapping sill blocks)
    * @returns Bottom cap mesh (null if not needed)
    */
@@ -501,6 +502,7 @@ export class OpeningGenerator {
     blockWidth: number,
     blockHeight: number,
     actualWallWidth: number,
+    actualWallHeight: number,
     otherOpeningBounds: OpeningBoundsForRow[] = []
   ): THREE.Mesh | null {
     const openingWidth = opening.size.l;
@@ -508,9 +510,17 @@ export class OpeningGenerator {
     const halfDepth = wallLength / 2;
 
     const wallBottom = -wallHeight / 2;
+    const currentWallTopY = wallBottom + actualWallHeight;
 
     // Bottom cap (sill) - only if opening doesn't extend to wall bottom
     if (snappedBounds.snappedBottomY <= wallBottom + 0.001) {
+      return null;
+    }
+
+    // Skip bottom cap if opening bottom is above the current wall top
+    // (wall hasn't been built high enough to reach this opening yet)
+    if (snappedBounds.snappedBottomY > currentWallTopY + 0.001) {
+      console.log(`[OpeningGenerator] Skipping bottom cap - opening bottom (${snappedBounds.snappedBottomY.toFixed(3)}) above current wall top (${currentWallTopY.toFixed(3)})`);
       return null;
     }
 

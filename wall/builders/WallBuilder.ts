@@ -153,8 +153,9 @@ export class WallBuilder {
 
     // Calculate the Y position of the top of the completed wall
     // Wall bottom is at -wallHeight/2, top of completed rows is at bottom + actualWallHeight
+    // Add cementThickness/2 to align with actual row top (accounting for geometry offset)
     const wallBottomY = -this.ctx.wallHeight / 2;
-    const topY = wallBottomY + this.ctx.actualWallHeight;
+    const topY = wallBottomY + this.ctx.actualWallHeight + this.ctx.cementThickness / 2;
 
     // Top row index (0-based) - used for stagger pattern calculation
     const topRowIndex = this.ctx.visibleRows - 1;
@@ -259,6 +260,7 @@ export class WallBuilder {
         this.ctx.blockWidth,
         this.ctx.blockHeight,
         this.ctx.actualWallWidth,
+        this.ctx.actualWallHeight,
         otherBounds
       );
 

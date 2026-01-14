@@ -68,7 +68,6 @@ buildMasonryWall(params)
 
 - `OpeningCutter.ts` - High-level orchestration for cutting openings from wall components. Does not use THREE.js or three-bvh-csg directly — delegates to utils.
   - `cutOpenings()` - Main entry point for CSG operations on wall components
-  - `clipToWallBounds()` - DEPRECATED: No longer needed (replaced by bounds-clamping in RowGenerator)
 
 ### Geometry Utilities (utils/geometry/)
 
@@ -104,7 +103,6 @@ buildMasonryWall(params)
 - **SRP violations**: `UIController` (5 responsibilities), `UploadConfiguration` (4 responsibilities)
 - **Unclear naming**: `actualWallWidth` vs `wallWidth`, `completion` semantic unclear
 - **Tight coupling**: Hard-coded DOM IDs in UIController, direct instantiation in WallBuilder
-- **Cleanup**: Remove deprecated `clipToWallBounds()` from OpeningCutter (no longer needed)
 
 ## Key Technical Details
 

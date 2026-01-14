@@ -519,7 +519,9 @@ export class OpeningGenerator {
 
     // Skip bottom cap if opening bottom is above the current wall top
     // (wall hasn't been built high enough to reach this opening yet)
-    if (snappedBounds.snappedBottomY > currentWallTopY + 0.001) {
+    // Note: snappedBottomY includes geometryOffset (-cementThickness/2) but actualWallHeight doesn't,
+    // so we use cementThickness as tolerance to account for this discrepancy
+    if (snappedBounds.snappedBottomY > currentWallTopY + cementThickness) {
       console.log(`[OpeningGenerator] Skipping bottom cap - opening bottom (${snappedBounds.snappedBottomY.toFixed(3)}) above current wall top (${currentWallTopY.toFixed(3)})`);
       return null;
     }

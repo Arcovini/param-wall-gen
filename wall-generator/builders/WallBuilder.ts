@@ -286,8 +286,6 @@ export class WallBuilder {
       blockWidth: this.ctx.blockWidth,
       blockHeight: this.ctx.blockHeight,
       cementThickness: this.ctx.cementThickness,
-      actualWallWidth: this.ctx.actualWallWidth,
-      actualWallHeight: this.ctx.actualWallHeight,
       openings: this.params.openings || [],
       openingDataList: this.ctx.openingDataList,
       infillMesh: this.ctx.infillMesh,

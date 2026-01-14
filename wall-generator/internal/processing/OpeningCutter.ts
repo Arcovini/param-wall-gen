@@ -1,22 +1,51 @@
 /**
  * OpeningCutter - High-level orchestration for cutting openings from wall components.
- *
- * Responsibilities:
- * - Determine which openings intersect which components
- * - Orchestrate CSG operations via CsgOperations
- *
- * Does NOT directly use THREE.js or three-bvh-csg - delegates to utils.
  */
 
-import type * as THREE from 'three';
-import { createSession, type CsgSession } from '../utils/csg/CsgOperations';
-import {
-  filterIntersecting,
-  yRangesOverlap,
-  getMeshYBounds,
-  createBoundsMesh
-} from '../utils/geometry/GeometryMerger';
+import * as THREE from 'three';
+import { createSession, type CsgSession } from '../utils/CsgOperations';
 import type { OpeningData } from '../OpeningGenerator';
+
+// === Geometry Utilities (merged from GeometryMerger) ===
+
+function filterIntersecting<T extends { mesh: THREE.Mesh }>(
+  target: THREE.Mesh,
+  candidates: T[]
+): T[] {
+  const targetBox = new THREE.Box3().setFromObject(target);
+  return candidates.filter(c => {
+    const box = new THREE.Box3().setFromObject(c.mesh);
+    return targetBox.intersectsBox(box);
+  });
+}
+
+function yRangesOverlap(
+  a: { min: number; max: number },
+  b: { min: number; max: number }
+): boolean {
+  return a.min < b.max && a.max > b.min;
+}
+
+function getMeshYBounds(mesh: THREE.Mesh): { min: number; max: number } {
+  const box = new THREE.Box3().setFromObject(mesh);
+  return { min: box.min.y, max: box.max.y };
+}
+
+function createBoundsMesh(
+  width: number,
+  height: number,
+  depth: number,
+  positionY: number
+): THREE.Mesh {
+  const geometry = new THREE.BoxGeometry(width, height, depth);
+  if (geometry.attributes.uv) {
+    geometry.setAttribute('uv2', geometry.attributes.uv.clone());
+  }
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
+  mesh.position.set(0, positionY, 0);
+  mesh.updateMatrixWorld();
+  return mesh;
+}
 
 export interface OpeningCutterContext {
   wallGroup: THREE.Group;

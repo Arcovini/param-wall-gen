@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { MaterialManager } from './MaterialManager';
-import { GeometryBuilder } from './utils/geometry/GeometryBuilder';
+import { GeometryBuilder } from './utils/GeometryBuilder';
 
 export interface BlockVertices {
   rightCement: number[];

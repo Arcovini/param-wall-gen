@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { BlockGenerator } from '../wall-generator/internal/BlockGenerator';
 import { RowGenerator } from '../wall-generator/internal/RowGenerator';
-import { GeometryBuilder } from '../wall-generator/internal/utils/geometry/GeometryBuilder';
+import { GeometryBuilder } from '../wall-generator/internal/utils/GeometryBuilder';
 
 /**
  * View modes for the masonry wall visualization

@@ -1,8 +1,7 @@
 import * as THREE from 'three';
 import type { OpeningBoundsForRow } from '../types';
 import { BlockGenerator, BlockVertices } from './BlockGenerator';
-import { isManifoldWithBVH } from './utils/csg/CsgValidator';
-import { GeometryBuilder } from './utils/geometry/GeometryBuilder';
+import { GeometryBuilder } from './utils/GeometryBuilder';
 import { MaterialManager } from './MaterialManager';
 
 
@@ -435,11 +434,6 @@ export class RowGenerator {
       blockGenerator.getBrickMaterial(),
       blockGenerator.getCementMaterial()
     ];
-
-    // Check if the row is manifold using enhanced BVH-based validation
-    const manifoldResult = isManifoldWithBVH(rowGeometry);
-    console.log(`[RowGenerator] Enhanced Manifold Check: ${manifoldResult.isManifold ? '✅' : '❌'} ${manifoldResult.message}`);
-    console.log(`[RowGenerator] Details:`, manifoldResult.details);
 
     // Create and return the welded mesh
     const rowMesh = new THREE.Mesh(rowGeometry, materials);

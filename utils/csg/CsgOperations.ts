@@ -22,9 +22,6 @@ export interface CsgSession {
   /** Subtract operand from target mesh (modifies target in-place) */
   subtract(target: THREE.Mesh, operand: THREE.Mesh, options?: CsgOptions): boolean;
 
-  /** Subtract multiple operands from target mesh */
-  subtractMany(target: THREE.Mesh, operands: THREE.Mesh[], options?: CsgOptions): boolean;
-
   /** Intersect target with bounds mesh (clips target to bounds) */
   intersect(target: THREE.Mesh, bounds: THREE.Mesh, options?: CsgOptions): boolean;
 }
@@ -43,16 +40,6 @@ export function createSession(): CsgSession {
   return {
     subtract(target: THREE.Mesh, operand: THREE.Mesh, options?: CsgOptions): boolean {
       return applyCsgOperation(target, operand, SUBTRACTION, evaluator, options);
-    },
-
-    subtractMany(target: THREE.Mesh, operands: THREE.Mesh[], options?: CsgOptions): boolean {
-      let success = false;
-      for (const operand of operands) {
-        if (applyCsgOperation(target, operand, SUBTRACTION, evaluator, options)) {
-          success = true;
-        }
-      }
-      return success;
     },
 
     intersect(target: THREE.Mesh, bounds: THREE.Mesh, options?: CsgOptions): boolean {

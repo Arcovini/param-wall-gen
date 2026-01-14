@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { BlockGenerator } from '../wall-generator/BlockGenerator';
 import { RowGenerator } from '../wall-generator/RowGenerator';
-import { GeometryBuilder } from './geometry/GeometryBuilder';
+import { GeometryBuilder } from '../utils/geometry/GeometryBuilder';
 
 /**
  * View modes for the masonry wall visualization
@@ -33,42 +33,6 @@ export class SceneUtils {
     if (sceneOrObject instanceof THREE.Scene) {
       sceneOrObject.background = new THREE.Color(enabled ? 0xffffff : 0xf5f5f5);
     }
-  }
-
-  /**
-   * Sets the background color of the scene
-   */
-  static setBackgroundColor(scene: THREE.Scene, color: number): void {
-    scene.background = new THREE.Color(color);
-  }
-
-  /**
-   * Counts the number of meshes in the scene
-   */
-  static getMeshCount(scene: THREE.Scene): number {
-    let count = 0;
-    scene.traverse((object) => {
-      if (object instanceof THREE.Mesh) {
-        count++;
-      }
-    });
-    return count;
-  }
-
-  /**
-   * Gets all objects of a specific type from the scene
-   */
-  static getObjectsByType<T extends THREE.Object3D>(
-    scene: THREE.Scene,
-    type: new (...args: any[]) => T
-  ): T[] {
-    const objects: T[] = [];
-    scene.traverse((object) => {
-      if (object instanceof type) {
-        objects.push(object);
-      }
-    });
-    return objects;
   }
 
   /**

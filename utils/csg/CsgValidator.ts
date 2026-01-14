@@ -2,12 +2,12 @@ import * as THREE from 'three';
 import { MeshBVH } from 'three-mesh-bvh';
 import { Brush, Evaluator, ADDITION } from 'three-bvh-csg';
 
-export interface ManifoldResult {
+interface ManifoldResult {
   isManifold: boolean;
   message: string;
 }
 
-export interface ManifoldResultWithDetails extends ManifoldResult {
+interface ManifoldResultWithDetails extends ManifoldResult {
   details: {
     edgeCheck: boolean;
     bvhCheck: boolean;
@@ -21,13 +21,12 @@ export interface ManifoldResultWithDetails extends ManifoldResult {
  * Checks if a geometry is a closed manifold (watertight).
  * A closed manifold mesh has every edge shared by exactly 2 faces.
  */
-export function isManifold(geometry: THREE.BufferGeometry): ManifoldResult {
-  let geo = geometry;
-  if (!geo.index) {
-    geo = ensureIndexed(geo);
+function isManifold(geometry: THREE.BufferGeometry): ManifoldResult {
+  if (!geometry.index) {
+    return { isManifold: false, message: 'Geometry has no index buffer' };
   }
 
-  const index = geo.index!;
+  const index = geometry.index;
   const count = index.count;
   const edges: { [key: string]: number } = {};
 
@@ -138,13 +137,4 @@ export function isManifoldWithBVH(geometry: THREE.BufferGeometry): ManifoldResul
     message: 'Geometry passed all manifold checks (edge, BVH, and CSG)',
     details
   };
-}
-
-/**
- * Ensures geometry has an index buffer.
- */
-function ensureIndexed(geometry: THREE.BufferGeometry): THREE.BufferGeometry {
-  // For non-indexed geometry, return as-is (may fail manifold check)
-  // A robust implementation would use mergeVertices to create indices
-  return geometry;
 }

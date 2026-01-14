@@ -5,7 +5,7 @@
 import { ViewControlsView } from '../view/ViewControlsView';
 import { OpeningsController } from './OpeningsController';
 import { WallParametersController } from './WallParametersController';
-import { getTestScenario } from '../../utils/test-scenarios';
+import { getTestScenario } from '../test-scenarios';
 
 export type ViewMode = 'block' | 'row' | 'wall' | 'wall-output';
 

@@ -6,7 +6,7 @@
  */
 
 import { SceneRenderer } from './core/SceneRenderer';
-import { SceneUtils } from './utils/SceneUtils';
+import { SceneUtils } from './ui/SceneUtils';
 import { UIController } from './ui/UIController';
 import { UploadConfiguration } from './core/UploadConfiguration';
 import { buildMasonryWall } from './buildMasonryWall';

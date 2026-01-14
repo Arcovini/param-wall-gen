@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { PlaceholdersView } from '../view/PlaceholdersView';
-import { SceneUtils } from '../../utils/SceneUtils';
+import { SceneUtils } from '../SceneUtils';
 
 export class PlaceholdersController {
   private view: PlaceholdersView;

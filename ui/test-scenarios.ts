@@ -11,8 +11,6 @@
  * All dimensions in SI units (meters)
  */
 
-import type { BuildMasonryWallParams } from '../types';
-
 // Helper to create placement relative to wall
 function createPlacement(x: number, y: number, z: number) {
   return {
@@ -179,58 +177,3 @@ export function getTestScenario(testNumber: number, wallHeight: number = 3.0) {
   }
 }
 
-/**
- * Get all test scenarios as array
- */
-export function getAllTestScenarios(wallHeight: number = 3.0) {
-  return [
-    getTestScenario(1, wallHeight),
-    getTestScenario(2, wallHeight),
-    getTestScenario(3, wallHeight),
-    getTestScenario(4, wallHeight),
-    getTestScenario(5, wallHeight),
-  ];
-}
-
-/**
- * Helper to build complete BuildMasonryWallParams for testing
- */
-export function buildTestParams(
-  testNumber: number,
-  completion: number = 1.0,
-  wallDimensions = { l: 4.0, w: 0.2, h: 3.0 },
-  blockDimensions = { l: 0.39, w: 0.14, h: 0.19 },
-  cementThickness = 0.02
-): Partial<BuildMasonryWallParams> {
-  const scenario = getTestScenario(testNumber, wallDimensions.h);
-
-  return {
-    wall: {
-      placement: createPlacement(0, wallDimensions.h / 2, 0),
-      size: wallDimensions,
-      blockSize: blockDimensions,
-      cementThickness,
-      materials: {
-        masonry: {
-          albedo: '/textures/masonry/brick_baseColor.png',
-          metalness: 0.2,
-          roughness: 0.8,
-        },
-        lintel: {
-          albedo: '',
-          metalness: 0.15,
-          roughness: 0.7,
-        },
-        infill: {
-          albedo: '',
-          metalness: 0.1,
-          roughness: 0.85,
-        },
-      },
-    },
-    openings: scenario.openings,
-    task: {
-      completion,
-    },
-  };
-}

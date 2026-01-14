@@ -66,32 +66,4 @@ export class GeometryBuilder {
 
     return geometry;
   }
-
-  /**
-   * Returns current vertex count for diagnostics.
-   */
-  getVertexCount(): number {
-    return this.vertexIndex;
-  }
-
-  /**
-   * Returns current index counts for diagnostics.
-   */
-  getIndexCounts(): { brick: number; cement: number } {
-    return {
-      brick: this.brickIndices.length,
-      cement: this.cementIndices.length
-    };
-  }
-
-  /**
-   * Resets the builder for reuse.
-   */
-  reset(): void {
-    this.vertices = [];
-    this.uvs = [];
-    this.brickIndices = [];
-    this.cementIndices = [];
-    this.vertexIndex = 0;
-  }
 }

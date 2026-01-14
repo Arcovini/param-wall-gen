@@ -12,7 +12,6 @@ import * as THREE from 'three';
 import type { BuildMasonryWallParams, OpeningBoundsForRow } from '../../types';
 import { WallManager } from '../WallManager';
 import { OpeningGenerator, type OpeningData, snapToRowBoundaries } from '../OpeningGenerator';
-import { WallVisualizer } from '../../../ui/WallVisualizer';
 import { InfillGenerator } from '../InfillGenerator';
 import { RowGenerator } from '../RowGenerator';
 import { cutOpenings } from '../processing/OpeningCutter';
@@ -218,22 +217,6 @@ export class WallBuilder {
     const { openingDataList, lintelMeshes } = this.openingGenerator.processAllOpenings(
       openings, wallBounds, processContext, this.ctx.wallGroup
     );
-
-    // Explicitly handle visualization using WallVisualizer
-    const visualizationMode = this.params.visualization;
-    if (visualizationMode && visualizationMode !== 'none') {
-      openingDataList.forEach(data => {
-        const visMeshes = WallVisualizer.createOpeningVisualization(
-          data.originalMesh,
-          data.snappedVisMesh,
-          visualizationMode
-        );
-        if (visMeshes) {
-          this.ctx.wallGroup!.add(visMeshes.originalVisMesh);
-          this.ctx.wallGroup!.add(visMeshes.snappedVisMesh);
-        }
-      });
-    }
 
     // Create bottom caps (sills) for each opening
     // Note: Top caps are not needed since lintels already cover that area

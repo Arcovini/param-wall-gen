@@ -14,9 +14,9 @@ A standalone TypeScript module for generating 3D parametric masonry walls with T
 ## Installation
 
 1. Copy the `wall-generator/` folder to your project
-2. Install peer dependency:
+2. Install peer dependencies:
    ```bash
-   npm install three
+   npm install three three-bvh-csg
    ```
 
 ## Usage
@@ -98,7 +98,7 @@ All measurements are in SI units (meters).
 ## Dependencies
 
 - `three` (peer dependency)
-- `three-bvh-csg` (bundled in internal/)
+- `three-bvh-csg` (peer dependency - used for CSG boolean operations)
 
 ## License
 

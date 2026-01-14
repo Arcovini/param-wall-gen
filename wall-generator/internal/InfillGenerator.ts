@@ -5,12 +5,6 @@ import { MaterialManager } from './MaterialManager';
  * InfillGenerator - Generates top infill (encunhamento) for walls
  */
 export class InfillGenerator {
-  // Material is now managed by MaterialManager
-
-  constructor() {
-    // No local material initialization needed
-  }
-
   /**
    * Creates top infill mesh if there's a gap at the top of the wall
    * @param actualWallWidth Actual width of the wall (calculated from blocks that fit)
@@ -47,15 +41,6 @@ export class InfillGenerator {
     infillMesh.receiveShadow = true;
     infillMesh.name = "TopInfill";
 
-    console.log(`Added top infill: height=${gap.toFixed(3)}m at y=${infillMesh.position.y.toFixed(3)}`);
-
     return infillMesh;
-  }
-
-  /**
-   * Disposes of resources
-   */
-  dispose(): void {
-    // Material is managed by MaterialManager, so we don't dispose it here
   }
 }

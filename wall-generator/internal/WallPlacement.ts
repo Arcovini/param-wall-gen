@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { Placement } from '../types';
 
 /**
  * Converts degrees to radians
@@ -36,12 +37,8 @@ export function createPlacement(
   y: number,
   z: number,
   yawDegrees: number,
-  parent: any = null
-): {
-  parent: any;
-  position: { x: number; y: number; z: number };
-  direction: { yaw: number };
-} {
+  parent: Placement | null = null
+): Placement {
   return {
     parent,
     position: { x, y, z },

@@ -83,18 +83,11 @@ export class WallManager {
     const wallGroup = new THREE.Group();
     this.wallGroup = wallGroup;
 
-    // Calculate grid dimensions (truncate to integer)
-    const blocksHorizontal = Math.floor(wallWidth / (blockWidth + cementThickness));
+    // Calculate grid dimensions
     const blocksVertical = Math.floor(wallHeight / (blockHeight + cementThickness));
 
     // Calculate how many rows to show based on completion percentage
     const rowsToShow = RowGenerator.getVisibleRows(blocksVertical, completion);
-
-    console.log("WallManager:", {
-      wallWidth, wallHeight, blockHeight, cementThickness,
-      blocksVertical, completion, rowsToShow,
-      openingBoundsCount: openingBounds.length
-    });
 
     // Calculate completed wall height based on visible rows
     const completedWallHeight = rowsToShow > 0
@@ -141,11 +134,8 @@ export class WallManager {
       rowMesh.position.set(0, rowY, 0);
       rowMesh.name = `RowMesh_${row}`;
 
-      // Add row mesh directly to wall group (no merging)
       wallGroup.add(rowMesh);
     }
-
-    console.log(`WallManager: Created ${rowsToShow} separate row meshes`);
 
     // Apply placement transformations to the wall group
     applyPlacement(wallGroup, { x: positionX, y: positionY, z: positionZ }, yawDegrees);
@@ -206,6 +196,5 @@ export class WallManager {
    */
   dispose(): void {
     this.clearWall();
-    this.blockGenerator.dispose();
   }
 }

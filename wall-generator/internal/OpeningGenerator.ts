@@ -271,15 +271,8 @@ export class OpeningGenerator {
       if (snappedTopY + lintelHeight > infillBaseY) {
         effectiveHeight = wallTopY - snappedBounds.snappedBottomY;
         effectiveCenterY = snappedBounds.snappedBottomY + effectiveHeight / 2;
-        console.log(`[OpeningGenerator] Opening extended to wall top after snapping: snapped h=${snappedBounds.snappedHeight.toFixed(3)}, extended h=${effectiveHeight.toFixed(3)}`);
       }
     }
-
-    console.log(`[OpeningGenerator] Row snapping details:`);
-    console.log(`  Original: centerY=${placement.position.y.toFixed(3)}, height=${size.h.toFixed(3)}`);
-    console.log(`  Original bounds: [${snappedBounds.originalBottomY.toFixed(3)} to ${snappedBounds.originalTopY.toFixed(3)}]`);
-    console.log(`  Snapped bounds:  [${snappedBounds.snappedBottomY.toFixed(3)} to ${snappedBounds.snappedTopY.toFixed(3)}]`);
-    console.log(`  Snapped height: ${snappedBounds.snappedHeight.toFixed(3)}, Effective height: ${effectiveHeight.toFixed(3)}`);
 
     // Oversize the opening significantly to ensure clean CSG cuts
     const oversizedL = size.l * oversizeFactor;
@@ -369,14 +362,13 @@ export class OpeningGenerator {
   /**
    * Logs debug information for an opening
    */
-  private logDebug(index: number, opening: OpeningParams, openingMesh: THREE.Mesh, lintelMesh: THREE.Mesh | null): void {
-    console.log(`[OpeningGenerator] Opening ${index}:
-      Pos: (${opening.placement.position.x}, ${opening.placement.position.y}, ${opening.placement.position.z})
-      Size: ${opening.size.l}x${opening.size.h}x${opening.size.w}
-      Mesh Pos: (${openingMesh.position.x}, ${openingMesh.position.y}, ${openingMesh.position.z})
-      Lintel Pos: ${lintelMesh ? `(${lintelMesh.position.x}, ${lintelMesh.position.y}, ${lintelMesh.position.z})` : 'N/A'}
-      Lintel Width: ${lintelMesh ? (lintelMesh.geometry as THREE.BoxGeometry).parameters.width : 'N/A'}
-    `);
+  private logDebug(index: number, opening: OpeningParams, lintelMesh: THREE.Mesh | null): void {
+    const pos = opening.placement.position;
+    const size = opening.size;
+    const lintelInfo = lintelMesh
+      ? `pos=(${lintelMesh.position.x.toFixed(2)}, ${lintelMesh.position.y.toFixed(2)}), width=${(lintelMesh.geometry as THREE.BoxGeometry).parameters.width.toFixed(2)}`
+      : 'none';
+    console.log(`[OpeningGenerator] Opening ${index}: pos=(${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}), size=${size.l.toFixed(2)}x${size.h.toFixed(2)}, lintel: ${lintelInfo}`);
   }
 
   /**
@@ -451,11 +443,7 @@ export class OpeningGenerator {
             lintelMeshes.push(lintelMesh);
             wallGroup.add(lintelMesh);
           }
-        } else {
-          console.log(`[OpeningGenerator] Skipping lintel for opening ${index + 1} (lintel top ${lintelTopY.toFixed(3)} above completed wall ${currentWallTopY.toFixed(3)})`);
         }
-      } else {
-        console.log(`[OpeningGenerator] Skipping lintel for opening ${index + 1} (extends to wall top)`);
       }
 
       openingDataList.push({
@@ -468,7 +456,7 @@ export class OpeningGenerator {
         snappedBounds
       });
 
-      this.logDebug(index + 1, opening, openingMesh, lintelMesh);
+      this.logDebug(index + 1, opening, lintelMesh);
     });
 
     return { openingDataList, lintelMeshes };
@@ -522,7 +510,6 @@ export class OpeningGenerator {
     // Note: snappedBottomY includes geometryOffset (-cementThickness/2) but actualWallHeight doesn't,
     // so we use cementThickness as tolerance to account for this discrepancy
     if (snappedBounds.snappedBottomY > currentWallTopY + cementThickness) {
-      console.log(`[OpeningGenerator] Skipping bottom cap - opening bottom (${snappedBounds.snappedBottomY.toFixed(3)}) above current wall top (${currentWallTopY.toFixed(3)})`);
       return null;
     }
 
@@ -694,8 +681,6 @@ export class OpeningGenerator {
     bottomCap.castShadow = true;
     bottomCap.receiveShadow = true;
 
-    console.log(`[OpeningGenerator] Created bottom cap (sill) at Y=${ySillSurface.toFixed(3)}, row ${sillRowIndex} pattern (offset=${rowOffset.toFixed(3)}), ${brickIndices.length / 6} brick faces, ${cementIndices.length / 6} cement faces`);
-
     return bottomCap;
   }
 
@@ -706,4 +691,3 @@ export class OpeningGenerator {
     this.material.dispose();
   }
 }
-

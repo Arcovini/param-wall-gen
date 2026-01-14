@@ -13,10 +13,6 @@ export interface BlockLeftVertices {
 }
 
 export class BlockGenerator {
-  constructor() {
-    // Materials are managed by MaterialManager
-  }
-
   /**
    * Adds a block to an existing GeometryBuilder, optionally sharing vertices with previous block.
    * Designed for building rows with continuous UV mapping and shared vertices.
@@ -166,12 +162,5 @@ export class BlockGenerator {
    */
   getCementMaterial(): THREE.Material {
     return MaterialManager.getInstance().getCementMaterial();
-  }
-
-  /**
-   * Disposes of resources
-   */
-  dispose(): void {
-    // Materials are managed by MaterialManager, so we don't dispose them here
   }
 }

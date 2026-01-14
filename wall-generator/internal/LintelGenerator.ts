@@ -6,12 +6,6 @@ import { MaterialManager } from './MaterialManager';
  * LintelGenerator - Generates lintels (vergas) over openings
  */
 export class LintelGenerator {
-  // Material is now managed by MaterialManager
-
-  constructor() {
-    // No local material initialization needed
-  }
-
   /**
    * Creates a lintel mesh if the opening does not touch the top of the wall
    * @param opening The opening parameters
@@ -112,12 +106,4 @@ export class LintelGenerator {
 
     return mesh;
   }
-
-  /**
-   * Disposes of resources
-   */
-  dispose(): void {
-    // Material is managed by MaterialManager, so we don't dispose it here
-  }
 }
-  

@@ -49,10 +49,12 @@ export class MaterialManager {
   }
 
   /**
-   * Helper: Dispose a resource (material or texture) safely
+   * Helper: Load and configure a texture with wrapping settings
    */
-  private disposeResource(resource: THREE.Material | THREE.Texture | null): void {
-    resource?.dispose();
+  private loadTexture(url: string, repeatX: number, repeatY: number): THREE.Texture {
+    const texture = this.textureLoader.load(url);
+    this.configureTexture(texture, repeatX, repeatY);
+    return texture;
   }
 
   /**
@@ -60,14 +62,9 @@ export class MaterialManager {
    */
   public getInfillMaterial(): THREE.MeshStandardMaterial {
     if (!this.infillMaterial) {
-      // Load concrete textures if not loaded
       if (!this.concreteBaseColorTexture) {
-        this.concreteBaseColorTexture = this.textureLoader.load(concreteDiffuseUrl);
-        this.concreteNormalTexture = this.textureLoader.load(concreteNormalUrl);
-
-        // Configure textures - Repeat 10x horizontally (along wall width) on front/back faces
-        this.configureTexture(this.concreteBaseColorTexture, 10, 1);
-        this.configureTexture(this.concreteNormalTexture, 10, 1);
+        this.concreteBaseColorTexture = this.loadTexture(concreteDiffuseUrl, 10, 1);
+        this.concreteNormalTexture = this.loadTexture(concreteNormalUrl, 10, 1);
       }
 
       this.infillMaterial = new THREE.MeshStandardMaterial({
@@ -99,14 +96,9 @@ export class MaterialManager {
    */
   public getBrickMaterial(): THREE.MeshStandardMaterial {
     if (!this.brickMaterial) {
-      // Load textures if not loaded
       if (!this.baseColorTexture) {
-        this.baseColorTexture = this.textureLoader.load(brickDiffuseUrl);
-        this.normalTexture = this.textureLoader.load(brickNormalUrl);
-
-        // Configure textures
-        this.configureTexture(this.baseColorTexture, 1, 1);
-        this.configureTexture(this.normalTexture, 1, 1);
+        this.baseColorTexture = this.loadTexture(brickDiffuseUrl, 1, 1);
+        this.normalTexture = this.loadTexture(brickNormalUrl, 1, 1);
       }
 
       this.brickMaterial = new THREE.MeshStandardMaterial({
@@ -114,7 +106,7 @@ export class MaterialManager {
         normalMap: this.normalTexture,
         roughness: 0.8,
         metalness: 0.2,
-        flatShading: true, // Ensure sharp edges for bricks
+        flatShading: true,
       });
     }
     return this.brickMaterial;
@@ -140,18 +132,18 @@ export class MaterialManager {
    */
   public dispose(): void {
     // Dispose materials
-    this.disposeResource(this.infillMaterial);
-    this.disposeResource(this.lintelMaterial);
-    this.disposeResource(this.brickMaterial);
-    this.disposeResource(this.cementMaterial);
+    this.infillMaterial?.dispose();
+    this.lintelMaterial?.dispose();
+    this.brickMaterial?.dispose();
+    this.cementMaterial?.dispose();
 
     // Dispose textures
-    this.disposeResource(this.baseColorTexture);
-    this.disposeResource(this.normalTexture);
-    this.disposeResource(this.concreteBaseColorTexture);
-    this.disposeResource(this.concreteNormalTexture);
+    this.baseColorTexture?.dispose();
+    this.normalTexture?.dispose();
+    this.concreteBaseColorTexture?.dispose();
+    this.concreteNormalTexture?.dispose();
 
-    // Reset all references to null
+    // Reset all references
     this.infillMaterial = null;
     this.lintelMaterial = null;
     this.brickMaterial = null;

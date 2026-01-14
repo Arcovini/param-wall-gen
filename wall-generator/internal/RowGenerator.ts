@@ -112,31 +112,18 @@ export class RowGenerator {
    * Adds end caps to a row geometry with proper UVs and materials.
    * Creates dedicated vertices for caps (not shared with front/back faces).
    * With bounds-clamping, we only need caps at the actual wall edges.
-   *
-   * @param builder - GeometryBuilder to add vertices and faces to
-   * @param xLeft - X position of left edge
-   * @param xRight - X position of right edge
-   * @param _unused - Kept for API compatibility (deprecated)
-   * @param yBottom - Y position of row bottom
-   * @param yTopBrick - Y position of brick top
-   * @param yTopCement - Y position of cement top (row top)
-   * @param zFront - Z position of front face
-   * @param zBack - Z position of back face
    */
   private static addRowEndCaps(
     builder: GeometryBuilder,
     xLeft: number,
     xRight: number,
-    _unused: number,
     yBottom: number,
     yTopBrick: number,
     yTopCement: number,
     zFront: number,
     zBack: number
   ): void {
-    // Left cap: face normal toward -X (visible from outside)
     this.addSingleSideCap(builder, xLeft, yBottom, yTopBrick, yTopCement, zFront, zBack, false);
-    // Right cap: face normal toward +X (visible from outside)
     this.addSingleSideCap(builder, xRight, yBottom, yTopBrick, yTopCement, zFront, zBack, true);
   }
 
@@ -203,8 +190,6 @@ export class RowGenerator {
 
     // Generate blocks by iterating through pattern positions
     let patternX = patternStart;
-    let blockCount = 0;
-    let skippedByOpening = 0;
 
     while (patternX < rowRight) {
       // Ideal block boundaries (before clamping)
@@ -303,9 +288,7 @@ export class RowGenerator {
 
       // Skip if brick has no width after opening clamping
       if (effectiveBrickWidth <= 0) {
-        skippedByOpening++;
         patternX += unitWidth;
-        // Reset vertex sharing - next block can't share with previous non-adjacent block
         prevVertices = undefined;
         continue;
       }
@@ -363,7 +346,6 @@ export class RowGenerator {
       prevVertices = result.rightVertices;
       patternX += unitWidth;
       uCounter += 1;
-      blockCount++;
     }
 
     // Add wall end caps at fixed wall bounds (rowLeft/rowRight)
@@ -393,10 +375,6 @@ export class RowGenerator {
         this.addSingleSideCap(builder, opening.right, yBottom, yTopBrick, yTopCement, zFront, zBack, false);
       }
     }
-
-    console.log(`[RowGenerator] Built row ${rowIndex} with bounds-clamping:
-      Wall width: ${actualWallWidth}, Blocks: ${blockCount}, Skipped by openings: ${skippedByOpening}
-      Wall caps: left=${needLeftWallCap}, right=${needRightWallCap}`);
 
     return builder.build();
   }
@@ -635,7 +613,6 @@ export class RowGenerator {
 
     // Skip if no geometry was created
     if (brickFaces === 0 && cementFaces === 0) {
-      console.log(`[RowGenerator] Wall top cap skipped - no visible faces`);
       return null;
     }
 
@@ -665,8 +642,6 @@ export class RowGenerator {
     topCap.name = 'WallTopCap';
     topCap.castShadow = true;
     topCap.receiveShadow = true;
-
-    console.log(`[RowGenerator] Created wall top cap at Y=${topY.toFixed(3)}, row ${topRowIndex} pattern (offset=${rowOffset.toFixed(3)}), ${brickFaces} brick faces, ${cementFaces} cement faces, ${topOpenings.length} openings skipped`);
 
     return topCap;
   }

@@ -12,7 +12,7 @@
 
 import * as THREE from 'three';
 import type { BuildMasonryWallParams } from './types';
-import { WallBuilder } from './wall-generator/builders/WallBuilder';
+import { WallBuilder } from './internal/builders/WallBuilder';
 
 /**
  * Generates a masonry wall based on the provided parameters.

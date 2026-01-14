@@ -12,7 +12,7 @@ import * as THREE from 'three';
 import type { BuildMasonryWallParams, OpeningBoundsForRow } from '../../types';
 import { WallManager } from '../WallManager';
 import { OpeningGenerator, type OpeningData, snapToRowBoundaries } from '../OpeningGenerator';
-import { WallVisualizer } from '../visualization/WallVisualizer';
+import { WallVisualizer } from '../../ui/WallVisualizer';
 import { InfillGenerator } from '../InfillGenerator';
 import { RowGenerator } from '../RowGenerator';
 import { cutOpenings } from '../processing/OpeningCutter';

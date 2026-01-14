@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { VisualizationMode } from '../../types';
+import type { VisualizationMode } from '../types';
 
 export class WallVisualizer {
   /**

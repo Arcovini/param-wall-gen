@@ -10,7 +10,7 @@ import { SceneUtils } from './utils/SceneUtils';
 import { UIController } from './ui/UIController';
 import { UploadConfiguration } from './core/UploadConfiguration';
 import { buildMasonryWall } from './buildMasonryWall';
-import { WallVisualizer } from './wall/visualization/WallVisualizer';
+import { WallVisualizer } from './ui/WallVisualizer';
 import type { BuildMasonryWallParams, ExtractedWall } from './types';
 
 const DEGREES_TO_RADIANS = Math.PI / 180;
@@ -108,7 +108,7 @@ function init(): void {
     // Check view mode and create appropriate visualization
     if (viewMode === 'block' || viewMode === 'row') {
       // Import BlockGenerator for view mode visualization
-      import('./wall/BlockGenerator').then(({ BlockGenerator }) => {
+      import('./wall-generator/BlockGenerator').then(({ BlockGenerator }) => {
         const blockGenerator = new BlockGenerator();
 
         currentWallGroup = SceneUtils.createViewModeVisualization(

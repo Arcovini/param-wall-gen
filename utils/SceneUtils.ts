@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { BlockGenerator } from '../wall/BlockGenerator';
-import { RowGenerator } from '../wall/RowGenerator';
+import { BlockGenerator } from '../wall-generator/BlockGenerator';
+import { RowGenerator } from '../wall-generator/RowGenerator';
 import { GeometryBuilder } from './geometry/GeometryBuilder';
 
 /**

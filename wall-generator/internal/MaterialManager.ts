@@ -1,5 +1,11 @@
 import * as THREE from 'three';
 
+// Import textures as ES modules - Vite resolves URLs at build time
+import brickDiffuseUrl from '../assets/textures/masonry/brick/redBrick_difuseAO.jpg';
+import brickNormalUrl from '../assets/textures/masonry/brick/redBrick_Normal.jpg';
+import concreteDiffuseUrl from '../assets/textures/concrete/concrete_layers_diff_1k.jpg';
+import concreteNormalUrl from '../assets/textures/concrete/concrete_layers_nor_gl_1k.jpg';
+
 /**
  * MaterialManager - Singleton class to manage shared materials
  * Ensures materials are created once and reused across the application.
@@ -56,8 +62,8 @@ export class MaterialManager {
     if (!this.infillMaterial) {
       // Load concrete textures if not loaded
       if (!this.concreteBaseColorTexture) {
-        this.concreteBaseColorTexture = this.textureLoader.load('/textures/concrete/concrete_layers_diff_1k.jpg');
-        this.concreteNormalTexture = this.textureLoader.load('/textures/concrete/concrete_layers_nor_gl_1k.jpg');
+        this.concreteBaseColorTexture = this.textureLoader.load(concreteDiffuseUrl);
+        this.concreteNormalTexture = this.textureLoader.load(concreteNormalUrl);
 
         // Configure textures - Repeat 10x horizontally (along wall width) on front/back faces
         this.configureTexture(this.concreteBaseColorTexture, 10, 1);
@@ -95,8 +101,8 @@ export class MaterialManager {
     if (!this.brickMaterial) {
       // Load textures if not loaded
       if (!this.baseColorTexture) {
-        this.baseColorTexture = this.textureLoader.load('/textures/masonry/brick/redBrick_difuseAO.jpg');
-        this.normalTexture = this.textureLoader.load('/textures/masonry/brick/redBrick_Normal.jpg');
+        this.baseColorTexture = this.textureLoader.load(brickDiffuseUrl);
+        this.normalTexture = this.textureLoader.load(brickNormalUrl);
 
         // Configure textures
         this.configureTexture(this.baseColorTexture, 1, 1);

@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 
 // Import textures as ES modules - Vite resolves URLs at build time
-import brickDiffuseUrl from '../assets/textures/masonry/brick/redBrick_difuseAO.jpg';
-import brickNormalUrl from '../assets/textures/masonry/brick/redBrick_Normal.jpg';
-import concreteDiffuseUrl from '../assets/textures/concrete/concrete_layers_diff_1k.jpg';
-import concreteNormalUrl from '../assets/textures/concrete/concrete_layers_nor_gl_1k.jpg';
+import brickDiffuseUrl from '../assets/textures/masonry/brick/redBrick_difuseAO.png';
+import brickNormalUrl from '../assets/textures/masonry/brick/redBrick_Normal.png';
+import concreteDiffuseUrl from '../assets/textures/concrete/concrete_layers_diff_1k.png';
+import concreteNormalUrl from '../assets/textures/concrete/concrete_layers_nor_gl_1k.png';
 
 /**
  * MaterialManager - Singleton class to manage shared materials

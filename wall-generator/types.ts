@@ -47,7 +47,7 @@ export type WallParams = {
   size: Size;              // Wall dimensions (l=depth, w=width, h=height)
   blockSize: Size;         // Block dimensions (l=width, h=height, w=unused)
   cementThickness: number; // Mortar joint thickness
-  materials: AssociatedMaterials;
+  materials?: AssociatedMaterials; // Optional PBR materials
 };
 
 /** Opening (door/window) parameters */

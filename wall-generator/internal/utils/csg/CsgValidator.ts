@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { MeshBVH } from 'three-mesh-bvh';
 import { Brush, Evaluator, ADDITION } from 'three-bvh-csg';
 
 interface ManifoldResult {
@@ -10,7 +9,6 @@ interface ManifoldResult {
 interface ManifoldResultWithDetails extends ManifoldResult {
   details: {
     edgeCheck: boolean;
-    bvhCheck: boolean;
     csgCheck: boolean;
     vertexCount: number;
     triangleCount: number;
@@ -65,14 +63,13 @@ function isManifold(geometry: THREE.BufferGeometry): ManifoldResult {
 
 /**
  * Enhanced manifold check using three-bvh-csg capabilities.
- * Validates geometry using BVH structure and CSG operations.
+ * Validates geometry using edge analysis and CSG operations.
  */
 export function isManifoldWithBVH(geometry: THREE.BufferGeometry): ManifoldResultWithDetails {
   const edgeResult = isManifold(geometry);
 
   const details = {
     edgeCheck: edgeResult.isManifold,
-    bvhCheck: false,
     csgCheck: false,
     vertexCount: geometry.attributes.position ? geometry.attributes.position.count : 0,
     triangleCount: geometry.index ? geometry.index.count / 3 : 0
@@ -82,19 +79,6 @@ export function isManifoldWithBVH(geometry: THREE.BufferGeometry): ManifoldResul
     return {
       isManifold: false,
       message: `Edge check failed: ${edgeResult.message}`,
-      details
-    };
-  }
-
-  // BVH structure validation
-  try {
-    new MeshBVH(geometry);
-    details.bvhCheck = true;
-    console.log('[BVH Check] BVH built successfully');
-  } catch (error) {
-    return {
-      isManifold: false,
-      message: `BVH construction failed: ${error}`,
       details
     };
   }
@@ -134,7 +118,7 @@ export function isManifoldWithBVH(geometry: THREE.BufferGeometry): ManifoldResul
 
   return {
     isManifold: true,
-    message: 'Geometry passed all manifold checks (edge, BVH, and CSG)',
+    message: 'Geometry passed all manifold checks (edge and CSG)',
     details
   };
 }

@@ -6,15 +6,17 @@
  * @example
  * ```typescript
  * import { buildMasonryWall } from './wall-generator';
- * import type { BuildMasonryWallParams } from './wall-generator';
  *
- * const params: BuildMasonryWallParams = {
- *   wall: { ... },
- *   openings: [ ... ],
+ * const wallGroup = buildMasonryWall({
+ *   wall: {
+ *     placement: { parent: null, position: { x: 0, y: 0, z: 0 }, direction: { yaw: 0 } },
+ *     size: { l: 0.2, w: 3, h: 2 },
+ *     blockSize: { l: 0.2, w: 0.1, h: 0.1 },
+ *     cementThickness: 0.01
+ *   },
+ *   openings: [],
  *   task: { completion: 1.0 }
- * };
- *
- * const wallGroup = buildMasonryWall(params);
+ * });
  * scene.add(wallGroup);
  * ```
  */

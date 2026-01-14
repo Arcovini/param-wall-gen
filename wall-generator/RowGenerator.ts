@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import type { OpeningBoundsForRow } from '../types';
 import { BlockGenerator, BlockVertices } from './BlockGenerator';
-import { isManifoldWithBVH } from '../utils/csg/CsgValidator';
-import { GeometryBuilder } from '../utils/geometry/GeometryBuilder';
+import { isManifoldWithBVH } from './utils/csg/CsgValidator';
+import { GeometryBuilder } from './utils/geometry/GeometryBuilder';
 import { MaterialManager } from './MaterialManager';
 
 

@@ -9,13 +9,13 @@
  */
 
 import type * as THREE from 'three';
-import { createSession, type CsgSession } from '../../utils/csg/CsgOperations';
+import { createSession, type CsgSession } from '../utils/csg/CsgOperations';
 import {
   filterIntersecting,
   yRangesOverlap,
   getMeshYBounds,
   createBoundsMesh
-} from '../../utils/geometry/GeometryMerger';
+} from '../utils/geometry/GeometryMerger';
 import type { OpeningData } from '../OpeningGenerator';
 
 export interface OpeningCutterContext {

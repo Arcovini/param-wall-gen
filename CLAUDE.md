@@ -66,18 +66,14 @@ buildMasonryWall(params)
 
 ### Opening Processing (wall-generator/processing/)
 
-- `OpeningCutter.ts` - High-level orchestration for cutting openings from wall components. Does not use THREE.js or three-bvh-csg directly — delegates to utils.
+- `OpeningCutter.ts` - High-level orchestration for cutting openings from wall components
   - `cutOpenings()` - Main entry point for CSG operations on wall components
+  - Contains geometry utilities: `filterIntersecting`, `yRangesOverlap`, `getMeshYBounds`, `createBoundsMesh`
 
-### Geometry Utilities (wall-generator/utils/geometry/)
+### Utilities (wall-generator/internal/utils/)
 
 - `GeometryBuilder.ts` - Construction primitives: `addVertex`, `addQuad`, `build` for BufferGeometry
-- `GeometryMerger.ts` - Spatial queries: `filterIntersecting`, `yRangesOverlap`, `getMeshYBounds`, `createBoundsMesh`
-
-### CSG Utilities (wall-generator/utils/csg/)
-
 - `CsgOperations.ts` - Clean CSG API via `createSession()` returning `CsgSession` with `subtract`, `intersect` methods. Hides three-bvh-csg internals.
-- `CsgValidator.ts` - Manifold validation: `isManifoldWithBVH`
 
 ### UI Components (ui/)
 
@@ -91,9 +87,9 @@ buildMasonryWall(params)
 ### Completed
 
 - ✅ Extracted `GeometryBuilder` for shared vertex/quad construction
-- ✅ Separated CSG operations into clean layers (CsgOperations, CsgValidator)
-- ✅ Created `OpeningCutter` as high-level orchestrator (no direct THREE.js/CSG imports)
-- ✅ Organized utils into `wall-generator/utils/geometry/` and `wall-generator/utils/csg/` subfolders
+- ✅ Separated CSG operations into clean `CsgOperations` module
+- ✅ Created `OpeningCutter` as high-level orchestrator with inlined geometry utilities
+- ✅ Simplified utils folder structure (flat, no subfolders)
 - ✅ Fixed row end caps with dedicated vertices, proper UVs, and correct materials (brick/cement)
 - ✅ Implemented bounds-clamping approach for row generation (replaces CSG intersection for wall width)
 - ✅ Added opening caps: side caps in RowGenerator (at opening edges) and bottom cap (sill) in OpeningGenerator

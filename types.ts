@@ -88,7 +88,7 @@ type WallParams = {
   size: Size;
   blockSize: Size;
   cementThickness: number;
-  materials: AssociatedMaterials;
+  materials?: AssociatedMaterials;  // Optional - defaults to MaterialManager colors
 };
 
 export type OpeningParams = {

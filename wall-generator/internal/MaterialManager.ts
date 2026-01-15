@@ -9,6 +9,7 @@ export class MaterialManager {
   private static instance: MaterialManager;
   private static readonly DEFAULT_BRICK_COLOR = 0xC45C3E;
   private static readonly DEFAULT_DARK_BRICK_COLOR = 0x8B3A2A; // Darker/burnt brick color
+  private static readonly DEFAULT_CEMENT_COLOR = 0xC0C0B8;
   private static readonly DARK_BRICK_RATIO = 0.15; // Fixed at 15% of bricks are dark
 
   private infillMaterial: THREE.MeshStandardMaterial | null = null;
@@ -19,6 +20,7 @@ export class MaterialManager {
   private brickColor: THREE.Color = new THREE.Color(MaterialManager.DEFAULT_BRICK_COLOR);
   private darkBrickColor: THREE.Color = new THREE.Color(MaterialManager.DEFAULT_DARK_BRICK_COLOR);
   private brickColorSigma: number = 0;
+  private cementColor: THREE.Color = new THREE.Color(MaterialManager.DEFAULT_CEMENT_COLOR);
 
   private constructor() {}
 
@@ -134,6 +136,25 @@ export class MaterialManager {
   }
 
   /**
+   * Gets the current cement color
+   */
+  public getCementColor(): THREE.Color {
+    return this.cementColor.clone();
+  }
+
+  /**
+   * Sets the cement color used for mortar joints
+   * @param color - Color as hex number (0xRRGGBB), string ('#RRGGBB'), or THREE.Color
+   */
+  public setCementColor(color: THREE.ColorRepresentation): void {
+    this.cementColor.set(color);
+    // Also update material color if it exists (cement uses material color, not vertex colors)
+    if (this.cementMaterial) {
+      this.cementMaterial.color.set(color);
+    }
+  }
+
+  /**
    * Generates a Gaussian random number using Box-Muller transform
    * @returns Random number with mean=0 and standard deviation=1
    */
@@ -184,15 +205,17 @@ export class MaterialManager {
   }
 
   /**
-   * Returns the shared Cement material (fixed color, no vertex color variation)
+   * Returns the shared Cement material (uses material color, not vertex colors)
+   * This avoids gradient artifacts from vertex color interpolation at brick/cement boundaries.
    */
   public getCementMaterial(): THREE.MeshStandardMaterial {
     if (!this.cementMaterial) {
       this.cementMaterial = new THREE.MeshStandardMaterial({
-        color: 0xC0C0B8,
+        color: this.cementColor,
         roughness: 0.9,
         metalness: 0.1,
         flatShading: true,
+        vertexColors: false,
       });
     }
     return this.cementMaterial;

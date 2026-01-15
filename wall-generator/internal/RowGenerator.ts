@@ -77,7 +77,7 @@ export class RowGenerator {
   ): void {
     // Use base brick color for caps (cut faces show uniform color)
     const brickColor = MaterialManager.getInstance().getBrickColor();
-    const cementColor = new THREE.Color(0xC0C0B8);
+    const cementColor = MaterialManager.getInstance().getCementColor();
 
     if (facingRight) {
       // Face normal toward +X (visible from +X direction, i.e., looking left)
@@ -133,7 +133,7 @@ export class RowGenerator {
 
     // Generate varied brick color for this filler block
     const brickColor = MaterialManager.getInstance().generateVariedBrickColor();
-    const cementColor = new THREE.Color(0xC0C0B8);
+    const cementColor = MaterialManager.getInstance().getCementColor();
 
     // Front brick face
     const fb0 = builder.addVertex(xLeft, yBottom, zFront, 0, 0, brickColor);
@@ -382,6 +382,7 @@ export class RowGenerator {
 
       // Generate varied brick color for this block
       const brickColor = MaterialManager.getInstance().generateVariedBrickColor();
+      const cementColor = MaterialManager.getInstance().getCementColor();
 
       // Add block to geometry (using effective dimensions after opening clamping)
       const result = blockGenerator.addBlockToBuilder(
@@ -396,7 +397,8 @@ export class RowGenerator {
         yTopBrick,
         yTopCement,
         prevVertices,
-        brickColor
+        brickColor,
+        cementColor
       );
 
       // Add opening edge caps (inner faces at opening boundaries)
@@ -567,7 +569,7 @@ export class RowGenerator {
     let cementVertexIndex = 0;
 
     // Cement color for top cap
-    const cementColor = new THREE.Color(0xC0C0B8);
+    const cementColor = MaterialManager.getInstance().getCementColor();
 
     // Match RowGenerator's stagger logic: odd rows have offset
     const rowOffset = (topRowIndex % 2 === 1) ? (blockWidth / 2) : 0;

@@ -108,6 +108,7 @@ export class WallBuilder {
       if (materials.masonry?.color !== undefined) mm.setBrickColor(materials.masonry.color);
       if (materials.masonry?.colorSigma !== undefined) mm.setBrickColorSigma(materials.masonry.colorSigma);
       if (materials.masonry?.darkBrickColor !== undefined) mm.setDarkBrickColor(materials.masonry.darkBrickColor);
+      if (materials.masonry?.cementColor !== undefined) mm.setCementColor(materials.masonry.cementColor);
     }
 
     return this;

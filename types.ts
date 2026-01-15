@@ -75,6 +75,7 @@ type MaterialConfig = {
   color?: number | string;
   colorSigma?: number;       // Standard deviation for per-brick color variation (0 = no variation)
   darkBrickColor?: number | string;  // Secondary/dark brick color (15% of bricks use this color)
+  cementColor?: number | string;     // Cement/mortar color
 };
 type AssociatedMaterials = {
   masonry?: MaterialConfig;

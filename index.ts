@@ -70,6 +70,7 @@ function init(): void {
   const brickColorInput = document.getElementById('brick-color') as HTMLInputElement;
   const brickColorSigmaInput = document.getElementById('brick-color-sigma') as HTMLInputElement;
   const darkBrickColorInput = document.getElementById('dark-brick-color') as HTMLInputElement;
+  const cementColorInput = document.getElementById('cement-color') as HTMLInputElement;
   if (brickColorInput) {
     brickColorInput.addEventListener('input', () => updateWall());
   }
@@ -78,6 +79,9 @@ function init(): void {
   }
   if (darkBrickColorInput) {
     darkBrickColorInput.addEventListener('input', () => updateWall());
+  }
+  if (cementColorInput) {
+    cementColorInput.addEventListener('input', () => updateWall());
   }
 
   // Initialize Upload Configuration UI
@@ -179,7 +183,8 @@ function init(): void {
           masonry: {
             color: brickColorInput?.value,
             colorSigma: parseFloat(brickColorSigmaInput?.value) || 0,
-            darkBrickColor: darkBrickColorInput?.value
+            darkBrickColor: darkBrickColorInput?.value,
+            cementColor: cementColorInput?.value
           }
         }
       },

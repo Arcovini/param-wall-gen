@@ -12,9 +12,6 @@ export interface BlockLeftVertices {
   cementTop: number[];
 }
 
-// Default cement color for vertex coloring
-const CEMENT_COLOR = new THREE.Color(0xC0C0B8);
-
 export class BlockGenerator {
   /**
    * Adds a block to an existing GeometryBuilder, optionally sharing vertices with previous block.
@@ -33,6 +30,7 @@ export class BlockGenerator {
    * @param yTopCement - Y coordinate of top of cement
    * @param prevVertices - Optional vertices from previous block to share
    * @param brickColor - Optional color for brick vertices (for per-brick variation)
+   * @param cementColor - Optional color for cement vertices
    * @returns Object containing right edge vertices for next block to reuse, and left vertices for first block
    */
   addBlockToBuilder(
@@ -47,7 +45,8 @@ export class BlockGenerator {
     yTopBrick: number,
     yTopCement: number,
     prevVertices?: BlockVertices,
-    brickColor?: THREE.Color
+    brickColor?: THREE.Color,
+    cementColor?: THREE.Color
   ): { rightVertices: BlockVertices; leftVertices?: BlockLeftVertices } {
     const halfDepth = depth / 2;
 
@@ -86,10 +85,10 @@ export class BlockGenerator {
     let vt0: number, vt1: number, vt2: number, vt3: number;
 
     if (!prevVertices) {
-      vt0 = builder.addVertex(xLeft, yTopCement, zFront, uLeft, 1, CEMENT_COLOR);
-      vt1 = builder.addVertex(xRight, yTopCement, zFront, uRight, 1, CEMENT_COLOR);
-      vt2 = builder.addVertex(xLeft, yTopCement, zBack, uLeft, 1, CEMENT_COLOR);
-      vt3 = builder.addVertex(xRight, yTopCement, zBack, uRight, 1, CEMENT_COLOR);
+      vt0 = builder.addVertex(xLeft, yTopCement, zFront, uLeft, 1, cementColor);
+      vt1 = builder.addVertex(xRight, yTopCement, zFront, uRight, 1, cementColor);
+      vt2 = builder.addVertex(xLeft, yTopCement, zBack, uLeft, 1, cementColor);
+      vt3 = builder.addVertex(xRight, yTopCement, zBack, uRight, 1, cementColor);
 
       if (leftVertices) {
         leftVertices.cementTop = [vt0, vt2];
@@ -97,8 +96,8 @@ export class BlockGenerator {
     } else {
       vt0 = prevVertices.rightCorner[0];
       vt2 = prevVertices.rightCorner[1];
-      vt1 = builder.addVertex(xRight, yTopCement, zFront, uRight, 1, CEMENT_COLOR);
-      vt3 = builder.addVertex(xRight, yTopCement, zBack, uRight, 1, CEMENT_COLOR);
+      vt1 = builder.addVertex(xRight, yTopCement, zFront, uRight, 1, cementColor);
+      vt3 = builder.addVertex(xRight, yTopCement, zBack, uRight, 1, cementColor);
     }
 
     // Top cement faces (above brick)
@@ -112,10 +111,10 @@ export class BlockGenerator {
 
     if (cementWidth > 0) {
       // Right cement strip vertices
-      const vr0 = builder.addVertex(xRightCement, yBottom, zFront, uRight, 0, CEMENT_COLOR);
-      const vr1 = builder.addVertex(xRightCement, yTopBrick, zFront, uRight, 0.8, CEMENT_COLOR);
-      const vr2 = builder.addVertex(xRightCement, yBottom, zBack, uRight, 0, CEMENT_COLOR);
-      const vr3 = builder.addVertex(xRightCement, yTopBrick, zBack, uRight, 0.8, CEMENT_COLOR);
+      const vr0 = builder.addVertex(xRightCement, yBottom, zFront, uRight, 0, cementColor);
+      const vr1 = builder.addVertex(xRightCement, yTopBrick, zFront, uRight, 0.8, cementColor);
+      const vr2 = builder.addVertex(xRightCement, yBottom, zBack, uRight, 0, cementColor);
+      const vr3 = builder.addVertex(xRightCement, yTopBrick, zBack, uRight, 0.8, cementColor);
 
       // Right cement faces
       builder.addQuad(v1, vr0, vr1, v2, true); // Front
@@ -123,8 +122,8 @@ export class BlockGenerator {
       // Bottom face removed - not visible in wall construction
 
       // Corner cement vertices
-      const vc0 = builder.addVertex(xRightCement, yTopCement, zFront, uRight, 1, CEMENT_COLOR);
-      const vc1 = builder.addVertex(xRightCement, yTopCement, zBack, uRight, 1, CEMENT_COLOR);
+      const vc0 = builder.addVertex(xRightCement, yTopCement, zFront, uRight, 1, cementColor);
+      const vc1 = builder.addVertex(xRightCement, yTopCement, zBack, uRight, 1, cementColor);
 
       // Corner faces
       builder.addQuad(v2, vr1, vc0, vt1, true); // Front

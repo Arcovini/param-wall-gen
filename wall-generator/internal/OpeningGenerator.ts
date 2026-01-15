@@ -527,14 +527,19 @@ export class OpeningGenerator {
 
     // Separate arrays for brick and cement geometry (to avoid interleaving issues)
     const brickPositions: number[] = [];
+    const brickColors: number[] = [];
     const brickUvs: number[] = [];
     const brickIndices: number[] = [];
     let brickVertexIndex = 0;
 
     const cementPositions: number[] = [];
+    const cementColors: number[] = [];
     const cementUvs: number[] = [];
     const cementIndices: number[] = [];
     let cementVertexIndex = 0;
+
+    // Cement color for bottom cap
+    const cementColor = new THREE.Color(0xC0C0B8);
 
     // Calculate row index for the row BELOW the opening (whose pattern we're showing)
     // Must account for geometry offset used in snapping
@@ -565,6 +570,14 @@ export class OpeningGenerator {
         x2, y, zBack,
         x1, y, zBack
       );
+      // Generate varied color for this brick section
+      const color = MaterialManager.getInstance().generateVariedBrickColor();
+      brickColors.push(
+        color.r, color.g, color.b,
+        color.r, color.g, color.b,
+        color.r, color.g, color.b,
+        color.r, color.g, color.b
+      );
       // Normalized UVs (0-1) for proper texture tiling
       brickUvs.push(0, 0, 1, 0, 1, 1, 0, 1);
       brickIndices.push(
@@ -582,6 +595,12 @@ export class OpeningGenerator {
         x2, y, zFront,
         x2, y, zBack,
         x1, y, zBack
+      );
+      cementColors.push(
+        cementColor.r, cementColor.g, cementColor.b,
+        cementColor.r, cementColor.g, cementColor.b,
+        cementColor.r, cementColor.g, cementColor.b,
+        cementColor.r, cementColor.g, cementColor.b
       );
       cementUvs.push(0, 0, 1, 0, 1, 1, 0, 1);
       cementIndices.push(
@@ -656,6 +675,7 @@ export class OpeningGenerator {
 
     // Combine brick and cement geometry (brick first, then cement)
     const allPositions = [...brickPositions, ...cementPositions];
+    const allColors = [...brickColors, ...cementColors];
     const allUvs = [...brickUvs, ...cementUvs];
 
     // Offset cement indices by brick vertex count
@@ -666,6 +686,7 @@ export class OpeningGenerator {
     // Create geometry
     const geom = new THREE.BufferGeometry();
     geom.setAttribute('position', new THREE.Float32BufferAttribute(allPositions, 3));
+    geom.setAttribute('color', new THREE.Float32BufferAttribute(allColors, 3));
     geom.setAttribute('uv', new THREE.Float32BufferAttribute(allUvs, 2));
     geom.setIndex(allIndices);
 

@@ -66,6 +66,20 @@ function init(): void {
     });
   }
 
+  // Wire up brick color controls
+  const brickColorInput = document.getElementById('brick-color') as HTMLInputElement;
+  const brickColorSigmaInput = document.getElementById('brick-color-sigma') as HTMLInputElement;
+  const darkBrickColorInput = document.getElementById('dark-brick-color') as HTMLInputElement;
+  if (brickColorInput) {
+    brickColorInput.addEventListener('input', () => updateWall());
+  }
+  if (brickColorSigmaInput) {
+    brickColorSigmaInput.addEventListener('input', () => updateWall());
+  }
+  if (darkBrickColorInput) {
+    darkBrickColorInput.addEventListener('input', () => updateWall());
+  }
+
   // Initialize Upload Configuration UI
   uploadConfiguration = new UploadConfiguration();
   uploadConfiguration.setOnWallsLoaded((walls: ExtractedWall[]) => {
@@ -162,9 +176,11 @@ function init(): void {
           direction: { yaw: params.yawDegrees * DEGREES_TO_RADIANS }
         },
         materials: {
-          masonry: { albedo: '', metalness: 0, roughness: 0 },
-          lintel: { albedo: '', metalness: 0, roughness: 0 },
-          infill: { albedo: '', metalness: 0, roughness: 0 }
+          masonry: {
+            color: brickColorInput?.value,
+            colorSigma: parseFloat(brickColorSigmaInput?.value) || 0,
+            darkBrickColor: darkBrickColorInput?.value
+          }
         }
       },
       openings: openings.map((o: any) => ({

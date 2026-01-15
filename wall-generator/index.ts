@@ -30,7 +30,7 @@ export type {
   Direction,
   Placement,
   Size,
-  MaterialPBR,
+  MaterialConfig,
   AssociatedMaterials,
   WallParams,
   OpeningParams,

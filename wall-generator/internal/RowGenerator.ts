@@ -75,35 +75,39 @@ export class RowGenerator {
     zBack: number,
     facingRight: boolean
   ): void {
+    // Use base brick color for caps (cut faces show uniform color)
+    const brickColor = MaterialManager.getInstance().getBrickColor();
+    const cementColor = new THREE.Color(0xC0C0B8);
+
     if (facingRight) {
       // Face normal toward +X (visible from +X direction, i.e., looking left)
       // Brick portion (larger, bottom)
-      const rb0 = builder.addVertex(x, yBottom, zFront, 0, 0);
-      const rb1 = builder.addVertex(x, yBottom, zBack, 1, 0);
-      const rb2 = builder.addVertex(x, yTopBrick, zBack, 1, 1);
-      const rb3 = builder.addVertex(x, yTopBrick, zFront, 0, 1);
+      const rb0 = builder.addVertex(x, yBottom, zFront, 0, 0, brickColor);
+      const rb1 = builder.addVertex(x, yBottom, zBack, 1, 0, brickColor);
+      const rb2 = builder.addVertex(x, yTopBrick, zBack, 1, 1, brickColor);
+      const rb3 = builder.addVertex(x, yTopBrick, zFront, 0, 1, brickColor);
       builder.addQuad(rb0, rb1, rb2, rb3, false); // brick material
 
       // Cement portion (thinner, top)
-      const rc0 = builder.addVertex(x, yTopBrick, zFront, 0, 0);
-      const rc1 = builder.addVertex(x, yTopBrick, zBack, 1, 0);
-      const rc2 = builder.addVertex(x, yTopCement, zBack, 1, 1);
-      const rc3 = builder.addVertex(x, yTopCement, zFront, 0, 1);
+      const rc0 = builder.addVertex(x, yTopBrick, zFront, 0, 0, cementColor);
+      const rc1 = builder.addVertex(x, yTopBrick, zBack, 1, 0, cementColor);
+      const rc2 = builder.addVertex(x, yTopCement, zBack, 1, 1, cementColor);
+      const rc3 = builder.addVertex(x, yTopCement, zFront, 0, 1, cementColor);
       builder.addQuad(rc0, rc1, rc2, rc3, true); // cement material
     } else {
       // Face normal toward -X (visible from -X direction, i.e., looking right)
       // Brick portion (larger, bottom)
-      const lb0 = builder.addVertex(x, yBottom, zBack, 0, 0);
-      const lb1 = builder.addVertex(x, yBottom, zFront, 1, 0);
-      const lb2 = builder.addVertex(x, yTopBrick, zFront, 1, 1);
-      const lb3 = builder.addVertex(x, yTopBrick, zBack, 0, 1);
+      const lb0 = builder.addVertex(x, yBottom, zBack, 0, 0, brickColor);
+      const lb1 = builder.addVertex(x, yBottom, zFront, 1, 0, brickColor);
+      const lb2 = builder.addVertex(x, yTopBrick, zFront, 1, 1, brickColor);
+      const lb3 = builder.addVertex(x, yTopBrick, zBack, 0, 1, brickColor);
       builder.addQuad(lb0, lb1, lb2, lb3, false); // brick material
 
       // Cement portion (thinner, top)
-      const lc0 = builder.addVertex(x, yTopBrick, zBack, 0, 0);
-      const lc1 = builder.addVertex(x, yTopBrick, zFront, 1, 0);
-      const lc2 = builder.addVertex(x, yTopCement, zFront, 1, 1);
-      const lc3 = builder.addVertex(x, yTopCement, zBack, 0, 1);
+      const lc0 = builder.addVertex(x, yTopBrick, zBack, 0, 0, cementColor);
+      const lc1 = builder.addVertex(x, yTopBrick, zFront, 1, 0, cementColor);
+      const lc2 = builder.addVertex(x, yTopCement, zFront, 1, 1, cementColor);
+      const lc3 = builder.addVertex(x, yTopCement, zBack, 0, 1, cementColor);
       builder.addQuad(lc0, lc1, lc2, lc3, true); // cement material
     }
   }
@@ -127,32 +131,36 @@ export class RowGenerator {
   ): void {
     const xRight = xLeft + width;
 
+    // Generate varied brick color for this filler block
+    const brickColor = MaterialManager.getInstance().generateVariedBrickColor();
+    const cementColor = new THREE.Color(0xC0C0B8);
+
     // Front brick face
-    const fb0 = builder.addVertex(xLeft, yBottom, zFront, 0, 0);
-    const fb1 = builder.addVertex(xRight, yBottom, zFront, 1, 0);
-    const fb2 = builder.addVertex(xRight, yTopBrick, zFront, 1, 1);
-    const fb3 = builder.addVertex(xLeft, yTopBrick, zFront, 0, 1);
+    const fb0 = builder.addVertex(xLeft, yBottom, zFront, 0, 0, brickColor);
+    const fb1 = builder.addVertex(xRight, yBottom, zFront, 1, 0, brickColor);
+    const fb2 = builder.addVertex(xRight, yTopBrick, zFront, 1, 1, brickColor);
+    const fb3 = builder.addVertex(xLeft, yTopBrick, zFront, 0, 1, brickColor);
     builder.addQuad(fb0, fb1, fb2, fb3, false); // brick material
 
     // Back brick face
-    const bb0 = builder.addVertex(xLeft, yBottom, zBack, 0, 0);
-    const bb1 = builder.addVertex(xRight, yBottom, zBack, 1, 0);
-    const bb2 = builder.addVertex(xRight, yTopBrick, zBack, 1, 1);
-    const bb3 = builder.addVertex(xLeft, yTopBrick, zBack, 0, 1);
+    const bb0 = builder.addVertex(xLeft, yBottom, zBack, 0, 0, brickColor);
+    const bb1 = builder.addVertex(xRight, yBottom, zBack, 1, 0, brickColor);
+    const bb2 = builder.addVertex(xRight, yTopBrick, zBack, 1, 1, brickColor);
+    const bb3 = builder.addVertex(xLeft, yTopBrick, zBack, 0, 1, brickColor);
     builder.addQuad(bb1, bb0, bb3, bb2, false); // brick material (reversed winding)
 
     // Front cement top face (mortar between rows)
-    const fc0 = builder.addVertex(xLeft, yTopBrick, zFront, 0, 0);
-    const fc1 = builder.addVertex(xRight, yTopBrick, zFront, 1, 0);
-    const fc2 = builder.addVertex(xRight, yTopCement, zFront, 1, 1);
-    const fc3 = builder.addVertex(xLeft, yTopCement, zFront, 0, 1);
+    const fc0 = builder.addVertex(xLeft, yTopBrick, zFront, 0, 0, cementColor);
+    const fc1 = builder.addVertex(xRight, yTopBrick, zFront, 1, 0, cementColor);
+    const fc2 = builder.addVertex(xRight, yTopCement, zFront, 1, 1, cementColor);
+    const fc3 = builder.addVertex(xLeft, yTopCement, zFront, 0, 1, cementColor);
     builder.addQuad(fc0, fc1, fc2, fc3, true); // cement material
 
     // Back cement top face
-    const bc0 = builder.addVertex(xLeft, yTopBrick, zBack, 0, 0);
-    const bc1 = builder.addVertex(xRight, yTopBrick, zBack, 1, 0);
-    const bc2 = builder.addVertex(xRight, yTopCement, zBack, 1, 1);
-    const bc3 = builder.addVertex(xLeft, yTopCement, zBack, 0, 1);
+    const bc0 = builder.addVertex(xLeft, yTopBrick, zBack, 0, 0, cementColor);
+    const bc1 = builder.addVertex(xRight, yTopBrick, zBack, 1, 0, cementColor);
+    const bc2 = builder.addVertex(xRight, yTopCement, zBack, 1, 1, cementColor);
+    const bc3 = builder.addVertex(xLeft, yTopCement, zBack, 0, 1, cementColor);
     builder.addQuad(bc1, bc0, bc3, bc2, true); // cement material (reversed winding)
   }
 
@@ -372,6 +380,9 @@ export class RowGenerator {
       const uLeft = uCounter + (effectiveBrickLeft - idealBrickLeft) / blockWidth;
       const uRight = uCounter + (effectiveBrickRight - idealBrickLeft) / blockWidth;
 
+      // Generate varied brick color for this block
+      const brickColor = MaterialManager.getInstance().generateVariedBrickColor();
+
       // Add block to geometry (using effective dimensions after opening clamping)
       const result = blockGenerator.addBlockToBuilder(
         builder,
@@ -384,7 +395,8 @@ export class RowGenerator {
         yBottom,
         yTopBrick,
         yTopCement,
-        prevVertices
+        prevVertices,
+        brickColor
       );
 
       // Add opening edge caps (inner faces at opening boundaries)
@@ -543,14 +555,19 @@ export class RowGenerator {
 
     // Separate arrays for brick and cement geometry
     const brickPositions: number[] = [];
+    const brickColors: number[] = [];
     const brickUvs: number[] = [];
     const brickIndices: number[] = [];
     let brickVertexIndex = 0;
 
     const cementPositions: number[] = [];
+    const cementColors: number[] = [];
     const cementUvs: number[] = [];
     const cementIndices: number[] = [];
     let cementVertexIndex = 0;
+
+    // Cement color for top cap
+    const cementColor = new THREE.Color(0xC0C0B8);
 
     // Match RowGenerator's stagger logic: odd rows have offset
     const rowOffset = (topRowIndex % 2 === 1) ? (blockWidth / 2) : 0;
@@ -570,6 +587,14 @@ export class RowGenerator {
         x2, y, zBack,
         x1, y, zBack
       );
+      // Generate varied color for this brick section
+      const color = MaterialManager.getInstance().generateVariedBrickColor();
+      brickColors.push(
+        color.r, color.g, color.b,
+        color.r, color.g, color.b,
+        color.r, color.g, color.b,
+        color.r, color.g, color.b
+      );
       // Normalized UVs for proper texture tiling
       const uScale = (x2 - x1) / blockWidth;
       brickUvs.push(0, 0, uScale, 0, uScale, 1, 0, 1);
@@ -588,6 +613,12 @@ export class RowGenerator {
         x2, y, zFront,
         x2, y, zBack,
         x1, y, zBack
+      );
+      cementColors.push(
+        cementColor.r, cementColor.g, cementColor.b,
+        cementColor.r, cementColor.g, cementColor.b,
+        cementColor.r, cementColor.g, cementColor.b,
+        cementColor.r, cementColor.g, cementColor.b
       );
       cementUvs.push(0, 0, 1, 0, 1, 1, 0, 1);
       cementIndices.push(
@@ -681,6 +712,7 @@ export class RowGenerator {
 
     // Combine brick and cement geometry (brick first, then cement)
     const allPositions = [...brickPositions, ...cementPositions];
+    const allColors = [...brickColors, ...cementColors];
     const allUvs = [...brickUvs, ...cementUvs];
 
     // Offset cement indices by brick vertex count
@@ -691,6 +723,7 @@ export class RowGenerator {
     // Create geometry
     const geom = new THREE.BufferGeometry();
     geom.setAttribute('position', new THREE.Float32BufferAttribute(allPositions, 3));
+    geom.setAttribute('color', new THREE.Float32BufferAttribute(allColors, 3));
     geom.setAttribute('uv', new THREE.Float32BufferAttribute(allUvs, 2));
     geom.setIndex(allIndices);
 

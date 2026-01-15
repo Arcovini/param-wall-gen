@@ -15,7 +15,7 @@ export interface CsgSession {
 
 export function createSession(): CsgSession {
   const evaluator = new Evaluator();
-  evaluator.attributes = ['position', 'normal', 'uv', 'uv2'];
+  evaluator.attributes = ['position', 'normal', 'uv', 'uv2', 'color'];
   evaluator.useGroups = true;
 
   return {
@@ -40,6 +40,8 @@ function applyCsgOperation(
   try {
     ensureUv2(target.geometry);
     ensureUv2(operand.geometry);
+    ensureColorAttribute(target.geometry);
+    ensureColorAttribute(operand.geometry);
 
     const targetBrush = createBrush(target);
     const operandBrush = createBrush(operand);
@@ -110,5 +112,17 @@ function postProcessGeometry(
 function ensureUv2(geometry: THREE.BufferGeometry): void {
   if (!geometry.attributes.uv2 && geometry.attributes.uv) {
     geometry.setAttribute('uv2', geometry.attributes.uv.clone());
+  }
+}
+
+function ensureColorAttribute(geometry: THREE.BufferGeometry): void {
+  if (!geometry.attributes.color) {
+    const positionCount = geometry.attributes.position.count;
+    const colors = new Float32Array(positionCount * 3);
+    // Default to white (1, 1, 1) so materials without vertexColors render correctly
+    for (let i = 0; i < positionCount * 3; i++) {
+      colors[i] = 1.0;
+    }
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   }
 }

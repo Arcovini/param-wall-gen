@@ -25,18 +25,18 @@ export type Size = { l: number; w: number; h: number };
 
 // ===== Material Types =====
 
-/** PBR material properties */
-export type MaterialPBR = {
-  albedo: string;      // Texture path or empty string
-  metalness: number;   // 0..1
-  roughness: number;   // 0..1
+/** Material configuration */
+export type MaterialConfig = {
+  color?: number | string;         // Hex number (0xRRGGBB) or CSS color string
+  colorSigma?: number;             // Standard deviation for per-brick color variation (0 = no variation)
+  darkBrickColor?: number | string; // Secondary/dark brick color (15% of bricks use this color)
 };
 
 /** Materials for wall components */
 export type AssociatedMaterials = {
-  masonry: MaterialPBR;
-  lintel: MaterialPBR;
-  infill: MaterialPBR;
+  masonry?: MaterialConfig;
+  lintel?: MaterialConfig;
+  infill?: MaterialConfig;
 };
 
 // ===== Parameter Types =====

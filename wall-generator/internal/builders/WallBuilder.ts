@@ -15,6 +15,7 @@ import { OpeningGenerator, type OpeningData, snapToRowBoundaries } from '../Open
 import { InfillGenerator } from '../InfillGenerator';
 import { RowGenerator } from '../RowGenerator';
 import { cutOpenings } from '../processing/OpeningCutter';
+import { MaterialManager } from '../MaterialManager';
 
 // Singleton WallManager instance (reuses textures/materials)
 const wallManagerInstance = new WallManager();
@@ -78,7 +79,7 @@ export class WallBuilder {
     };
   }
 
-  /** Step 1: Parse parameters */
+  /** Step 1: Parse parameters and apply material colors */
   parseParameters(): this {
     const { wall, task } = this.params;
 
@@ -99,6 +100,15 @@ export class WallBuilder {
     this.ctx.actualWallHeight = this.ctx.visibleRows > 0
       ? this.ctx.visibleRows * this.ctx.blockHeight + (this.ctx.visibleRows - 1) * this.ctx.cementThickness
       : 0;
+
+    // Apply material colors if provided
+    const materials = wall.materials;
+    if (materials) {
+      const mm = MaterialManager.getInstance();
+      if (materials.masonry?.color !== undefined) mm.setBrickColor(materials.masonry.color);
+      if (materials.masonry?.colorSigma !== undefined) mm.setBrickColorSigma(materials.masonry.colorSigma);
+      if (materials.masonry?.darkBrickColor !== undefined) mm.setDarkBrickColor(materials.masonry.darkBrickColor);
+    }
 
     return this;
   }

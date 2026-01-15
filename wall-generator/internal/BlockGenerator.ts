@@ -12,6 +12,9 @@ export interface BlockLeftVertices {
   cementTop: number[];
 }
 
+// Default cement color for vertex coloring
+const CEMENT_COLOR = new THREE.Color(0xC0C0B8);
+
 export class BlockGenerator {
   /**
    * Adds a block to an existing GeometryBuilder, optionally sharing vertices with previous block.
@@ -29,6 +32,7 @@ export class BlockGenerator {
    * @param yTopBrick - Y coordinate of top of brick
    * @param yTopCement - Y coordinate of top of cement
    * @param prevVertices - Optional vertices from previous block to share
+   * @param brickColor - Optional color for brick vertices (for per-brick variation)
    * @returns Object containing right edge vertices for next block to reuse, and left vertices for first block
    */
   addBlockToBuilder(
@@ -42,7 +46,8 @@ export class BlockGenerator {
     yBottom: number,
     yTopBrick: number,
     yTopCement: number,
-    prevVertices?: BlockVertices
+    prevVertices?: BlockVertices,
+    brickColor?: THREE.Color
   ): { rightVertices: BlockVertices; leftVertices?: BlockLeftVertices } {
     const halfDepth = depth / 2;
 
@@ -52,34 +57,24 @@ export class BlockGenerator {
     const zBack = -halfDepth;
 
     // === BRICK VERTICES ===
+    // Always create fresh vertices for each brick to ensure uniform color per brick
+    // (vertex sharing would cause color gradients due to interpolation)
     let v0: number, v1: number, v2: number, v3: number;
     let v4: number, v5: number, v6: number, v7: number;
     let leftVertices: BlockLeftVertices | undefined;
 
+    // Create all 8 brick vertices with the same color
+    v0 = builder.addVertex(xLeft, yBottom, zFront, uLeft, 0, brickColor);
+    v1 = builder.addVertex(xRight, yBottom, zFront, uRight, 0, brickColor);
+    v2 = builder.addVertex(xRight, yTopBrick, zFront, uRight, 1, brickColor);
+    v3 = builder.addVertex(xLeft, yTopBrick, zFront, uLeft, 1, brickColor);
+    v4 = builder.addVertex(xLeft, yBottom, zBack, uLeft, 0, brickColor);
+    v5 = builder.addVertex(xRight, yBottom, zBack, uRight, 0, brickColor);
+    v6 = builder.addVertex(xRight, yTopBrick, zBack, uRight, 1, brickColor);
+    v7 = builder.addVertex(xLeft, yTopBrick, zBack, uLeft, 1, brickColor);
+
     if (!prevVertices) {
-      // First block: create all vertices
-      v0 = builder.addVertex(xLeft, yBottom, zFront, uLeft, 0);
-      v1 = builder.addVertex(xRight, yBottom, zFront, uRight, 0);
-      v2 = builder.addVertex(xRight, yTopBrick, zFront, uRight, 1);
-      v3 = builder.addVertex(xLeft, yTopBrick, zFront, uLeft, 1);
-      v4 = builder.addVertex(xLeft, yBottom, zBack, uLeft, 0);
-      v5 = builder.addVertex(xRight, yBottom, zBack, uRight, 0);
-      v6 = builder.addVertex(xRight, yTopBrick, zBack, uRight, 1);
-      v7 = builder.addVertex(xLeft, yTopBrick, zBack, uLeft, 1);
-
       leftVertices = { brick: [v0, v3, v4, v7], cementTop: [] };
-    } else {
-      // Subsequent blocks: reuse right edge from previous block as left edge
-      v0 = prevVertices.rightCement[0];
-      v3 = prevVertices.rightCement[1];
-      v4 = prevVertices.rightCement[2];
-      v7 = prevVertices.rightCement[3];
-
-      // Create new vertices for right edge
-      v1 = builder.addVertex(xRight, yBottom, zFront, uRight, 0);
-      v2 = builder.addVertex(xRight, yTopBrick, zFront, uRight, 1);
-      v5 = builder.addVertex(xRight, yBottom, zBack, uRight, 0);
-      v6 = builder.addVertex(xRight, yTopBrick, zBack, uRight, 1);
     }
 
     // Brick faces
@@ -91,10 +86,10 @@ export class BlockGenerator {
     let vt0: number, vt1: number, vt2: number, vt3: number;
 
     if (!prevVertices) {
-      vt0 = builder.addVertex(xLeft, yTopCement, zFront, uLeft, 1);
-      vt1 = builder.addVertex(xRight, yTopCement, zFront, uRight, 1);
-      vt2 = builder.addVertex(xLeft, yTopCement, zBack, uLeft, 1);
-      vt3 = builder.addVertex(xRight, yTopCement, zBack, uRight, 1);
+      vt0 = builder.addVertex(xLeft, yTopCement, zFront, uLeft, 1, CEMENT_COLOR);
+      vt1 = builder.addVertex(xRight, yTopCement, zFront, uRight, 1, CEMENT_COLOR);
+      vt2 = builder.addVertex(xLeft, yTopCement, zBack, uLeft, 1, CEMENT_COLOR);
+      vt3 = builder.addVertex(xRight, yTopCement, zBack, uRight, 1, CEMENT_COLOR);
 
       if (leftVertices) {
         leftVertices.cementTop = [vt0, vt2];
@@ -102,8 +97,8 @@ export class BlockGenerator {
     } else {
       vt0 = prevVertices.rightCorner[0];
       vt2 = prevVertices.rightCorner[1];
-      vt1 = builder.addVertex(xRight, yTopCement, zFront, uRight, 1);
-      vt3 = builder.addVertex(xRight, yTopCement, zBack, uRight, 1);
+      vt1 = builder.addVertex(xRight, yTopCement, zFront, uRight, 1, CEMENT_COLOR);
+      vt3 = builder.addVertex(xRight, yTopCement, zBack, uRight, 1, CEMENT_COLOR);
     }
 
     // Top cement faces (above brick)
@@ -117,10 +112,10 @@ export class BlockGenerator {
 
     if (cementWidth > 0) {
       // Right cement strip vertices
-      const vr0 = builder.addVertex(xRightCement, yBottom, zFront, uRight, 0);
-      const vr1 = builder.addVertex(xRightCement, yTopBrick, zFront, uRight, 0.8);
-      const vr2 = builder.addVertex(xRightCement, yBottom, zBack, uRight, 0);
-      const vr3 = builder.addVertex(xRightCement, yTopBrick, zBack, uRight, 0.8);
+      const vr0 = builder.addVertex(xRightCement, yBottom, zFront, uRight, 0, CEMENT_COLOR);
+      const vr1 = builder.addVertex(xRightCement, yTopBrick, zFront, uRight, 0.8, CEMENT_COLOR);
+      const vr2 = builder.addVertex(xRightCement, yBottom, zBack, uRight, 0, CEMENT_COLOR);
+      const vr3 = builder.addVertex(xRightCement, yTopBrick, zBack, uRight, 0.8, CEMENT_COLOR);
 
       // Right cement faces
       builder.addQuad(v1, vr0, vr1, v2, true); // Front
@@ -128,8 +123,8 @@ export class BlockGenerator {
       // Bottom face removed - not visible in wall construction
 
       // Corner cement vertices
-      const vc0 = builder.addVertex(xRightCement, yTopCement, zFront, uRight, 1);
-      const vc1 = builder.addVertex(xRightCement, yTopCement, zBack, uRight, 1);
+      const vc0 = builder.addVertex(xRightCement, yTopCement, zFront, uRight, 1, CEMENT_COLOR);
+      const vc1 = builder.addVertex(xRightCement, yTopCement, zBack, uRight, 1, CEMENT_COLOR);
 
       // Corner faces
       builder.addQuad(v2, vr1, vc0, vt1, true); // Front

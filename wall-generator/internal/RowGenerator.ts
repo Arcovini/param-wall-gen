@@ -109,6 +109,54 @@ export class RowGenerator {
   }
 
   /**
+   * Adds a partial filler block to fill gaps between regular blocks and opening edges.
+   * Creates front/back faces for brick portion and cement top (mortar between rows).
+   * Used when blocks don't naturally align with opening edges due to stagger pattern.
+   *
+   * Unlike extended blocks, fillers are SMALLER partial blocks that fill the remaining gap.
+   */
+  private static addFillerBlock(
+    builder: GeometryBuilder,
+    xLeft: number,
+    width: number,
+    yBottom: number,
+    yTopBrick: number,
+    yTopCement: number,
+    zFront: number,
+    zBack: number
+  ): void {
+    const xRight = xLeft + width;
+
+    // Front brick face
+    const fb0 = builder.addVertex(xLeft, yBottom, zFront, 0, 0);
+    const fb1 = builder.addVertex(xRight, yBottom, zFront, 1, 0);
+    const fb2 = builder.addVertex(xRight, yTopBrick, zFront, 1, 1);
+    const fb3 = builder.addVertex(xLeft, yTopBrick, zFront, 0, 1);
+    builder.addQuad(fb0, fb1, fb2, fb3, false); // brick material
+
+    // Back brick face
+    const bb0 = builder.addVertex(xLeft, yBottom, zBack, 0, 0);
+    const bb1 = builder.addVertex(xRight, yBottom, zBack, 1, 0);
+    const bb2 = builder.addVertex(xRight, yTopBrick, zBack, 1, 1);
+    const bb3 = builder.addVertex(xLeft, yTopBrick, zBack, 0, 1);
+    builder.addQuad(bb1, bb0, bb3, bb2, false); // brick material (reversed winding)
+
+    // Front cement top face (mortar between rows)
+    const fc0 = builder.addVertex(xLeft, yTopBrick, zFront, 0, 0);
+    const fc1 = builder.addVertex(xRight, yTopBrick, zFront, 1, 0);
+    const fc2 = builder.addVertex(xRight, yTopCement, zFront, 1, 1);
+    const fc3 = builder.addVertex(xLeft, yTopCement, zFront, 0, 1);
+    builder.addQuad(fc0, fc1, fc2, fc3, true); // cement material
+
+    // Back cement top face
+    const bc0 = builder.addVertex(xLeft, yTopBrick, zBack, 0, 0);
+    const bc1 = builder.addVertex(xRight, yTopBrick, zBack, 1, 0);
+    const bc2 = builder.addVertex(xRight, yTopCement, zBack, 1, 1);
+    const bc3 = builder.addVertex(xLeft, yTopCement, zBack, 0, 1);
+    builder.addQuad(bc1, bc0, bc3, bc2, true); // cement material (reversed winding)
+  }
+
+  /**
    * Adds end caps to a row geometry with proper UVs and materials.
    * Creates dedicated vertices for caps (not shared with front/back faces).
    * With bounds-clamping, we only need caps at the actual wall edges.
@@ -254,30 +302,40 @@ export class RowGenerator {
           }
         } else if (effectiveBrickLeft > opening.right && effectiveBrickLeft <= opening.right + unitWidth) {
           // Case: Block starts just after opening (within one unit width)
-          // Check if extending would cause overlap with another opening
-          const extendedLeft = opening.right;
-          const wouldOverlapOther = openingBounds.some(other =>
-            other !== opening && extendedLeft < other.right && effectiveBrickRight > other.left
-          );
-          if (!wouldOverlapOther) {
-            // Safe to extend block back to opening edge
-            effectiveBrickLeft = extendedLeft;
-            clampedOnLeftByOpening = true;
-            capsOpeningRight = opening.right;
+          // Only add filler if no previous block was clamped to cover this region
+          const capKey = roundForKey(opening.right) + '_R';
+          if (!cappedOpeningEdges.has(capKey)) {
+            const fillerLeft = opening.right;
+            const fillerRight = effectiveBrickLeft;
+            const fillerWidth = fillerRight - fillerLeft;
+            const wouldOverlapOther = openingBounds.some(other =>
+              other !== opening && fillerLeft < other.right && fillerRight > other.left
+            );
+            if (!wouldOverlapOther && fillerWidth > 0) {
+              // Add partial filler block (smaller than normal block)
+              this.addFillerBlock(builder, fillerLeft, fillerWidth, yBottom, yTopBrick, yTopCement, zFront, zBack);
+              clampedOnLeftByOpening = true;
+              capsOpeningRight = opening.right;
+            }
           }
         } else if (effectiveBrickRight < opening.left && effectiveCementRight < opening.left && effectiveCementRight >= opening.left - unitWidth) {
           // Case: Block ends just before opening (within one unit width, doesn't reach)
-          // Check if extending would cause overlap with another opening
-          const extendedRight = opening.left;
-          const wouldOverlapOther = openingBounds.some(other =>
-            other !== opening && effectiveBrickLeft < other.right && extendedRight > other.left
-          );
-          if (!wouldOverlapOther) {
-            // Safe to extend BRICK (not cement) to reach opening edge
-            effectiveBrickRight = extendedRight;
-            effectiveCementRight = extendedRight; // No cement after extended brick
-            clampedOnRightByOpening = true;
-            capsOpeningLeft = opening.left;
+          // Only add filler if no previous block was clamped to cover this region
+          const capKey = roundForKey(opening.left) + '_L';
+          if (!cappedOpeningEdges.has(capKey)) {
+            const blockRightEdge = effectiveCementRight;
+            const fillerLeft = blockRightEdge;
+            const fillerRight = opening.left;
+            const fillerWidth = fillerRight - fillerLeft;
+            const wouldOverlapOther = openingBounds.some(other =>
+              other !== opening && fillerLeft < other.right && fillerRight > other.left
+            );
+            if (!wouldOverlapOther && fillerWidth > 0) {
+              // Add partial filler block (smaller than normal block)
+              this.addFillerBlock(builder, fillerLeft, fillerWidth, yBottom, yTopBrick, yTopCement, zFront, zBack);
+              clampedOnRightByOpening = true;
+              capsOpeningLeft = opening.left;
+            }
           }
         }
       }
@@ -330,17 +388,22 @@ export class RowGenerator {
       );
 
       // Add opening edge caps (inner faces at opening boundaries)
+      // Check if cap already exists to avoid duplicate caps causing z-fighting
       if (clampedOnLeftByOpening && capsOpeningRight !== undefined) {
-        // Block was clamped on left → add cap facing -X (into the opening)
-        this.addSingleSideCap(builder, effectiveBrickLeft, yBottom, yTopBrick, yTopCement, zFront, zBack, false);
-        cappedOpeningEdges.add(roundForKey(capsOpeningRight) + '_R'); // Right edge of opening
+        const capKey = roundForKey(capsOpeningRight) + '_R';
+        if (!cappedOpeningEdges.has(capKey)) {
+          // Filler or clamped block on left → add cap at opening's right edge, facing -X (into the opening)
+          this.addSingleSideCap(builder, capsOpeningRight, yBottom, yTopBrick, yTopCement, zFront, zBack, false);
+          cappedOpeningEdges.add(capKey);
+        }
       }
       if (clampedOnRightByOpening && capsOpeningLeft !== undefined) {
-        // Block was clamped on right → add cap facing +X (into the opening)
-        // Use effective right edge (brick right + cement width, or just brick right if no cement)
-        const capX = effectiveBrickRight + effectiveCementWidth;
-        this.addSingleSideCap(builder, capX, yBottom, yTopBrick, yTopCement, zFront, zBack, true);
-        cappedOpeningEdges.add(roundForKey(capsOpeningLeft) + '_L'); // Left edge of opening
+        const capKey = roundForKey(capsOpeningLeft) + '_L';
+        if (!cappedOpeningEdges.has(capKey)) {
+          // Filler or clamped block on right → add cap at opening's left edge, facing +X (into the opening)
+          this.addSingleSideCap(builder, capsOpeningLeft, yBottom, yTopBrick, yTopCement, zFront, zBack, true);
+          cappedOpeningEdges.add(capKey);
+        }
       }
 
       prevVertices = result.rightVertices;

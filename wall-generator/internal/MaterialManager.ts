@@ -1,11 +1,5 @@
 import * as THREE from 'three';
 
-// Import textures as ES modules - Vite resolves URLs at build time
-import brickDiffuseUrl from '../assets/textures/masonry/brick/redBrick_difuseAO.png';
-import brickNormalUrl from '../assets/textures/masonry/brick/redBrick_Normal.png';
-import concreteDiffuseUrl from '../assets/textures/concrete/concrete_layers_diff_1k.png';
-import concreteNormalUrl from '../assets/textures/concrete/concrete_layers_nor_gl_1k.png';
-
 /**
  * MaterialManager - Singleton class to manage shared materials
  * Ensures materials are created once and reused across the application.
@@ -17,17 +11,7 @@ export class MaterialManager {
   private brickMaterial: THREE.MeshStandardMaterial | null = null;
   private cementMaterial: THREE.MeshStandardMaterial | null = null;
 
-  private textureLoader: THREE.TextureLoader;
-  private baseColorTexture: THREE.Texture | null = null;
-  private normalTexture: THREE.Texture | null = null;
-
-  // Concrete textures for infill
-  private concreteBaseColorTexture: THREE.Texture | null = null;
-  private concreteNormalTexture: THREE.Texture | null = null;
-
-  private constructor() {
-    this.textureLoader = new THREE.TextureLoader();
-  }
+  private constructor() {}
 
   /**
    * Returns the singleton instance of MaterialManager
@@ -40,36 +24,12 @@ export class MaterialManager {
   }
 
   /**
-   * Helper: Configure texture wrapping and repeat settings
-   */
-  private configureTexture(texture: THREE.Texture, repeatX: number, repeatY: number): void {
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(repeatX, repeatY);
-  }
-
-  /**
-   * Helper: Load and configure a texture with wrapping settings
-   */
-  private loadTexture(url: string, repeatX: number, repeatY: number): THREE.Texture {
-    const texture = this.textureLoader.load(url);
-    this.configureTexture(texture, repeatX, repeatY);
-    return texture;
-  }
-
-  /**
-   * Returns the shared infill material with concrete textures
+   * Returns the shared infill material
    */
   public getInfillMaterial(): THREE.MeshStandardMaterial {
     if (!this.infillMaterial) {
-      if (!this.concreteBaseColorTexture) {
-        this.concreteBaseColorTexture = this.loadTexture(concreteDiffuseUrl, 10, 1);
-        this.concreteNormalTexture = this.loadTexture(concreteNormalUrl, 10, 1);
-      }
-
       this.infillMaterial = new THREE.MeshStandardMaterial({
-        map: this.concreteBaseColorTexture,
-        normalMap: this.concreteNormalTexture,
+        color: 0xB0B0A8,
         roughness: 0.9,
         metalness: 0.1
       });
@@ -96,14 +56,8 @@ export class MaterialManager {
    */
   public getBrickMaterial(): THREE.MeshStandardMaterial {
     if (!this.brickMaterial) {
-      if (!this.baseColorTexture) {
-        this.baseColorTexture = this.loadTexture(brickDiffuseUrl, 1, 1);
-        this.normalTexture = this.loadTexture(brickNormalUrl, 1, 1);
-      }
-
       this.brickMaterial = new THREE.MeshStandardMaterial({
-        map: this.baseColorTexture,
-        normalMap: this.normalTexture,
+        color: 0xC45C3E,
         roughness: 0.8,
         metalness: 0.2,
         flatShading: true,
@@ -128,29 +82,17 @@ export class MaterialManager {
   }
 
   /**
-   * Disposes of all managed materials and textures
+   * Disposes of all managed materials
    */
   public dispose(): void {
-    // Dispose materials
     this.infillMaterial?.dispose();
     this.lintelMaterial?.dispose();
     this.brickMaterial?.dispose();
     this.cementMaterial?.dispose();
 
-    // Dispose textures
-    this.baseColorTexture?.dispose();
-    this.normalTexture?.dispose();
-    this.concreteBaseColorTexture?.dispose();
-    this.concreteNormalTexture?.dispose();
-
-    // Reset all references
     this.infillMaterial = null;
     this.lintelMaterial = null;
     this.brickMaterial = null;
     this.cementMaterial = null;
-    this.baseColorTexture = null;
-    this.normalTexture = null;
-    this.concreteBaseColorTexture = null;
-    this.concreteNormalTexture = null;
   }
 }

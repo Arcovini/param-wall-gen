@@ -10,6 +10,8 @@ export class MaterialManager {
   private static readonly DEFAULT_BRICK_COLOR = 0xC45C3E;
   private static readonly DEFAULT_DARK_BRICK_COLOR = 0x8B3A2A; // Darker/burnt brick color
   private static readonly DEFAULT_CEMENT_COLOR = 0xC0C0B8;
+  private static readonly DEFAULT_LINTEL_COLOR = 0xE5E5E5;
+  private static readonly DEFAULT_INFILL_COLOR = 0xB0B0A8;
   private static readonly DARK_BRICK_RATIO = 0.15; // Fixed at 15% of bricks are dark
 
   private infillMaterial: THREE.MeshStandardMaterial | null = null;
@@ -21,6 +23,10 @@ export class MaterialManager {
   private darkBrickColor: THREE.Color = new THREE.Color(MaterialManager.DEFAULT_DARK_BRICK_COLOR);
   private brickColorSigma: number = 0;
   private cementColor: THREE.Color = new THREE.Color(MaterialManager.DEFAULT_CEMENT_COLOR);
+  private lintelColor: THREE.Color = new THREE.Color(MaterialManager.DEFAULT_LINTEL_COLOR);
+  private lintelColorSigma: number = 0;
+  private infillColor: THREE.Color = new THREE.Color(MaterialManager.DEFAULT_INFILL_COLOR);
+  private infillColorSigma: number = 0;
 
   private constructor() {}
 
@@ -35,28 +41,31 @@ export class MaterialManager {
   }
 
   /**
-   * Returns the shared infill material
+   * Returns the shared infill material (cloned per-infill with varied color)
+   * Uses material color, not vertex colors, to avoid CSG issues with cut faces.
    */
   public getInfillMaterial(): THREE.MeshStandardMaterial {
     if (!this.infillMaterial) {
       this.infillMaterial = new THREE.MeshStandardMaterial({
-        color: 0xB0B0A8,
+        color: this.infillColor,
         roughness: 0.9,
-        metalness: 0.1
+        metalness: 0.1,
+        vertexColors: false,
       });
     }
     return this.infillMaterial;
   }
 
   /**
-   * Returns the shared Lintel material
+   * Returns the shared Lintel material (with vertex colors for per-lintel variation)
    */
   public getLintelMaterial(): THREE.MeshStandardMaterial {
     if (!this.lintelMaterial) {
       this.lintelMaterial = new THREE.MeshStandardMaterial({
-        color: 0xE5E5E5, // Lighter grey than cement (0xcccccc)
+        color: 0xffffff,  // White base - actual color comes from vertex colors
         roughness: 0.8,
-        metalness: 0.1
+        metalness: 0.1,
+        vertexColors: true,
       });
     }
     return this.lintelMaterial;
@@ -154,6 +163,42 @@ export class MaterialManager {
     }
   }
 
+  // ===== LINTEL COLOR =====
+
+  public getLintelColor(): THREE.Color {
+    return this.lintelColor.clone();
+  }
+
+  public setLintelColor(color: THREE.ColorRepresentation): void {
+    this.lintelColor.set(color);
+  }
+
+  public getLintelColorSigma(): number {
+    return this.lintelColorSigma;
+  }
+
+  public setLintelColorSigma(sigma: number): void {
+    this.lintelColorSigma = Math.max(0, sigma / 10);
+  }
+
+  // ===== INFILL COLOR =====
+
+  public getInfillColor(): THREE.Color {
+    return this.infillColor.clone();
+  }
+
+  public setInfillColor(color: THREE.ColorRepresentation): void {
+    this.infillColor.set(color);
+  }
+
+  public getInfillColorSigma(): number {
+    return this.infillColorSigma;
+  }
+
+  public setInfillColorSigma(sigma: number): void {
+    this.infillColorSigma = Math.max(0, sigma / 10);
+  }
+
   /**
    * Generates a Gaussian random number using Box-Muller transform
    * @returns Random number with mean=0 and standard deviation=1
@@ -197,6 +242,60 @@ export class MaterialManager {
 
       // Lightness: Full sigma effect
       hsl.l = Math.max(0, Math.min(1, hsl.l + gaussianL * this.brickColorSigma));
+
+      color.setHSL(hsl.h, hsl.s, hsl.l, SRGBColorSpace);
+    }
+
+    return color;
+  }
+
+  /**
+   * Generates a lintel color with Gaussian variation.
+   * Uses sRGB color space for HSL operations.
+   * @returns A new THREE.Color with variation based on lintel sigma
+   */
+  public generateVariedLintelColor(): THREE.Color {
+    const color = this.lintelColor.clone();
+
+    if (this.lintelColorSigma > 0) {
+      const hsl = { h: 0, s: 0, l: 0 };
+      color.getHSL(hsl, SRGBColorSpace);
+
+      const gaussianL = this.gaussianRandom();
+      const gaussianS = this.gaussianRandom();
+
+      // Saturation: Subtle variation (20% of sigma)
+      hsl.s = Math.max(0, Math.min(1, hsl.s + gaussianS * this.lintelColorSigma * 0.2));
+
+      // Lightness: Full sigma effect
+      hsl.l = Math.max(0, Math.min(1, hsl.l + gaussianL * this.lintelColorSigma));
+
+      color.setHSL(hsl.h, hsl.s, hsl.l, SRGBColorSpace);
+    }
+
+    return color;
+  }
+
+  /**
+   * Generates an infill color with Gaussian variation.
+   * Uses sRGB color space for HSL operations.
+   * @returns A new THREE.Color with variation based on infill sigma
+   */
+  public generateVariedInfillColor(): THREE.Color {
+    const color = this.infillColor.clone();
+
+    if (this.infillColorSigma > 0) {
+      const hsl = { h: 0, s: 0, l: 0 };
+      color.getHSL(hsl, SRGBColorSpace);
+
+      const gaussianL = this.gaussianRandom();
+      const gaussianS = this.gaussianRandom();
+
+      // Saturation: Subtle variation (20% of sigma)
+      hsl.s = Math.max(0, Math.min(1, hsl.s + gaussianS * this.infillColorSigma * 0.2));
+
+      // Lightness: Full sigma effect
+      hsl.l = Math.max(0, Math.min(1, hsl.l + gaussianL * this.infillColorSigma));
 
       color.setHSL(hsl.h, hsl.s, hsl.l, SRGBColorSpace);
     }

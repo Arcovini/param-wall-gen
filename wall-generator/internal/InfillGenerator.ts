@@ -30,7 +30,13 @@ export class InfillGenerator {
     }
 
     const infillGeometry = new THREE.BoxGeometry(actualWallWidth, gap, wallLength);
-    const infillMesh = new THREE.Mesh(infillGeometry, MaterialManager.getInstance().getInfillMaterial());
+
+    // Clone material and set varied color directly (avoids CSG vertex color issues)
+    const infillColor = MaterialManager.getInstance().generateVariedInfillColor();
+    const material = MaterialManager.getInstance().getInfillMaterial().clone();
+    material.color.copy(infillColor);
+
+    const infillMesh = new THREE.Mesh(infillGeometry, material);
 
     // Position at top of wall (centered)
     // The wall geometry is centered at 0, spanning [-wallHeight/2, wallHeight/2].

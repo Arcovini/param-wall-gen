@@ -105,10 +105,17 @@ export class WallBuilder {
     const materials = wall.materials;
     if (materials) {
       const mm = MaterialManager.getInstance();
+      // Masonry (bricks + cement)
       if (materials.masonry?.color !== undefined) mm.setBrickColor(materials.masonry.color);
       if (materials.masonry?.colorSigma !== undefined) mm.setBrickColorSigma(materials.masonry.colorSigma);
       if (materials.masonry?.darkBrickColor !== undefined) mm.setDarkBrickColor(materials.masonry.darkBrickColor);
       if (materials.masonry?.cementColor !== undefined) mm.setCementColor(materials.masonry.cementColor);
+      // Lintel
+      if (materials.lintel?.color !== undefined) mm.setLintelColor(materials.lintel.color);
+      if (materials.lintel?.colorSigma !== undefined) mm.setLintelColorSigma(materials.lintel.colorSigma);
+      // Infill
+      if (materials.infill?.color !== undefined) mm.setInfillColor(materials.infill.color);
+      if (materials.infill?.colorSigma !== undefined) mm.setInfillColorSigma(materials.infill.colorSigma);
     }
 
     return this;

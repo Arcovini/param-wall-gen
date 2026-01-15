@@ -86,6 +86,17 @@ export class LintelGenerator {
       geometry.setAttribute('uv2', geometry.attributes.uv.clone());
     }
 
+    // Add vertex colors for per-lintel variation
+    const lintelColor = MaterialManager.getInstance().generateVariedLintelColor();
+    const vertexCount = geometry.attributes.position.count;
+    const colors = new Float32Array(vertexCount * 3);
+    for (let i = 0; i < vertexCount; i++) {
+      colors[i * 3] = lintelColor.r;
+      colors[i * 3 + 1] = lintelColor.g;
+      colors[i * 3 + 2] = lintelColor.b;
+    }
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
     const mesh = new THREE.Mesh(geometry, MaterialManager.getInstance().getLintelMaterial());
 
     // Position

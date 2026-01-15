@@ -66,23 +66,21 @@ function init(): void {
     });
   }
 
-  // Wire up brick color controls
+  // Wire up material color controls
   const brickColorInput = document.getElementById('brick-color') as HTMLInputElement;
   const brickColorSigmaInput = document.getElementById('brick-color-sigma') as HTMLInputElement;
   const darkBrickColorInput = document.getElementById('dark-brick-color') as HTMLInputElement;
   const cementColorInput = document.getElementById('cement-color') as HTMLInputElement;
-  if (brickColorInput) {
-    brickColorInput.addEventListener('input', () => updateWall());
-  }
-  if (brickColorSigmaInput) {
-    brickColorSigmaInput.addEventListener('input', () => updateWall());
-  }
-  if (darkBrickColorInput) {
-    darkBrickColorInput.addEventListener('input', () => updateWall());
-  }
-  if (cementColorInput) {
-    cementColorInput.addEventListener('input', () => updateWall());
-  }
+  const lintelColorInput = document.getElementById('lintel-color') as HTMLInputElement;
+  const lintelColorSigmaInput = document.getElementById('lintel-color-sigma') as HTMLInputElement;
+  const infillColorInput = document.getElementById('infill-color') as HTMLInputElement;
+  const infillColorSigmaInput = document.getElementById('infill-color-sigma') as HTMLInputElement;
+
+  // Add event listeners for all color controls
+  [brickColorInput, brickColorSigmaInput, darkBrickColorInput, cementColorInput,
+   lintelColorInput, lintelColorSigmaInput, infillColorInput, infillColorSigmaInput]
+    .filter(Boolean)
+    .forEach(input => input.addEventListener('input', () => updateWall()));
 
   // Initialize Upload Configuration UI
   uploadConfiguration = new UploadConfiguration();
@@ -185,6 +183,14 @@ function init(): void {
             colorSigma: parseFloat(brickColorSigmaInput?.value) || 0,
             darkBrickColor: darkBrickColorInput?.value,
             cementColor: cementColorInput?.value
+          },
+          lintel: {
+            color: lintelColorInput?.value,
+            colorSigma: parseFloat(lintelColorSigmaInput?.value) || 0
+          },
+          infill: {
+            color: infillColorInput?.value,
+            colorSigma: parseFloat(infillColorSigmaInput?.value) || 0
           }
         }
       },

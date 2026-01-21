@@ -10,8 +10,10 @@ import { SceneUtils } from './ui/SceneUtils';
 import { UIController } from './ui/UIController';
 import { UploadConfiguration } from './core/UploadConfiguration';
 import { buildMasonryWall } from './wall-generator';
+import { buildColumn } from './column-generator';
 import { WallVisualizer } from './ui/WallVisualizer';
 import type { BuildMasonryWallParams, ExtractedWall } from './types';
+import type { BuildColumnParams } from './column-generator';
 
 const DEGREES_TO_RADIANS = Math.PI / 180;
 
@@ -110,16 +112,57 @@ function init(): void {
   function updateWall(): void {
     if (!uiController) return;
 
-    const params = uiController.getWallParams();
-    const openings = uiController.getOpenings();
-    const completion = params.completionPercentage / 100;
+    const generatorMode = uiController.getGeneratorMode();
     const viewMode = uiController.getViewMode();
 
-    // Remove previous wall if exists
+    // Remove previous wall/column if exists
     if (currentWallGroup) {
       scene.remove(currentWallGroup);
       currentWallGroup = null;
     }
+
+    // Column generation mode
+    if (generatorMode === 'column') {
+      const columnParams = uiController.getColumnParams();
+
+      const buildParams: BuildColumnParams = {
+        column: {
+          size: {
+            l: columnParams.depth,   // Depth (front-to-back)
+            w: columnParams.width,   // Width (left-to-right)
+            h: columnParams.height   // Height (bottom-to-top)
+          },
+          placement: {
+            parent: null,
+            position: {
+              x: columnParams.positionX,
+              y: columnParams.positionY,
+              z: columnParams.positionZ
+            },
+            direction: { yaw: columnParams.yawDegrees * DEGREES_TO_RADIANS }
+          },
+          material: {
+            color: cementColorInput?.value
+          }
+        }
+      };
+
+      // Generate column
+      currentWallGroup = buildColumn(buildParams);
+
+      // Apply wireframe if enabled
+      if (uiController.getWireframeEnabled()) {
+        SceneUtils.setWireframeMode(currentWallGroup, true);
+      }
+
+      scene.add(currentWallGroup);
+      return;
+    }
+
+    // Wall generation mode (existing logic)
+    const params = uiController.getWallParams();
+    const openings = uiController.getOpenings();
+    const completion = params.completionPercentage / 100;
 
     // Check view mode and create appropriate visualization
     if (viewMode === 'block' || viewMode === 'row') {

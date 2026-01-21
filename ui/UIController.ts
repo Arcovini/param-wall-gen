@@ -6,17 +6,20 @@ import * as THREE from 'three';
 import { PlaceholdersController } from './controller/PlaceholdersController';
 import { WallParametersController, WallParams } from './controller/WallParametersController';
 import { ColumnParametersController, ColumnParams } from './controller/ColumnParametersController';
+import { BeamParametersController, BeamParams } from './controller/BeamParametersController';
 import { OpeningsController, type OpeningData } from './controller/OpeningsController';
 import { ViewControlsController, type ViewMode } from './controller/ViewControlsController';
 
 export type { OpeningData };
 export type { ColumnParams };
-export type GeneratorMode = 'wall' | 'column';
+export type { BeamParams };
+export type GeneratorMode = 'wall' | 'column' | 'beam';
 
 export class UIController {
   private placeholders: PlaceholdersController;
   private wallParams: WallParametersController;
   private columnParams: ColumnParametersController;
+  private beamParams: BeamParametersController;
   private openings: OpeningsController;
   private viewControls: ViewControlsController;
   private generatorMode: GeneratorMode = 'wall';
@@ -25,16 +28,19 @@ export class UIController {
   private generatorModeSelect: HTMLSelectElement | null;
   private wallParamsSection: HTMLElement | null;
   private columnParamsSection: HTMLElement | null;
+  private beamParamsSection: HTMLElement | null;
   private openingsSection: HTMLElement | null;
   private testsSection: HTMLElement | null;
   private wallMaterialsControls: HTMLElement | null;
   private columnMaterialsControls: HTMLElement | null;
+  private beamMaterialsControls: HTMLElement | null;
 
   constructor(onUpdate: () => void, scene: THREE.Scene) {
     // Initialize sub-controllers
     this.placeholders = new PlaceholdersController(onUpdate, scene);
     this.wallParams = new WallParametersController(onUpdate);
     this.columnParams = new ColumnParametersController(onUpdate);
+    this.beamParams = new BeamParametersController(onUpdate);
     this.openings = new OpeningsController('openings-container', () => {
       console.log('Openings updated:', this.openings.getOpenings());
       onUpdate();
@@ -49,10 +55,12 @@ export class UIController {
     this.generatorModeSelect = document.getElementById('generator-mode-select') as HTMLSelectElement;
     this.wallParamsSection = document.getElementById('wall-params-section');
     this.columnParamsSection = document.getElementById('column-params-section');
+    this.beamParamsSection = document.getElementById('beam-params-section');
     this.openingsSection = document.getElementById('openings-section');
     this.testsSection = document.getElementById('tests-section');
     this.wallMaterialsControls = document.getElementById('wall-materials-controls');
     this.columnMaterialsControls = document.getElementById('column-materials-controls');
+    this.beamMaterialsControls = document.getElementById('beam-materials-controls');
 
     // Setup generator mode toggle
     this.setupGeneratorModeToggle(onUpdate);
@@ -82,6 +90,7 @@ export class UIController {
   private updateSectionVisibility(): void {
     const isWallMode = this.generatorMode === 'wall';
     const isColumnMode = this.generatorMode === 'column';
+    const isBeamMode = this.generatorMode === 'beam';
 
     // Toggle wall params section
     if (this.wallParamsSection) {
@@ -91,6 +100,11 @@ export class UIController {
     // Toggle column params section
     if (this.columnParamsSection) {
       this.columnParamsSection.classList.toggle('hidden', !isColumnMode);
+    }
+
+    // Toggle beam params section
+    if (this.beamParamsSection) {
+      this.beamParamsSection.classList.toggle('hidden', !isBeamMode);
     }
 
     // Toggle openings section (only for walls)
@@ -109,6 +123,9 @@ export class UIController {
     }
     if (this.columnMaterialsControls) {
       this.columnMaterialsControls.classList.toggle('hidden', !isColumnMode);
+    }
+    if (this.beamMaterialsControls) {
+      this.beamMaterialsControls.classList.toggle('hidden', !isBeamMode);
     }
   }
 
@@ -166,5 +183,14 @@ export class UIController {
 
   setColumnParams(params: Partial<ColumnParams>): void {
     this.columnParams.setColumnParams(params);
+  }
+
+  // Delegate to BeamParametersController
+  getBeamParams(): BeamParams {
+    return this.beamParams.getBeamParams();
+  }
+
+  setBeamParams(params: Partial<BeamParams>): void {
+    this.beamParams.setBeamParams(params);
   }
 }

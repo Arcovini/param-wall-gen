@@ -1,7 +1,7 @@
 """
-IFC Wall & Opening Position/Size Reference Extractor for Blender (BlenderBIM/IfcBonsai)
+IFC Wall, Column & Opening Position/Size Reference Extractor for Blender (BlenderBIM/IfcBonsai)
 
-This script extracts wall and opening (doors/windows) geometry data from the currently
+This script extracts wall, column, and opening (doors/windows) geometry data from the currently
 open IFC file and outputs a JSON file with positional and size references.
 
 Usage: Run this script in Blender's Python console with an IFC file open via BlenderBIM.
@@ -233,6 +233,119 @@ def get_wall_dimensions(wall, ifc_file, scale=1.0):
     }
 
 
+def get_column_dimensions(column, ifc_file, scale=1.0):
+    """
+    Extract column dimensions (width, depth, height) from column geometry.
+    Uses the column's representation or property sets.
+    """
+    w, d, h = 0.0, 0.0, 0.0
+
+    # Try to get dimensions from Qto_ColumnBaseQuantities
+    try:
+        for rel in ifc_file.by_type('IfcRelDefinesByProperties'):
+            if column in rel.RelatedObjects:
+                prop_def = rel.RelatingPropertyDefinition
+                if hasattr(prop_def, 'Name') and 'Qto_ColumnBaseQuantities' in str(prop_def.Name):
+                    if hasattr(prop_def, 'Quantities'):
+                        for qty in prop_def.Quantities:
+                            name = qty.Name if hasattr(qty, 'Name') else ''
+                            if name == 'Width' and hasattr(qty, 'LengthValue'):
+                                w = qty.LengthValue * scale
+                            elif name == 'Depth' and hasattr(qty, 'LengthValue'):
+                                d = qty.LengthValue * scale
+                            elif name == 'Height' and hasattr(qty, 'LengthValue'):
+                                h = qty.LengthValue * scale
+                            elif name == 'Length' and hasattr(qty, 'LengthValue'):
+                                # Some columns use Length instead of Height
+                                if h == 0:
+                                    h = qty.LengthValue * scale
+    except:
+        pass
+
+    # Try to extract from geometry representation
+    if w == 0 or d == 0 or h == 0:
+        try:
+            representation = column.Representation
+            if representation and hasattr(representation, 'Representations'):
+                for rep in representation.Representations:
+                    if rep.RepresentationType in ('SweptSolid', 'Clipping', 'MappedRepresentation'):
+                        for item in rep.Items:
+                            if item.is_a('IfcExtrudedAreaSolid'):
+                                # Height from extrusion depth
+                                if h == 0 and hasattr(item, 'Depth'):
+                                    h = item.Depth * scale
+
+                                # Width and depth from profile
+                                profile = item.SweptArea if hasattr(item, 'SweptArea') else None
+                                if profile:
+                                    if profile.is_a('IfcRectangleProfileDef'):
+                                        if w == 0 and hasattr(profile, 'XDim'):
+                                            w = profile.XDim * scale
+                                        if d == 0 and hasattr(profile, 'YDim'):
+                                            d = profile.YDim * scale
+                                    elif profile.is_a('IfcCircleProfileDef'):
+                                        # Circular column - use radius for both width and depth
+                                        if hasattr(profile, 'Radius'):
+                                            diameter = profile.Radius * 2 * scale
+                                            if w == 0:
+                                                w = diameter
+                                            if d == 0:
+                                                d = diameter
+                            elif item.is_a('IfcMappedItem'):
+                                # Handle mapped representations
+                                source = item.MappingSource
+                                if source and hasattr(source, 'MappedRepresentation'):
+                                    mapped_rep = source.MappedRepresentation
+                                    if hasattr(mapped_rep, 'Items'):
+                                        for mapped_item in mapped_rep.Items:
+                                            if mapped_item.is_a('IfcExtrudedAreaSolid'):
+                                                if h == 0 and hasattr(mapped_item, 'Depth'):
+                                                    h = mapped_item.Depth * scale
+                                                profile = mapped_item.SweptArea if hasattr(mapped_item, 'SweptArea') else None
+                                                if profile:
+                                                    if profile.is_a('IfcRectangleProfileDef'):
+                                                        if w == 0 and hasattr(profile, 'XDim'):
+                                                            w = profile.XDim * scale
+                                                        if d == 0 and hasattr(profile, 'YDim'):
+                                                            d = profile.YDim * scale
+                                                    elif profile.is_a('IfcCircleProfileDef'):
+                                                        if hasattr(profile, 'Radius'):
+                                                            diameter = profile.Radius * 2 * scale
+                                                            if w == 0:
+                                                                w = diameter
+                                                            if d == 0:
+                                                                d = diameter
+        except:
+            pass
+
+    # Use geometry bounding box as fallback
+    if w == 0 or d == 0 or h == 0:
+        try:
+            settings = ifcopenshell.geom.settings()
+            shape = ifcopenshell.geom.create_shape(settings, column)
+            verts = shape.geometry.verts
+
+            if verts:
+                xs = verts[0::3]
+                ys = verts[1::3]
+                zs = verts[2::3]
+
+                if w == 0:
+                    w = (max(xs) - min(xs)) * scale
+                if d == 0:
+                    d = (max(ys) - min(ys)) * scale
+                if h == 0:
+                    h = (max(zs) - min(zs)) * scale
+        except:
+            pass
+
+    return {
+        'w': round(w, 6),
+        'd': round(d, 6),
+        'h': round(h, 6)
+    }
+
+
 def get_element_name(element):
     """Get the name of an IFC element, handling null values."""
     if is_null_or_empty(element):
@@ -286,6 +399,23 @@ def get_walls_in_container(container, ifc_file):
         pass
 
     return walls
+
+
+def get_columns_in_container(container, ifc_file):
+    """Get all columns directly contained in a spatial element."""
+    columns = []
+
+    try:
+        # Using IfcRelContainedInSpatialStructure
+        for rel in ifc_file.by_type('IfcRelContainedInSpatialStructure'):
+            if rel.RelatingStructure == container:
+                for element in rel.RelatedElements:
+                    if element.is_a('IfcColumn'):
+                        columns.append(element)
+    except:
+        pass
+
+    return columns
 
 
 def get_openings_in_container(container, ifc_file):
@@ -505,6 +635,42 @@ def process_wall(wall, ifc_file, scale):
     return wall_data if wall_data else None
 
 
+def process_column(column, ifc_file, scale):
+    """Process a single column and extract its data."""
+    column_data = {}
+
+    # ID (GlobalId)
+    guid = get_element_guid(column)
+    if guid:
+        column_data['id'] = guid
+
+    # Name
+    name = get_element_name(column)
+    if name:
+        column_data['name'] = name
+
+    # Size
+    size = get_column_dimensions(column, ifc_file, scale)
+    if size and (size['w'] > 0 or size['d'] > 0 or size['h'] > 0):
+        column_data['size'] = size
+
+    # Position and Direction from placement
+    placement = column.ObjectPlacement if hasattr(column, 'ObjectPlacement') else None
+    if not is_null_or_empty(placement):
+        placement_data = get_placement_data(placement, scale)
+
+        if placement_data:
+            # Position (relative to parent/storey)
+            if placement_data.get('position') and not is_zero_position(placement_data['position']):
+                column_data['position'] = placement_data['position']
+
+            # Direction (yaw)
+            if placement_data.get('direction') and abs(placement_data['direction'].get('yaw', 0)) > 0.0001:
+                column_data['direction'] = placement_data['direction']
+
+    return column_data if column_data else None
+
+
 def process_space(space, ifc_file, scale):
     """Process a space and its contained walls."""
     space_data = {}
@@ -535,6 +701,17 @@ def process_space(space, ifc_file, scale):
                 walls_data.append(wall_data)
         if walls_data:
             space_data['walls'] = walls_data
+
+    # Columns in this space
+    columns = get_columns_in_container(space, ifc_file)
+    if columns:
+        columns_data = []
+        for column in columns:
+            column_data = process_column(column, ifc_file, scale)
+            if column_data:
+                columns_data.append(column_data)
+        if columns_data:
+            space_data['columns'] = columns_data
 
     return space_data if space_data else None
 
@@ -585,6 +762,17 @@ def process_storey(storey, ifc_file, scale):
                 walls_data.append(wall_data)
         if walls_data:
             storey_data['walls'] = walls_data
+
+    # Columns directly in storey (not in a space)
+    columns = get_columns_in_container(storey, ifc_file)
+    if columns:
+        columns_data = []
+        for column in columns:
+            column_data = process_column(column, ifc_file, scale)
+            if column_data:
+                columns_data.append(column_data)
+        if columns_data:
+            storey_data['columns'] = columns_data
 
     # Openings directly in storey (not associated with walls)
     # Collect openings already processed via walls to avoid duplicates
@@ -773,14 +961,15 @@ def main():
         print("ERROR: Failed to process the IFC file.")
         return
 
-    # Count walls and openings
+    # Count walls, columns and openings
     wall_count = 0
+    column_count = 0
     opening_count = 0
     door_count = 0
     window_count = 0
 
     def count_elements(obj):
-        nonlocal wall_count, opening_count, door_count, window_count
+        nonlocal wall_count, column_count, opening_count, door_count, window_count
         if isinstance(obj, dict):
             if 'walls' in obj:
                 wall_count += len(obj['walls'])
@@ -793,6 +982,8 @@ def main():
                                 door_count += 1
                             elif op.get('type') == 'window':
                                 window_count += 1
+            if 'columns' in obj:
+                column_count += len(obj['columns'])
             # Count standalone openings (not in walls)
             if 'openings' in obj and not isinstance(obj.get('walls'), list):
                 for op in obj['openings']:
@@ -833,6 +1024,7 @@ def main():
 
     print(f"\nExtraction complete!")
     print(f"  Walls found: {wall_count}")
+    print(f"  Columns found: {column_count}")
     print(f"  Openings found: {opening_count} (Doors: {door_count}, Windows: {window_count})")
     print(f"  Output file: {output_path}")
 

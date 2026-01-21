@@ -78,9 +78,14 @@ function init(): void {
   const infillColorInput = document.getElementById('infill-color') as HTMLInputElement;
   const infillColorSigmaInput = document.getElementById('infill-color-sigma') as HTMLInputElement;
 
+  // Column-specific color controls
+  const columnColorInput = document.getElementById('column-color') as HTMLInputElement;
+  const columnColorSigmaInput = document.getElementById('column-color-sigma') as HTMLInputElement;
+
   // Add event listeners for all color controls
   [brickColorInput, brickColorSigmaInput, darkBrickColorInput, cementColorInput,
-   lintelColorInput, lintelColorSigmaInput, infillColorInput, infillColorSigmaInput]
+   lintelColorInput, lintelColorSigmaInput, infillColorInput, infillColorSigmaInput,
+   columnColorInput, columnColorSigmaInput]
     .filter(Boolean)
     .forEach(input => input.addEventListener('input', () => updateWall()));
 
@@ -142,7 +147,7 @@ function init(): void {
             direction: { yaw: columnParams.yawDegrees * DEGREES_TO_RADIANS }
           },
           material: {
-            color: cementColorInput?.value
+            color: columnColorInput?.value
           }
         }
       };

@@ -26,6 +26,9 @@ export class UIController {
   private wallParamsSection: HTMLElement | null;
   private columnParamsSection: HTMLElement | null;
   private openingsSection: HTMLElement | null;
+  private testsSection: HTMLElement | null;
+  private wallMaterialsControls: HTMLElement | null;
+  private columnMaterialsControls: HTMLElement | null;
 
   constructor(onUpdate: () => void, scene: THREE.Scene) {
     // Initialize sub-controllers
@@ -47,6 +50,9 @@ export class UIController {
     this.wallParamsSection = document.getElementById('wall-params-section');
     this.columnParamsSection = document.getElementById('column-params-section');
     this.openingsSection = document.getElementById('openings-section');
+    this.testsSection = document.getElementById('tests-section');
+    this.wallMaterialsControls = document.getElementById('wall-materials-controls');
+    this.columnMaterialsControls = document.getElementById('column-materials-controls');
 
     // Setup generator mode toggle
     this.setupGeneratorModeToggle(onUpdate);
@@ -90,6 +96,19 @@ export class UIController {
     // Toggle openings section (only for walls)
     if (this.openingsSection) {
       this.openingsSection.classList.toggle('hidden', !isWallMode);
+    }
+
+    // Toggle tests section (only for walls)
+    if (this.testsSection) {
+      this.testsSection.classList.toggle('hidden', !isWallMode);
+    }
+
+    // Toggle material controls based on generator mode
+    if (this.wallMaterialsControls) {
+      this.wallMaterialsControls.classList.toggle('hidden', !isWallMode);
+    }
+    if (this.columnMaterialsControls) {
+      this.columnMaterialsControls.classList.toggle('hidden', !isColumnMode);
     }
   }
 

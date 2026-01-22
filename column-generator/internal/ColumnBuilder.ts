@@ -7,7 +7,7 @@
 
 import * as THREE from 'three';
 import type { BuildColumnParams } from '../types';
-import { ColumnMaterialManager } from './ColumnMaterialManager';
+import { StructuralMaterialManager } from '../../shared/StructuralMaterialManager';
 
 /**
  * Internal build context - tracks state during column construction
@@ -64,22 +64,11 @@ export class ColumnBuilder {
     this.ctx.positionZ = column.placement.position.z;
     this.ctx.yawRadians = column.placement.direction.yaw;
 
-    // Apply material properties if provided
-    const material = column.material;
-    if (material) {
-      const mm = ColumnMaterialManager.getInstance();
-      if (material.color !== undefined) mm.setColumnColor(material.color);
-      if (material.roughness !== undefined) mm.setRoughness(material.roughness);
-      if (material.metalness !== undefined) mm.setMetalness(material.metalness);
-    }
-
     return this;
   }
 
   /** Step 2: Generate geometry - BoxGeometry + material */
   generateGeometry(): this {
-    const mm = ColumnMaterialManager.getInstance();
-
     // Create box geometry with dimensions (width, height, depth)
     // THREE.BoxGeometry uses (width, height, depth) = (x, y, z)
     const geometry = new THREE.BoxGeometry(
@@ -88,8 +77,15 @@ export class ColumnBuilder {
       this.ctx.depth    // z-axis (front-to-back)
     );
 
+    // Use StructuralMaterialManager for all materials (supports textures + colorSigma)
+    const materialConfig = this.params.column.material ?? {};
+    const material = StructuralMaterialManager.getInstance().createTexturedMaterial(
+      'Column',
+      materialConfig
+    );
+
     // Create mesh with column material
-    this.ctx.columnMesh = new THREE.Mesh(geometry, mm.getColumnMaterial());
+    this.ctx.columnMesh = new THREE.Mesh(geometry, material);
     this.ctx.columnMesh.name = 'ColumnMesh';
 
     // Create group to hold the column

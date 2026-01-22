@@ -31,6 +31,7 @@ export class UIController {
   private beamParamsSection: HTMLElement | null;
   private openingsSection: HTMLElement | null;
   private testsSection: HTMLElement | null;
+  private taskSection: HTMLElement | null;
   private wallMaterialsControls: HTMLElement | null;
   private columnMaterialsControls: HTMLElement | null;
   private beamMaterialsControls: HTMLElement | null;
@@ -58,6 +59,7 @@ export class UIController {
     this.beamParamsSection = document.getElementById('beam-params-section');
     this.openingsSection = document.getElementById('openings-section');
     this.testsSection = document.getElementById('tests-section');
+    this.taskSection = document.getElementById('task-section');
     this.wallMaterialsControls = document.getElementById('wall-materials-controls');
     this.columnMaterialsControls = document.getElementById('column-materials-controls');
     this.beamMaterialsControls = document.getElementById('beam-materials-controls');
@@ -115,6 +117,11 @@ export class UIController {
     // Toggle tests section (only for walls)
     if (this.testsSection) {
       this.testsSection.classList.toggle('hidden', !isWallMode);
+    }
+
+    // Toggle task section (completion - only for walls)
+    if (this.taskSection) {
+      this.taskSection.classList.toggle('hidden', !isWallMode);
     }
 
     // Toggle material controls based on generator mode

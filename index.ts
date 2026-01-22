@@ -84,16 +84,26 @@ function init(): void {
   const columnColorInput = document.getElementById('column-color') as HTMLInputElement;
   const columnColorSigmaInput = document.getElementById('column-color-sigma') as HTMLInputElement;
 
+  // Column-specific texture controls
+  const columnTextureSelect = document.getElementById('column-texture') as HTMLSelectElement;
+  const columnTextureRepeatXInput = document.getElementById('column-texture-repeat-x') as HTMLInputElement;
+  const columnTextureRepeatYInput = document.getElementById('column-texture-repeat-y') as HTMLInputElement;
+
   // Beam-specific color controls
   const beamColorInput = document.getElementById('beam-color') as HTMLInputElement;
   const beamColorSigmaInput = document.getElementById('beam-color-sigma') as HTMLInputElement;
 
-  // Add event listeners for all color controls
+  // Add event listeners for all color and texture controls
   [brickColorInput, brickColorSigmaInput, darkBrickColorInput, cementColorInput,
    lintelColorInput, lintelColorSigmaInput, infillColorInput, infillColorSigmaInput,
-   columnColorInput, columnColorSigmaInput, beamColorInput, beamColorSigmaInput]
+   columnColorInput, columnColorSigmaInput, columnTextureSelect,
+   columnTextureRepeatXInput, columnTextureRepeatYInput,
+   beamColorInput, beamColorSigmaInput]
     .filter(Boolean)
     .forEach(input => input.addEventListener('input', () => updateWall()));
+
+  // Also listen for 'change' on select elements (for dropdown selection)
+  columnTextureSelect?.addEventListener('change', () => updateWall());
 
   // Initialize Upload Configuration UI
   uploadConfiguration = new UploadConfiguration();
@@ -153,7 +163,11 @@ function init(): void {
             direction: { yaw: columnParams.yawDegrees * DEGREES_TO_RADIANS }
           },
           material: {
-            color: columnColorInput?.value
+            color: columnColorInput?.value,
+            colorSigma: parseFloat(columnColorSigmaInput?.value) || 0,
+            texture: columnTextureSelect?.value || undefined,
+            textureRepeatX: parseFloat(columnTextureRepeatXInput?.value) || 1,
+            textureRepeatY: parseFloat(columnTextureRepeatYInput?.value) || 1
           }
         }
       };

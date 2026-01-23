@@ -11,10 +11,10 @@ column-generator/
 ├── types.ts                       # Type definitions (self-contained, no external deps)
 ├── COLUMN.md                      # This documentation
 ├── textures/                      # Texture files
-│   ├── concrete_structure_grid_tieholes.jpg
-│   ├── concrete_structure_formwork_marks.jpg
-│   ├── concrete_structure_double_seam.jpg
-│   └── concrete_structure_weathered.jpg
+│   ├── concrete_structure_grid_tieholes.png
+│   ├── concrete_structure_formwork_marks.png
+│   ├── concrete_structure_double_seam.png
+│   └── concrete_structure_weathered.png
 └── internal/
     └── ColumnMaterialManager.ts   # Material creation (textures + color variation)
 ```
@@ -53,7 +53,7 @@ const column = buildColumn({
     material: {
       color: 0xc0c0b8, // Base color
       colorSigma: 2.0, // Color variation (0 = none, higher = more)
-      texture: "concrete_structure_grid_tieholes.jpg",
+      texture: "concrete_structure_grid_tieholes.png",
       textureRepeatX: 1,
       textureRepeatY: 3,
       roughness: 0.9,
@@ -114,10 +114,10 @@ For production/other projects:
 
 | Filename                                | Description                 |
 | --------------------------------------- | --------------------------- |
-| `concrete_structure_grid_tieholes.jpg`  | Grid pattern with tie holes |
-| `concrete_structure_formwork_marks.jpg` | Formwork imprint marks      |
-| `concrete_structure_double_seam.jpg`    | Double seam pattern         |
-| `concrete_structure_weathered.jpg`      | Weathered concrete surface  |
+| `concrete_structure_grid_tieholes.png`  | Grid pattern with tie holes |
+| `concrete_structure_formwork_marks.png` | Formwork imprint marks      |
+| `concrete_structure_double_seam.png`    | Double seam pattern         |
+| `concrete_structure_weathered.png`      | Weathered concrete surface  |
 
 ## Type Definitions
 

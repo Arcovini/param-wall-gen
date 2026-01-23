@@ -31,7 +31,7 @@ export interface ColumnMaterialConfig {
   colorSigma?: number;           // Color variation sigma (0 = no variation, higher = more variation)
   roughness?: number;            // PBR roughness (0-1, default 0.9)
   metalness?: number;            // PBR metalness (0-1, default 0.1)
-  texture?: string;              // Texture filename (e.g., 'concrete_structure_grid_tieholes.jpg')
+  texture?: string;              // Texture filename (e.g., 'concrete_structure_grid_tieholes.png')
   textureRepeatX?: number;       // UV repeat X (default: 1)
   textureRepeatY?: number;       // UV repeat Y (default: 1)
 }

@@ -7,7 +7,20 @@
 
 import * as THREE from 'three';
 import { SRGBColorSpace } from 'three';
-import type { StructuralElementType, StructuralMaterialConfig } from './types';
+
+/** Supported structural element types */
+export type StructuralElementType = 'Column' | 'Beam' | 'Slab';
+
+/** Material configuration accepted by StructuralMaterialManager */
+export interface StructuralMaterialConfig {
+  color?: number | string;
+  colorSigma?: number;
+  roughness?: number;
+  metalness?: number;
+  texture?: string;
+  textureRepeatX?: number;
+  textureRepeatY?: number;
+}
 
 /** Default material values */
 const DEFAULT_COLOR = 0xC0C0B8;    // Cement-like gray

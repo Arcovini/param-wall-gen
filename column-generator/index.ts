@@ -17,6 +17,3 @@ export type {
   ColumnParams,
   BuildColumnParams
 } from './types';
-
-// Material manager (for advanced use)
-export { ColumnMaterialManager } from './internal/ColumnMaterialManager';

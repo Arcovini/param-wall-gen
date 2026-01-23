@@ -2,17 +2,30 @@
  * column-generator - Type Definitions
  *
  * Public type definitions for the column generator module.
- * Reuses primitive types (Position, Direction, Placement, Size) from wall-generator.
  * All measurements are in SI units (meters).
  */
 
-// Re-export primitive types from wall-generator for consistency
-export type { Position, Direction, Placement, Size } from '../wall-generator/types';
-import type { Placement, Size } from '../wall-generator/types';
+// ===== Primitive Types =====
+
+/** 3D position coordinates */
+export type Position = { x: number; y: number; z: number };
+
+/** Direction/rotation (yaw in radians) */
+export type Direction = { yaw: number };
+
+/** Hierarchical placement with parent reference */
+export type Placement = {
+  parent: Placement | null;
+  position: Position;
+  direction: Direction;
+};
+
+/** 3D dimensions: length, width, height (meters) */
+export type Size = { l: number; w: number; h: number };
 
 // ===== Material Types =====
 
-/** Material configuration for columns (simplified vs walls) */
+/** Material configuration for columns */
 export interface ColumnMaterialConfig {
   color?: number | string;       // Hex number (0xRRGGBB) or CSS color string
   colorSigma?: number;           // Color variation sigma (0 = no variation, higher = more variation)
@@ -27,12 +40,10 @@ export interface ColumnMaterialConfig {
 
 /** Column construction parameters */
 export interface ColumnParams {
-  placement: Placement;          // Position and rotation
-  size: Size;                    // l=depth, w=width, h=height (meters)
-  material?: ColumnMaterialConfig;  // Optional material properties
+  placement: Placement;              // Position and rotation
+  size: Size;                        // l=depth, w=width, h=height (meters)
+  material?: ColumnMaterialConfig;   // Optional material properties
 }
-
-// ===== Main API Type =====
 
 /** Parameters for buildColumn function */
 export interface BuildColumnParams {

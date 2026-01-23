@@ -11,9 +11,11 @@ import { UIController } from './ui/UIController';
 import { UploadConfiguration } from './core/UploadConfiguration';
 import { buildMasonryWall } from './wall-generator';
 import { buildColumn } from './column-generator';
+import { buildBeam } from './beam-generator';
 import { WallVisualizer } from './ui/WallVisualizer';
 import type { BuildMasonryWallParams, ExtractedWall } from './types';
 import type { BuildColumnParams } from './column-generator';
+import type { BuildBeamParams } from './beam-generator';
 
 const DEGREES_TO_RADIANS = Math.PI / 180;
 
@@ -87,16 +89,28 @@ function init(): void {
   const columnTextureRepeatXInput = document.getElementById('column-texture-repeat-x') as HTMLInputElement;
   const columnTextureRepeatYInput = document.getElementById('column-texture-repeat-y') as HTMLInputElement;
 
+  // Beam-specific color controls
+  const beamColorInput = document.getElementById('beam-color') as HTMLInputElement;
+  const beamColorSigmaInput = document.getElementById('beam-color-sigma') as HTMLInputElement;
+
+  // Beam-specific texture controls
+  const beamTextureSelect = document.getElementById('beam-texture') as HTMLSelectElement;
+  const beamTextureRepeatXInput = document.getElementById('beam-texture-repeat-x') as HTMLInputElement;
+  const beamTextureRepeatYInput = document.getElementById('beam-texture-repeat-y') as HTMLInputElement;
+
   // Add event listeners for all color and texture controls
   [brickColorInput, brickColorSigmaInput, darkBrickColorInput, cementColorInput,
    lintelColorInput, lintelColorSigmaInput, infillColorInput, infillColorSigmaInput,
    columnColorInput, columnColorSigmaInput, columnTextureSelect,
-   columnTextureRepeatXInput, columnTextureRepeatYInput]
+   columnTextureRepeatXInput, columnTextureRepeatYInput,
+   beamColorInput, beamColorSigmaInput, beamTextureSelect,
+   beamTextureRepeatXInput, beamTextureRepeatYInput]
     .filter(Boolean)
     .forEach(input => input.addEventListener('input', () => updateWall()));
 
   // Also listen for 'change' on select elements (for dropdown selection)
   columnTextureSelect?.addEventListener('change', () => updateWall());
+  beamTextureSelect?.addEventListener('change', () => updateWall());
 
   // Initialize Upload Configuration UI
   uploadConfiguration = new UploadConfiguration();
@@ -169,6 +183,46 @@ function init(): void {
       currentWallGroup = buildColumn(buildParams);
 
       // Apply wireframe if enabled
+      if (uiController.getWireframeEnabled()) {
+        SceneUtils.setWireframeMode(currentWallGroup, true);
+      }
+
+      scene.add(currentWallGroup);
+      return;
+    }
+
+    // Beam generation mode
+    if (generatorMode === 'beam') {
+      const beamParams = uiController.getBeamParams();
+
+      const buildParams: BuildBeamParams = {
+        beam: {
+          size: {
+            l: beamParams.depth,
+            w: beamParams.width,
+            h: beamParams.height
+          },
+          placement: {
+            parent: null,
+            position: {
+              x: beamParams.positionX,
+              y: beamParams.positionY,
+              z: beamParams.positionZ
+            },
+            direction: { yaw: beamParams.yawDegrees * DEGREES_TO_RADIANS }
+          },
+          material: {
+            color: beamColorInput?.value,
+            colorSigma: parseFloat(beamColorSigmaInput?.value) || 0,
+            texture: beamTextureSelect?.value || undefined,
+            textureRepeatX: parseFloat(beamTextureRepeatXInput?.value) || 1,
+            textureRepeatY: parseFloat(beamTextureRepeatYInput?.value) || 1
+          }
+        }
+      };
+
+      currentWallGroup = buildBeam(buildParams);
+
       if (uiController.getWireframeEnabled()) {
         SceneUtils.setWireframeMode(currentWallGroup, true);
       }

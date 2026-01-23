@@ -208,6 +208,27 @@
             <label for="beam-color-sigma">Color Sigma (variation)</label>
             <input type="number" id="beam-color-sigma" min="0" max="10" step="0.1" value="0">
           </div>
+
+          <div class="control-group">
+            <label for="beam-texture">Texture</label>
+            <select id="beam-texture" style="width: 100%; padding: 5px; border-radius: 4px; border: 1px solid #ccc; background: white; font-size: 14px;">
+              <option value="">None</option>
+              <option value="concrete_structure_grid_tieholes.png">Grid Tieholes</option>
+              <option value="concrete_structure_formwork_marks.png">Formwork Marks</option>
+              <option value="concrete_structure_double_seam.png">Double Seam</option>
+              <option value="concrete_structure_weathered.png">Weathered</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="beam-texture-repeat-x">Texture Repeat X</label>
+            <input type="number" id="beam-texture-repeat-x" min="0.1" max="20" step="0.1" value="1">
+          </div>
+
+          <div class="control-group">
+            <label for="beam-texture-repeat-y">Texture Repeat Y</label>
+            <input type="number" id="beam-texture-repeat-y" min="0.1" max="20" step="0.1" value="1">
+          </div>
         </div>
       </div>
 

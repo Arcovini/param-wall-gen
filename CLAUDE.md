@@ -301,8 +301,11 @@ Fix: Extend block left edge from 0.46 to 0.45
 Before extending a block, check if extension would overlap another opening:
 
 ```typescript
-const wouldOverlapOther = openingBounds.some(other =>
-  other !== opening && extendedLeft < other.right && effectiveBrickRight > other.left
+const wouldOverlapOther = openingBounds.some(
+  (other) =>
+    other !== opening &&
+    extendedLeft < other.right &&
+    effectiveBrickRight > other.left,
 );
 if (!wouldOverlapOther) {
   // Safe to extend

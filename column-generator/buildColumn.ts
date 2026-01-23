@@ -6,35 +6,28 @@
 
 import * as THREE from 'three';
 import type { BuildColumnParams } from './types';
-import { ColumnBuilder } from './internal/ColumnBuilder';
+import { createColumnMaterial } from './internal/ColumnMaterialManager';
 
-/**
- * Builds a parametric column using the builder pattern
- *
- * @param params - Column construction parameters
- * @returns THREE.Group containing the column mesh
- *
- * @example
- * ```typescript
- * const column = buildColumn({
- *   column: {
- *     size: { l: 0.3, w: 0.3, h: 3.0 },  // 30cm x 30cm x 3m column
- *     placement: {
- *       parent: null,
- *       position: { x: 0, y: 1.5, z: 0 },
- *       direction: { yaw: 0 }
- *     },
- *     material: { color: '#c0c0b8' }
- *   }
- * });
- * scene.add(column);
- * ```
- */
 export function buildColumn(params: BuildColumnParams): THREE.Group {
-  return new ColumnBuilder(params)
-    .parseParameters()
-    .generateGeometry()
-    .shiftToBottomLeftPivot()
-    .addMetadata()
-    .build();
+  const { size, placement, material } = params.column;
+
+  const geometry = new THREE.BoxGeometry(size.w, size.h, size.l);
+  const mat = createColumnMaterial(material);
+
+  const mesh = new THREE.Mesh(geometry, mat);
+  mesh.name = 'ColumnMesh';
+  mesh.position.set(size.w / 2, size.h / 2, 0);
+
+  const group = new THREE.Group();
+  group.name = 'Column';
+  group.add(mesh);
+  group.rotation.y = placement.direction.yaw;
+  group.position.set(placement.position.x, placement.position.y, placement.position.z);
+  group.userData = {
+    objectType: 'Column',
+    column: params.column,
+    pivotOffset: { x: size.w / 2, y: size.h / 2 }
+  };
+
+  return group;
 }

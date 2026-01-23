@@ -6,17 +6,17 @@ Module for generating parametric 3D concrete columns with texture support and co
 
 ```
 column-generator/
-├── index.ts                  # Public API exports
-├── buildColumn.ts            # Main entry point
-├── types.ts                  # Type definitions
-├── COLUMN.md                 # This documentation
-├── textures/                 # Texture files (self-contained)
+├── index.ts                       # Public API exports
+├── buildColumn.ts                 # Main entry point (single function)
+├── types.ts                       # Type definitions (self-contained, no external deps)
+├── COLUMN.md                      # This documentation
+├── textures/                      # Texture files
 │   ├── concrete_structure_grid_tieholes.jpg
 │   ├── concrete_structure_formwork_marks.jpg
 │   ├── concrete_structure_double_seam.jpg
 │   └── concrete_structure_weathered.jpg
 └── internal/
-    └── ColumnBuilder.ts      # Fluent builder pattern
+    └── ColumnMaterialManager.ts   # Material creation (textures + color variation)
 ```
 
 ## Usage
@@ -51,9 +51,9 @@ const column = buildColumn({
       direction: { yaw: 0 },
     },
     material: {
-      color: 0xc0c0b8,           // Base color
-      colorSigma: 2.0,           // Color variation (0 = none, higher = more)
-      texture: 'concrete_structure_grid_tieholes.jpg',
+      color: 0xc0c0b8, // Base color
+      colorSigma: 2.0, // Color variation (0 = none, higher = more)
+      texture: "concrete_structure_grid_tieholes.jpg",
       textureRepeatX: 1,
       textureRepeatY: 3,
       roughness: 0.9,
@@ -65,31 +65,11 @@ const column = buildColumn({
 
 ## Material System
 
-### StructuralMaterialManager
+`createColumnMaterial()` in `internal/ColumnMaterialManager.ts` handles material creation:
 
-Columns use `StructuralMaterialManager` (from `shared/`) for material creation. This provides:
-
-- **Texture support**: File-based textures from `column-generator/textures/`
-- **Color variation (sigma)**: Gaussian distribution for per-column color differences
-- **Texture caching**: Textures cached by filename + repeat settings
-
-```
-Material Creation Flow:
-┌─────────────────────────────────────────────────────────────────┐
-│ ColumnBuilder.generateGeometry()                                │
-│         │                                                       │
-│         ▼                                                       │
-│ StructuralMaterialManager.createTexturedMaterial()              │
-│         │                                                       │
-│         ├─► Load texture (if specified)                         │
-│         │   - Cached by: filename + repeatX + repeatY           │
-│         │   - Path: /column-generator/textures/{filename}       │
-│         │                                                       │
-│         └─► Apply colorSigma (if specified)                     │
-│             - Gaussian variation on H, S, L                     │
-│             - Each column gets unique shade                     │
-└─────────────────────────────────────────────────────────────────┘
-```
+- **Texture support**: File-based textures from `column-generator/textures/`, cached by filename + repeat settings
+- **Color variation (sigma)**: Gaussian distribution (Box-Muller) for per-column color differences
+- **PBR defaults**: roughness 0.9, metalness 0.1, flatShading enabled
 
 ### Color Sigma (Variation)
 
@@ -110,6 +90,7 @@ material: { color: 0xc0c0b8, colorSigma: 5.0 }
 ```
 
 **How it works:**
+
 - Uses Box-Muller transform for Gaussian random distribution
 - Varies HSL components: Hue (20%), Saturation (50%), Lightness (100%)
 - Each column instance gets a unique color based on base color + random variation
@@ -131,23 +112,12 @@ For production/other projects:
 
 ### Available Textures
 
-| Filename | Description |
-|----------|-------------|
-| `concrete_structure_grid_tieholes.jpg` | Grid pattern with tie holes |
-| `concrete_structure_formwork_marks.jpg` | Formwork imprint marks |
-| `concrete_structure_double_seam.jpg` | Double seam pattern |
-| `concrete_structure_weathered.jpg` | Weathered concrete surface |
-
-## Builder Pattern
-
-```typescript
-new ColumnBuilder(params)
-  .parseParameters()        // Extract dimensions and placement
-  .generateGeometry()       // Create BoxGeometry + material via StructuralMaterialManager
-  .shiftToBottomLeftPivot() // Pivot at bottom-left-front corner
-  .addMetadata()            // Attach userData
-  .build();                 // Return THREE.Group
-```
+| Filename                                | Description                 |
+| --------------------------------------- | --------------------------- |
+| `concrete_structure_grid_tieholes.jpg`  | Grid pattern with tie holes |
+| `concrete_structure_formwork_marks.jpg` | Formwork imprint marks      |
+| `concrete_structure_double_seam.jpg`    | Double seam pattern         |
+| `concrete_structure_weathered.jpg`      | Weathered concrete surface  |
 
 ## Type Definitions
 
@@ -157,13 +127,12 @@ interface BuildColumnParams {
 }
 
 interface ColumnParams {
-  placement: Placement;              // Position and rotation
-  size: Size;                        // l=depth, w=width, h=height (meters)
-  material?: StructuralMaterialConfig;  // From shared/types.ts
+  placement: Placement;
+  size: Size;                       // l=depth, w=width, h=height (meters)
+  material?: ColumnMaterialConfig;
 }
 
-// StructuralMaterialConfig (defined in shared/types.ts, single source of truth)
-interface StructuralMaterialConfig {
+interface ColumnMaterialConfig {
   color?: number | string;        // Hex (0xRRGGBB) or CSS color string
   colorSigma?: number;            // Color variation (0 = none, higher = more)
   roughness?: number;             // PBR roughness (0-1, default 0.9)
@@ -228,23 +197,10 @@ Solution (current approach):
 
 ### Module Self-Containment
 
-The column-generator is designed to be a self-contained module:
+The column-generator is a fully self-contained module with no external dependencies (besides `three`):
 
+- All types defined locally in `types.ts`
+- Material creation handled internally in `ColumnMaterialManager.ts`
 - Textures stored in `column-generator/textures/`
 - Path constant hardcoded to `/column-generator/textures/`
 - Consumer app just needs to serve that path
-- Similar pattern to wall-generator (but wall uses procedural colors, not textures)
-
-## Memory Management
-
-```typescript
-import { StructuralMaterialManager } from '../shared/StructuralMaterialManager';
-
-const smm = StructuralMaterialManager.getInstance();
-
-// Dispose column materials
-smm.dispose('Column');
-
-// Dispose all structural materials
-smm.dispose();
-```

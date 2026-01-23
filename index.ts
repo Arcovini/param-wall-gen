@@ -11,11 +11,9 @@ import { UIController } from './ui/UIController';
 import { UploadConfiguration } from './core/UploadConfiguration';
 import { buildMasonryWall } from './wall-generator';
 import { buildColumn } from './column-generator';
-import { buildBeam } from './beam-generator';
 import { WallVisualizer } from './ui/WallVisualizer';
 import type { BuildMasonryWallParams, ExtractedWall } from './types';
 import type { BuildColumnParams } from './column-generator';
-import type { BuildBeamParams } from './beam-generator';
 
 const DEGREES_TO_RADIANS = Math.PI / 180;
 
@@ -89,16 +87,11 @@ function init(): void {
   const columnTextureRepeatXInput = document.getElementById('column-texture-repeat-x') as HTMLInputElement;
   const columnTextureRepeatYInput = document.getElementById('column-texture-repeat-y') as HTMLInputElement;
 
-  // Beam-specific color controls
-  const beamColorInput = document.getElementById('beam-color') as HTMLInputElement;
-  const beamColorSigmaInput = document.getElementById('beam-color-sigma') as HTMLInputElement;
-
   // Add event listeners for all color and texture controls
   [brickColorInput, brickColorSigmaInput, darkBrickColorInput, cementColorInput,
    lintelColorInput, lintelColorSigmaInput, infillColorInput, infillColorSigmaInput,
    columnColorInput, columnColorSigmaInput, columnTextureSelect,
-   columnTextureRepeatXInput, columnTextureRepeatYInput,
-   beamColorInput, beamColorSigmaInput]
+   columnTextureRepeatXInput, columnTextureRepeatYInput]
     .filter(Boolean)
     .forEach(input => input.addEventListener('input', () => updateWall()));
 
@@ -184,45 +177,7 @@ function init(): void {
       return;
     }
 
-    // Beam generation mode
-    if (generatorMode === 'beam') {
-      const beamParams = uiController.getBeamParams();
-
-      const buildParams: BuildBeamParams = {
-        beam: {
-          size: {
-            l: beamParams.depth,   // Depth (front-to-back)
-            w: beamParams.width,   // Width (horizontal length)
-            h: beamParams.height   // Height (vertical thickness)
-          },
-          placement: {
-            parent: null,
-            position: {
-              x: beamParams.positionX,
-              y: beamParams.positionY,
-              z: beamParams.positionZ
-            },
-            direction: { yaw: beamParams.yawDegrees * DEGREES_TO_RADIANS }
-          },
-          material: {
-            color: beamColorInput?.value
-          }
-        }
-      };
-
-      // Generate beam
-      currentWallGroup = buildBeam(buildParams);
-
-      // Apply wireframe if enabled
-      if (uiController.getWireframeEnabled()) {
-        SceneUtils.setWireframeMode(currentWallGroup, true);
-      }
-
-      scene.add(currentWallGroup);
-      return;
-    }
-
-    // Wall generation mode (existing logic)
+    // Wall generation mode
     const params = uiController.getWallParams();
     const openings = uiController.getOpenings();
     const completion = params.completionPercentage / 100;

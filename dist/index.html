@@ -5,8 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Three.js Cube - Isometric View</title>
-  <script type="module" crossorigin src="/assets/index-CKlgnfef.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-D3Q5N42r.css">
+  <script type="module" crossorigin src="/assets/index-C3Z2Rroo.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-Ck4H81R6.css">
 </head>
 
 <body>
@@ -58,6 +58,7 @@
           <option value="wall">Wall</option>
           <option value="column">Column</option>
           <option value="beam">Beam</option>
+          <option value="construction">Construction Site</option>
         </select>
       </div>
       <div class="control-group wireframe-group" id="floor-control" style="margin-top: 10px;">
@@ -71,7 +72,7 @@
       </div>
       <div class="control-group wireframe-group" id="ao-control" style="margin-top: 10px;">
         <label class="toggle-switch">
-          <input type="checkbox" id="ao-toggle">
+          <input type="checkbox" id="ao-toggle" checked>
           <span class="slider"></span>
         </label>
         <div class="toggle-labels">
@@ -180,10 +181,10 @@
             <label for="column-texture">Texture</label>
             <select id="column-texture" style="width: 100%; padding: 5px; border-radius: 4px; border: 1px solid #ccc; background: white; font-size: 14px;">
               <option value="">None</option>
-              <option value="concrete_structure_grid_tieholes.jpg">Grid Tieholes</option>
-              <option value="concrete_structure_formwork_marks.jpg">Formwork Marks</option>
-              <option value="concrete_structure_double_seam.jpg">Double Seam</option>
-              <option value="concrete_structure_weathered.jpg">Weathered</option>
+              <option value="concrete_structure_grid_tieholes.png">Grid Tieholes</option>
+              <option value="concrete_structure_formwork_marks.png">Formwork Marks</option>
+              <option value="concrete_structure_double_seam.png">Double Seam</option>
+              <option value="concrete_structure_weathered.png">Weathered</option>
             </select>
           </div>
 
@@ -208,6 +209,86 @@
           <div class="control-group">
             <label for="beam-color-sigma">Color Sigma (variation)</label>
             <input type="number" id="beam-color-sigma" min="0" max="10" step="0.1" value="0">
+          </div>
+
+          <div class="control-group">
+            <label for="beam-texture">Texture</label>
+            <select id="beam-texture" style="width: 100%; padding: 5px; border-radius: 4px; border: 1px solid #ccc; background: white; font-size: 14px;">
+              <option value="">None</option>
+              <option value="concrete_structure_grid_tieholes.png">Grid Tieholes</option>
+              <option value="concrete_structure_formwork_marks.png">Formwork Marks</option>
+              <option value="concrete_structure_double_seam.png">Double Seam</option>
+              <option value="concrete_structure_weathered.png">Weathered</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="beam-texture-repeat-x">Texture Repeat X</label>
+            <input type="number" id="beam-texture-repeat-x" min="0.1" max="20" step="0.1" value="1">
+          </div>
+
+          <div class="control-group">
+            <label for="beam-texture-repeat-y">Texture Repeat Y</label>
+            <input type="number" id="beam-texture-repeat-y" min="0.1" max="20" step="0.1" value="1">
+          </div>
+        </div>
+      </div>
+
+      <div class="control-section" id="rendering-section">
+        <div class="section-title">
+          Rendering
+        </div>
+
+        <div class="control-group">
+          <label for="tone-mapping-select">Tone Mapping</label>
+          <select id="tone-mapping-select" style="width: 100%; padding: 5px; border-radius: 4px; border: 1px solid #ccc; background: white; font-size: 14px;">
+            <option value="aces_filmic">ACES Filmic</option>
+            <option value="reinhard2">Reinhard 2</option>
+            <option value="reinhard2_adaptive">Reinhard 2 Adaptive</option>
+          </select>
+        </div>
+
+        <!-- Common controls for both Reinhard modes -->
+        <div id="reinhard-common-controls" class="hidden">
+          <div class="control-group">
+            <label for="exposure-slider">Exposure: <span id="exposure-value">0.4</span></label>
+            <input type="range" id="exposure-slider" min="-1" max="1" step="0.05" value="0.4" style="width: 100%;">
+          </div>
+
+          <div class="control-group">
+            <label for="contrast-slider">Contrast: <span id="contrast-value">0.8</span></label>
+            <input type="range" id="contrast-slider" min="-1" max="1" step="0.05" value="0.8" style="width: 100%;">
+          </div>
+
+          <div class="control-group">
+            <label for="whitepoint-slider">White Point: <span id="whitepoint-value">4.0</span></label>
+            <input type="range" id="whitepoint-slider" min="1" max="10" step="0.1" value="4.0" style="width: 100%;">
+          </div>
+
+          <div class="control-group">
+            <label for="middlegrey-slider">Middle Grey: <span id="middlegrey-value">0.18</span></label>
+            <input type="range" id="middlegrey-slider" min="0.01" max="0.5" step="0.01" value="0.18" style="width: 100%;">
+          </div>
+        </div>
+
+        <!-- Controls only for Reinhard 2 (non-adaptive) -->
+        <div id="reinhard2-controls" class="hidden">
+          <div class="control-group">
+            <label for="avgluminance-slider">Avg Luminance: <span id="avgluminance-value">1.0</span></label>
+            <input type="range" id="avgluminance-slider" min="0.1" max="5" step="0.1" value="1.0" style="width: 100%;">
+          </div>
+        </div>
+
+        <!-- Controls only for Reinhard 2 Adaptive -->
+        <div id="reinhard2-adaptive-controls" class="hidden">
+          <div class="control-group">
+            <label for="adaptationrate-slider">Adaptation Rate: <span id="adaptationrate-value">1.0</span></label>
+            <input type="range" id="adaptationrate-slider" min="0.1" max="3" step="0.1" value="1.0" style="width: 100%;">
+          </div>
+
+          <div class="control-group">
+            <label for="minluminance-slider">Min Luminance: <span id="minluminance-value">0.01</span></label>
+            <input type="range" id="minluminance-slider" min="0.001" max="0.1" step="0.001" value="0.01" style="width: 100%;">
           </div>
         </div>
       </div>
@@ -408,6 +489,11 @@
       • Right button: Pan<br>
       • Scroll: Zoom
     </div>
+  </div>
+
+  <div id="loading-overlay" class="hidden">
+    <div class="loading-spinner"></div>
+    <span class="loading-text">Loading construction site...</span>
   </div>
 
 </body>

@@ -13,7 +13,7 @@ import { ViewControlsController, type ViewMode } from './controller/ViewControls
 export type { OpeningData };
 export type { ColumnParams };
 export type { BeamParams };
-export type GeneratorMode = 'wall' | 'column' | 'beam';
+export type GeneratorMode = 'wall' | 'column' | 'beam' | 'construction';
 
 export class UIController {
   private placeholders: PlaceholdersController;
@@ -35,6 +35,7 @@ export class UIController {
   private wallMaterialsControls: HTMLElement | null;
   private columnMaterialsControls: HTMLElement | null;
   private beamMaterialsControls: HTMLElement | null;
+  private materialsSection: HTMLElement | null;
 
   constructor(onUpdate: () => void, scene: THREE.Scene) {
     // Initialize sub-controllers
@@ -63,6 +64,7 @@ export class UIController {
     this.wallMaterialsControls = document.getElementById('wall-materials-controls');
     this.columnMaterialsControls = document.getElementById('column-materials-controls');
     this.beamMaterialsControls = document.getElementById('beam-materials-controls');
+    this.materialsSection = document.getElementById('materials-section');
 
     // Setup generator mode toggle
     this.setupGeneratorModeToggle(onUpdate);
@@ -93,6 +95,7 @@ export class UIController {
     const isWallMode = this.generatorMode === 'wall';
     const isColumnMode = this.generatorMode === 'column';
     const isBeamMode = this.generatorMode === 'beam';
+    const isConstructionMode = this.generatorMode === 'construction';
 
     // Toggle wall params section
     if (this.wallParamsSection) {
@@ -122,6 +125,11 @@ export class UIController {
     // Toggle task section (completion - only for walls)
     if (this.taskSection) {
       this.taskSection.classList.toggle('hidden', !isWallMode);
+    }
+
+    // Toggle materials section (hide in construction mode)
+    if (this.materialsSection) {
+      this.materialsSection.classList.toggle('hidden', isConstructionMode);
     }
 
     // Toggle material controls based on generator mode

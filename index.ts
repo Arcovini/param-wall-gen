@@ -5,10 +5,13 @@
  * It manages resources, provides a clean interface, and re-exports types.
  */
 
+import * as THREE from 'three';
+import { ToneMappingMode } from 'postprocessing';
 import { SceneRenderer } from './core/SceneRenderer';
 import { SceneUtils } from './ui/SceneUtils';
 import { UIController } from './ui/UIController';
 import { UploadConfiguration } from './core/UploadConfiguration';
+import { ConstructionLoader } from './core/ConstructionLoader';
 import { buildMasonryWall } from './wall-generator';
 import { buildColumn } from './column-generator';
 import { buildBeam } from './beam-generator';
@@ -27,6 +30,64 @@ export type { BuildMasonryWallParams };
 let sceneRenderer: SceneRenderer | null = null;
 let uiController: UIController | null = null;
 let uploadConfiguration: UploadConfiguration | null = null;
+let constructionLoader: ConstructionLoader | null = null;
+let isLoadingConstruction = false;
+
+// ===== LOADING OVERLAY HELPERS =====
+function showLoadingOverlay(text: string): void {
+  const overlay = document.getElementById('loading-overlay');
+  const loadingText = overlay?.querySelector('.loading-text');
+  if (overlay) {
+    overlay.classList.remove('hidden');
+    if (loadingText) {
+      loadingText.textContent = text;
+    }
+  }
+}
+
+function hideLoadingOverlay(): void {
+  const overlay = document.getElementById('loading-overlay');
+  if (overlay) {
+    overlay.classList.add('hidden');
+  }
+}
+
+function updateLoadingProgress(percentage: number): void {
+  const overlay = document.getElementById('loading-overlay');
+  const loadingText = overlay?.querySelector('.loading-text');
+  if (loadingText) {
+    loadingText.textContent = `Loading construction site... ${percentage}%`;
+  }
+}
+
+function adjustCameraForConstruction(model: THREE.Group): void {
+  if (!sceneRenderer) return;
+
+  // Calculate bounding box of the model
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+
+  // Get the maximum dimension to frame the model appropriately
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const distance = maxDim * 1.5;
+
+  // Position camera to view the model from an isometric-like angle
+  const camera = sceneRenderer.getCamera();
+  camera.position.set(
+    center.x + distance * 0.7,
+    center.y + distance * 0.5,
+    center.z + distance * 0.7
+  );
+  camera.lookAt(center);
+
+  // Update orbit controls target if available
+  const controls = sceneRenderer.getControls();
+  if (controls) {
+    controls.target.copy(center);
+    controls.update();
+  }
+}
 
 /**
  * Initializes and returns the singleton SceneRenderer instance
@@ -67,6 +128,136 @@ function init(): void {
   if (aoToggle) {
     aoToggle.addEventListener('change', () => {
       renderer.setAmbientOcclusionEnabled(aoToggle.checked);
+    });
+  }
+
+  // Wire up tone mapping dropdown and Reinhard controls
+  const toneMappingSelect = document.getElementById('tone-mapping-select') as HTMLSelectElement;
+  const reinhardCommonControls = document.getElementById('reinhard-common-controls');
+  const reinhard2Controls = document.getElementById('reinhard2-controls');
+  const reinhard2AdaptiveControls = document.getElementById('reinhard2-adaptive-controls');
+  const exposureSlider = document.getElementById('exposure-slider') as HTMLInputElement;
+  const contrastSlider = document.getElementById('contrast-slider') as HTMLInputElement;
+  const exposureValue = document.getElementById('exposure-value');
+  const contrastValue = document.getElementById('contrast-value');
+  const whitepointSlider = document.getElementById('whitepoint-slider') as HTMLInputElement;
+  const middlegreySlider = document.getElementById('middlegrey-slider') as HTMLInputElement;
+  const avgluminanceSlider = document.getElementById('avgluminance-slider') as HTMLInputElement;
+  const adaptationrateSlider = document.getElementById('adaptationrate-slider') as HTMLInputElement;
+  const minluminanceSlider = document.getElementById('minluminance-slider') as HTMLInputElement;
+  const whitepointValue = document.getElementById('whitepoint-value');
+  const middlegreyValue = document.getElementById('middlegrey-value');
+  const avgluminanceValue = document.getElementById('avgluminance-value');
+  const adaptationrateValue = document.getElementById('adaptationrate-value');
+  const minluminanceValue = document.getElementById('minluminance-value');
+
+  // Helper to show/hide reinhard control sections
+  const updateReinhardControlsVisibility = (mode: string) => {
+    if (mode === 'aces_filmic') {
+      reinhardCommonControls?.classList.add('hidden');
+      reinhard2Controls?.classList.add('hidden');
+      reinhard2AdaptiveControls?.classList.add('hidden');
+    } else if (mode === 'reinhard2') {
+      reinhardCommonControls?.classList.remove('hidden');
+      reinhard2Controls?.classList.remove('hidden');
+      reinhard2AdaptiveControls?.classList.add('hidden');
+    } else if (mode === 'reinhard2_adaptive') {
+      reinhardCommonControls?.classList.remove('hidden');
+      reinhard2Controls?.classList.add('hidden');
+      reinhard2AdaptiveControls?.classList.remove('hidden');
+    }
+  };
+
+  if (toneMappingSelect) {
+    toneMappingSelect.addEventListener('change', () => {
+      const value = toneMappingSelect.value;
+      updateReinhardControlsVisibility(value);
+
+      if (value === 'aces_filmic') {
+        renderer.setToneMappingMode(ToneMappingMode.ACES_FILMIC);
+        renderer.setExposure(0); // Reset to default
+        renderer.setContrast(0); // Reset to default
+      } else if (value === 'reinhard2') {
+        renderer.setToneMappingMode(ToneMappingMode.REINHARD2);
+        // Apply current slider values
+        renderer.setExposure(parseFloat(exposureSlider?.value || '0.4'));
+        renderer.setContrast(parseFloat(contrastSlider?.value || '0.8'));
+        renderer.setWhitePoint(parseFloat(whitepointSlider?.value || '4.0'));
+        renderer.setMiddleGrey(parseFloat(middlegreySlider?.value || '0.18'));
+        renderer.setAverageLuminance(parseFloat(avgluminanceSlider?.value || '1.0'));
+      } else if (value === 'reinhard2_adaptive') {
+        renderer.setToneMappingMode(ToneMappingMode.REINHARD2_ADAPTIVE);
+        // Apply current slider values
+        renderer.setExposure(parseFloat(exposureSlider?.value || '0.4'));
+        renderer.setContrast(parseFloat(contrastSlider?.value || '0.8'));
+        renderer.setWhitePoint(parseFloat(whitepointSlider?.value || '4.0'));
+        renderer.setMiddleGrey(parseFloat(middlegreySlider?.value || '0.18'));
+        renderer.setAdaptationRate(parseFloat(adaptationrateSlider?.value || '1.0'));
+        renderer.setMinLuminance(parseFloat(minluminanceSlider?.value || '0.01'));
+      }
+    });
+  }
+
+  // Wire up exposure slider
+  if (exposureSlider) {
+    exposureSlider.addEventListener('input', () => {
+      const value = parseFloat(exposureSlider.value);
+      renderer.setExposure(value);
+      if (exposureValue) exposureValue.textContent = value.toFixed(2);
+    });
+  }
+
+  // Wire up contrast slider
+  if (contrastSlider) {
+    contrastSlider.addEventListener('input', () => {
+      const value = parseFloat(contrastSlider.value);
+      renderer.setContrast(value);
+      if (contrastValue) contrastValue.textContent = value.toFixed(2);
+    });
+  }
+
+  // Wire up white point slider
+  if (whitepointSlider) {
+    whitepointSlider.addEventListener('input', () => {
+      const value = parseFloat(whitepointSlider.value);
+      renderer.setWhitePoint(value);
+      if (whitepointValue) whitepointValue.textContent = value.toFixed(1);
+    });
+  }
+
+  // Wire up middle grey slider
+  if (middlegreySlider) {
+    middlegreySlider.addEventListener('input', () => {
+      const value = parseFloat(middlegreySlider.value);
+      renderer.setMiddleGrey(value);
+      if (middlegreyValue) middlegreyValue.textContent = value.toFixed(2);
+    });
+  }
+
+  // Wire up average luminance slider (Reinhard2 non-adaptive only)
+  if (avgluminanceSlider) {
+    avgluminanceSlider.addEventListener('input', () => {
+      const value = parseFloat(avgluminanceSlider.value);
+      renderer.setAverageLuminance(value);
+      if (avgluminanceValue) avgluminanceValue.textContent = value.toFixed(1);
+    });
+  }
+
+  // Wire up adaptation rate slider (Reinhard2 Adaptive only)
+  if (adaptationrateSlider) {
+    adaptationrateSlider.addEventListener('input', () => {
+      const value = parseFloat(adaptationrateSlider.value);
+      renderer.setAdaptationRate(value);
+      if (adaptationrateValue) adaptationrateValue.textContent = value.toFixed(1);
+    });
+  }
+
+  // Wire up min luminance slider (Reinhard2 Adaptive only)
+  if (minluminanceSlider) {
+    minluminanceSlider.addEventListener('input', () => {
+      const value = parseFloat(minluminanceSlider.value);
+      renderer.setMinLuminance(value);
+      if (minluminanceValue) minluminanceValue.textContent = value.toFixed(3);
     });
   }
 
@@ -147,6 +338,54 @@ function init(): void {
     if (currentWallGroup) {
       scene.remove(currentWallGroup);
       currentWallGroup = null;
+    }
+
+    // Construction mode - load and display GLB model
+    if (generatorMode === 'construction') {
+      // Prevent duplicate loading
+      if (isLoadingConstruction) return;
+
+      // Initialize loader if needed
+      if (!constructionLoader) {
+        constructionLoader = new ConstructionLoader();
+      }
+
+      // Show loading overlay only if not cached
+      if (!constructionLoader.isCached()) {
+        showLoadingOverlay('Loading construction site...');
+        isLoadingConstruction = true;
+      }
+
+      constructionLoader
+        .load('/construction_site_building_site_architecture.glb', updateLoadingProgress)
+        .then((model) => {
+          isLoadingConstruction = false;
+          hideLoadingOverlay();
+
+          // Remove any existing wall group that might have been added during loading
+          if (currentWallGroup) {
+            scene.remove(currentWallGroup);
+          }
+
+          currentWallGroup = model;
+
+          // Apply wireframe if enabled
+          if (uiController?.getWireframeEnabled()) {
+            SceneUtils.setWireframeMode(currentWallGroup, true);
+          }
+
+          scene.add(currentWallGroup);
+
+          // Adjust camera to frame the model
+          adjustCameraForConstruction(model);
+        })
+        .catch((error) => {
+          isLoadingConstruction = false;
+          hideLoadingOverlay();
+          console.error('Failed to load construction site:', error);
+        });
+
+      return;
     }
 
     // Column generation mode
@@ -384,6 +623,10 @@ export function dispose(): void {
   if (uploadConfiguration) {
     uploadConfiguration.dispose();
     uploadConfiguration = null;
+  }
+  if (constructionLoader) {
+    constructionLoader.clearCache();
+    constructionLoader = null;
   }
   // UIManager doesn't have a dispose method yet, but if it did, we'd call it here
 }

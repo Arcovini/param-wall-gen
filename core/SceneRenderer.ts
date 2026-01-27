@@ -20,6 +20,7 @@ export class SceneRenderer {
   private animationId: number | null = null;
   private canvas!: HTMLCanvasElement;
   private brightnessContrastEffect!: BrightnessContrastEffect;
+  private toneMappingEffect!: ToneMappingEffect;
   private n8aoPass!: N8AOPostPass;
 
   constructor(container: HTMLElement) {
@@ -126,9 +127,9 @@ export class SceneRenderer {
       window.innerWidth - 320,
       window.innerHeight
     );
-    this.n8aoPass.configuration.aoRadius = 3.0;
-    this.n8aoPass.configuration.intensity = 7.0;
-    this.n8aoPass.enabled = false; // Start disabled
+    this.n8aoPass.configuration.aoRadius = 20.0;
+    this.n8aoPass.configuration.intensity = 16.0;
+    this.n8aoPass.enabled = true; // Start enabled
     this.composer.addPass(this.n8aoPass);
 
     // Bloom effect
@@ -140,7 +141,7 @@ export class SceneRenderer {
     });
 
     // Tone mapping effect (replaces renderer.toneMapping for EffectComposer)
-    const toneMappingEffect = new ToneMappingEffect({
+    this.toneMappingEffect = new ToneMappingEffect({
       mode: ToneMappingMode.ACES_FILMIC,
     });
 
@@ -151,7 +152,7 @@ export class SceneRenderer {
     });
 
     // Combine effects in a single pass for efficiency
-    const effectPass = new EffectPass(this.camera, bloomEffect, this.brightnessContrastEffect, toneMappingEffect);
+    const effectPass = new EffectPass(this.camera, bloomEffect, this.brightnessContrastEffect, this.toneMappingEffect);
     this.composer.addPass(effectPass);
   }
 
@@ -198,6 +199,71 @@ export class SceneRenderer {
    */
   isAmbientOcclusionEnabled(): boolean {
     return this.n8aoPass.enabled;
+  }
+
+  /**
+   * Sets the tone mapping mode
+   * @param mode - The tone mapping mode to use
+   */
+  setToneMappingMode(mode: ToneMappingMode): void {
+    this.toneMappingEffect.mode = mode;
+  }
+
+  /**
+   * Gets the current tone mapping mode
+   */
+  getToneMappingMode(): ToneMappingMode {
+    return this.toneMappingEffect.mode;
+  }
+
+  /**
+   * Sets the white point for Reinhard 2 Adaptive tone mapping
+   * @param value - White point value. Range: 1 to 10, default 4.0
+   */
+  setWhitePoint(value: number): void {
+    // Cast to any because TypeScript definitions are missing setters
+    (this.toneMappingEffect as any).whitePoint = value;
+  }
+
+  /**
+   * Sets the middle grey for Reinhard 2 Adaptive tone mapping
+   * @param value - Middle grey value. Range: 0.01 to 0.5, default 0.18
+   */
+  setMiddleGrey(value: number): void {
+    (this.toneMappingEffect as any).middleGrey = value;
+  }
+
+  /**
+   * Sets the average luminance for Reinhard 2 Adaptive tone mapping
+   * @param value - Average luminance value. Range: 0.1 to 5, default 1.0
+   */
+  setAverageLuminance(value: number): void {
+    (this.toneMappingEffect as any).averageLuminance = value;
+  }
+
+  /**
+   * Sets the adaptation rate for Reinhard 2 Adaptive tone mapping
+   * @param value - Adaptation rate value. Higher = faster adaptation. Range: 0.01 to 20
+   */
+  setAdaptationRate(value: number): void {
+    // Set on both the effect and directly on the material to ensure it takes effect
+    (this.toneMappingEffect as any).adaptationRate = value;
+    const adaptiveMaterial = (this.toneMappingEffect as any).adaptiveLuminanceMaterial;
+    if (adaptiveMaterial) {
+      adaptiveMaterial.adaptationRate = value;
+    }
+  }
+
+  /**
+   * Sets the minimum luminance for Reinhard 2 Adaptive tone mapping
+   * Prevents very high exposure in dark scenes
+   * @param value - Min luminance value. Range: 0.001 to 0.1, default 0.01
+   */
+  setMinLuminance(value: number): void {
+    const adaptiveMaterial = (this.toneMappingEffect as any).adaptiveLuminanceMaterial;
+    if (adaptiveMaterial) {
+      adaptiveMaterial.minLuminance = value;
+    }
   }
 
   /**
@@ -369,6 +435,13 @@ export class SceneRenderer {
    */
   getRenderer(): THREE.WebGLRenderer {
     return this.renderer;
+  }
+
+  /**
+   * Gets the OrbitControls for advanced usage
+   */
+  getControls(): OrbitControls {
+    return this.controls;
   }
 
   /**

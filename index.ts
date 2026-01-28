@@ -136,6 +136,8 @@ function init(): void {
   const reinhardCommonControls = document.getElementById('reinhard-common-controls');
   const reinhard2Controls = document.getElementById('reinhard2-controls');
   const reinhard2AdaptiveControls = document.getElementById('reinhard2-adaptive-controls');
+  const tonemappingExposureSlider = document.getElementById('tonemapping-exposure-slider') as HTMLInputElement;
+  const tonemappingExposureValue = document.getElementById('tonemapping-exposure-value');
   const exposureSlider = document.getElementById('exposure-slider') as HTMLInputElement;
   const contrastSlider = document.getElementById('contrast-slider') as HTMLInputElement;
   const exposureValue = document.getElementById('exposure-value');
@@ -175,11 +177,13 @@ function init(): void {
 
       if (value === 'aces_filmic') {
         renderer.setToneMappingMode(ToneMappingMode.ACES_FILMIC);
+        renderer.setToneMappingExposure(1.0); // Reset to default
         renderer.setExposure(0); // Reset to default
         renderer.setContrast(0); // Reset to default
       } else if (value === 'reinhard2') {
         renderer.setToneMappingMode(ToneMappingMode.REINHARD2);
         // Apply current slider values
+        renderer.setToneMappingExposure(parseFloat(tonemappingExposureSlider?.value || '1.0'));
         renderer.setExposure(parseFloat(exposureSlider?.value || '0.4'));
         renderer.setContrast(parseFloat(contrastSlider?.value || '0.8'));
         renderer.setWhitePoint(parseFloat(whitepointSlider?.value || '4.0'));
@@ -188,6 +192,7 @@ function init(): void {
       } else if (value === 'reinhard2_adaptive') {
         renderer.setToneMappingMode(ToneMappingMode.REINHARD2_ADAPTIVE);
         // Apply current slider values
+        renderer.setToneMappingExposure(parseFloat(tonemappingExposureSlider?.value || '1.0'));
         renderer.setExposure(parseFloat(exposureSlider?.value || '0.4'));
         renderer.setContrast(parseFloat(contrastSlider?.value || '0.8'));
         renderer.setWhitePoint(parseFloat(whitepointSlider?.value || '4.0'));
@@ -198,7 +203,16 @@ function init(): void {
     });
   }
 
-  // Wire up exposure slider
+  // Wire up tone mapping exposure slider (pre-tonemapping multiplier)
+  if (tonemappingExposureSlider) {
+    tonemappingExposureSlider.addEventListener('input', () => {
+      const value = parseFloat(tonemappingExposureSlider.value);
+      renderer.setToneMappingExposure(value);
+      if (tonemappingExposureValue) tonemappingExposureValue.textContent = value.toFixed(1);
+    });
+  }
+
+  // Wire up brightness slider (post-tonemapping)
   if (exposureSlider) {
     exposureSlider.addEventListener('input', () => {
       const value = parseFloat(exposureSlider.value);

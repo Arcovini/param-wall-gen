@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Three.js Cube - Isometric View</title>
-  <script type="module" crossorigin src="/assets/index-C3Z2Rroo.js"></script>
+  <script type="module" crossorigin src="/assets/index-CYkj7RCM.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/index-Ck4H81R6.css">
 </head>
 
@@ -251,7 +251,12 @@
         <!-- Common controls for both Reinhard modes -->
         <div id="reinhard-common-controls" class="hidden">
           <div class="control-group">
-            <label for="exposure-slider">Exposure: <span id="exposure-value">0.4</span></label>
+            <label for="tonemapping-exposure-slider">ToneMap Exposure: <span id="tonemapping-exposure-value">1.0</span></label>
+            <input type="range" id="tonemapping-exposure-slider" min="0.1" max="5" step="0.1" value="1.0" style="width: 100%;">
+          </div>
+
+          <div class="control-group">
+            <label for="exposure-slider">Brightness: <span id="exposure-value">0.4</span></label>
             <input type="range" id="exposure-slider" min="-1" max="1" step="0.05" value="0.4" style="width: 100%;">
           </div>
 
@@ -283,12 +288,12 @@
         <div id="reinhard2-adaptive-controls" class="hidden">
           <div class="control-group">
             <label for="adaptationrate-slider">Adaptation Rate: <span id="adaptationrate-value">1.0</span></label>
-            <input type="range" id="adaptationrate-slider" min="0.1" max="3" step="0.1" value="1.0" style="width: 100%;">
+            <input type="range" id="adaptationrate-slider" min="0.01" max="20" step="0.1" value="1.0" style="width: 100%;">
           </div>
 
           <div class="control-group">
             <label for="minluminance-slider">Min Luminance: <span id="minluminance-value">0.01</span></label>
-            <input type="range" id="minluminance-slider" min="0.001" max="0.1" step="0.001" value="0.01" style="width: 100%;">
+            <input type="range" id="minluminance-slider" min="0.0001" max="1" step="0.01" value="0.01" style="width: 100%;">
           </div>
         </div>
       </div>

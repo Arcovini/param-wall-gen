@@ -250,7 +250,12 @@
         <!-- Common controls for both Reinhard modes -->
         <div id="reinhard-common-controls" class="hidden">
           <div class="control-group">
-            <label for="exposure-slider">Exposure: <span id="exposure-value">0.4</span></label>
+            <label for="tonemapping-exposure-slider">ToneMap Exposure: <span id="tonemapping-exposure-value">1.0</span></label>
+            <input type="range" id="tonemapping-exposure-slider" min="0.1" max="5" step="0.1" value="1.0" style="width: 100%;">
+          </div>
+
+          <div class="control-group">
+            <label for="exposure-slider">Brightness: <span id="exposure-value">0.4</span></label>
             <input type="range" id="exposure-slider" min="-1" max="1" step="0.05" value="0.4" style="width: 100%;">
           </div>
 

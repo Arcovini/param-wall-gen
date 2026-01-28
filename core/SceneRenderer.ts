@@ -267,6 +267,22 @@ export class SceneRenderer {
   }
 
   /**
+   * Sets the tone mapping exposure on the renderer
+   * This is a multiplier applied BEFORE the tone mapping curve
+   * @param value - Exposure multiplier. 1.0 = default, higher = brighter input to tone mapper
+   */
+  setToneMappingExposure(value: number): void {
+    this.renderer.toneMappingExposure = value;
+  }
+
+  /**
+   * Gets the current tone mapping exposure
+   */
+  getToneMappingExposure(): number {
+    return this.renderer.toneMappingExposure;
+  }
+
+  /**
    * Registers event handlers and starts animation loop
    */
   private registerEventHandlers(): void {

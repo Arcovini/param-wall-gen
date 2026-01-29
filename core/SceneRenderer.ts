@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer, RenderPass, EffectPass, BloomEffect, ToneMappingEffect, ToneMappingMode, BrightnessContrastEffect } from 'postprocessing';
+import { CharacterController } from './CharacterController';
 
 // Type declarations for the external 'n8ao' package are provided in a separate ambient declaration file (types/n8ao.d.ts).
 
@@ -17,6 +18,7 @@ export class SceneRenderer {
   private renderer!: THREE.WebGLRenderer;
   private composer!: EffectComposer;
   private controls!: OrbitControls;
+  private characterController!: CharacterController;
   private animationId: number | null = null;
   private canvas!: HTMLCanvasElement;
   private brightnessContrastEffect!: BrightnessContrastEffect;
@@ -94,6 +96,9 @@ export class SceneRenderer {
     this.controls.dampingFactor = 0.05;
     this.controls.target.set(0, 0, 0);
     this.controls.update();
+
+    // Initialize WASD character controller
+    this.characterController = new CharacterController(this.camera, this.controls);
   }
 
   /**
@@ -127,8 +132,8 @@ export class SceneRenderer {
       window.innerWidth - 320,
       window.innerHeight
     );
-    this.n8aoPass.configuration.aoRadius = 20.0;
-    this.n8aoPass.configuration.intensity = 16.0;
+    this.n8aoPass.configuration.aoRadius =6.0;
+    this.n8aoPass.configuration.intensity = 4.0;
     this.n8aoPass.enabled = true; // Start enabled
     this.composer.addPass(this.n8aoPass);
 
@@ -416,6 +421,7 @@ export class SceneRenderer {
    */
   private animate = (): void => {
     this.animationId = requestAnimationFrame(this.animate);
+    this.characterController.update();
     this.controls.update();
     this.composer.render();
   }
@@ -461,6 +467,13 @@ export class SceneRenderer {
   }
 
   /**
+   * Gets the CharacterController for WASD movement
+   */
+  getCharacterController(): CharacterController {
+    return this.characterController;
+  }
+
+  /**
    * Cleans up resources
    */
   dispose(): void {
@@ -476,6 +489,7 @@ export class SceneRenderer {
 
     // Dispose controls
     this.controls.dispose();
+    this.characterController.dispose();
 
     // Dispose composer
     this.composer.dispose();

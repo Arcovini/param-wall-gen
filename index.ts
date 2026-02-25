@@ -115,8 +115,9 @@ function init(): void {
   const renderer = getSceneRenderer();
   const scene = renderer.getScene();
 
-  // Track the current wall group
+  // Track the current wall group and optional bounds debug group (app-only)
   let currentWallGroup: THREE.Group | null = null;
+  let currentBoundsDebugGroup: THREE.Group | null = null;
 
   // 4. Create floor at ground level (starts disabled)
   const floor = SceneUtils.createFloor(10, 10, 0);
@@ -352,10 +353,14 @@ function init(): void {
     const generatorMode = uiController.getGeneratorMode();
     const viewMode = uiController.getViewMode();
 
-    // Remove previous wall/column if exists
+    // Remove previous wall/column and bounds debug group if exists
     if (currentWallGroup) {
       scene.remove(currentWallGroup);
       currentWallGroup = null;
+    }
+    if (currentBoundsDebugGroup) {
+      scene.remove(currentBoundsDebugGroup);
+      currentBoundsDebugGroup = null;
     }
 
     // Construction mode - load and display GLB model
@@ -718,6 +723,20 @@ function init(): void {
           actualWallWidth,
           actualWallHeight
         );
+      }
+
+      // Debug: centroid, keypoints, bounds (app-only, not part of API)
+      if (uiController.getShowCentroid()) {
+        WallVisualizer.addCentroidMarker(currentWallGroup);
+      }
+      if (uiController.getShowKeypoints()) {
+        WallVisualizer.addKeypointsMarkers(currentWallGroup);
+      }
+      if (uiController.getShowBounds() && currentWallGroup.userData.bounds) {
+        currentBoundsDebugGroup = WallVisualizer.createBoundsDebugGroup(
+          currentWallGroup.userData.bounds as Parameters<typeof WallVisualizer.createBoundsDebugGroup>[0]
+        );
+        scene.add(currentBoundsDebugGroup);
       }
     }
 

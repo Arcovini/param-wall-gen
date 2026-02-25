@@ -77,6 +77,42 @@ export interface BuildMasonryWallParams {
   visualization?: VisualizationMode;  // Optional debug visualization
 }
 
+// ===== Model and Bounds Types (returned in userData) =====
+
+/** Role of the model for physics/navigation */
+export type ModelRole = 'COLLIDABLE' | 'REFERENCE';
+
+/** Four corner points at half depth (e.g. z=0 in wall local space) */
+export interface Keypoints {
+  bottomLeft: Position;
+  topLeft: Position;
+  bottomRight: Position;
+  topRight: Position;
+}
+
+/** Model metadata: walkable, collidable, roles, keypoints, centroid */
+export interface ModelParams {
+  isWalkable: boolean;
+  isCollidable: boolean;
+  roles: ModelRole[];
+  keypoints: Keypoints;
+  centroid: Position;
+}
+
+/** Axis-aligned bounding box (min/max in world or local) */
+export interface Bounds3D {
+  min: Position;
+  max: Position;
+}
+
+/** Bounds returned in userData (all in world coordinates) */
+export interface WallBounds {
+  completed: Bounds3D;
+  execution: Bounds3D;
+  openings: Bounds3D[];
+  openingsExpanded: Bounds3D[];
+}
+
 // ===== Internal Types (exported for advanced use) =====
 
 /**

@@ -115,7 +115,7 @@ buildMasonryWall(params)
 - **Wall pivot**: Walls are shifted to bottom-left corner as origin point
 - **JSON Config**: Wall configurations can be imported/exported via `core/UploadConfiguration.ts`
 - **Bounds-clamping**: Row geometry fits exactly within `wallWidth` by clamping block positions to wall bounds and creating partial blocks at edges. No CSG intersection needed for wall width.
-- **Returned group `userData`**: Only public API fields (`objectType`, `wall`, `openings`, `task`). No `pivotOffset`; single public function is `buildMasonryWall(params)`.
+- **Returned group `userData`**: Public API fields: `objectType`, `wall`, `openings`, `task`, `modelParams` (isWalkable, isCollidable, roles, keypoints, centroid), `bounds` (completed, execution, openings, openingsExpanded — all AABBs in world coordinates). Single public function is `buildMasonryWall(params)`. Local convention: origin at bottom-left; keypoints and centroid on plane z=0.
 
 ## Type Definitions
 

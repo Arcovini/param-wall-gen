@@ -37,5 +37,10 @@ export type {
   TaskParams,
   VisualizationMode,
   BuildMasonryWallParams,
-  OpeningBoundsForRow
+  OpeningBoundsForRow,
+  ModelRole,
+  Keypoints,
+  ModelParams,
+  Bounds3D,
+  WallBounds
 } from './types';

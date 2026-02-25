@@ -37,6 +37,10 @@ export class PlaceholdersController {
       this.onUpdate();
     });
 
+    this.view.onDebugCentroidChange(() => this.onUpdate());
+    this.view.onDebugKeypointsChange(() => this.onUpdate());
+    this.view.onDebugBoundsChange(() => this.onUpdate());
+
     this.view.onFloorChange((checked) => {
       this.updateFloorVisibility(checked);
     });
@@ -61,6 +65,18 @@ export class PlaceholdersController {
 
   getWireframeEnabled(): boolean {
     return this.view.isWireframeChecked();
+  }
+
+  getShowCentroid(): boolean {
+    return this.view.isDebugCentroidChecked();
+  }
+
+  getShowKeypoints(): boolean {
+    return this.view.isDebugKeypointsChecked();
+  }
+
+  getShowBounds(): boolean {
+    return this.view.isDebugBoundsChecked();
   }
 
   updateVisibilityForViewMode(viewMode: string): void {

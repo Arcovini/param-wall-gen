@@ -10,12 +10,14 @@
 
 import * as THREE from 'three';
 import type { BuildMasonryWallParams, OpeningBoundsForRow } from '../../types';
+import type { WallBounds } from '../../types';
 import { WallManager } from '../WallManager';
 import { OpeningGenerator, type OpeningData, snapToRowBoundaries } from '../OpeningGenerator';
 import { InfillGenerator } from '../InfillGenerator';
 import { RowGenerator } from '../RowGenerator';
 import { cutOpenings } from '../processing/OpeningCutter';
 import { MaterialManager } from '../MaterialManager';
+import { localAABBToWorld } from '../WallPlacement';
 
 // Singleton WallManager instance (reuses textures/materials)
 const wallManagerInstance = new WallManager();
@@ -311,15 +313,79 @@ export class WallBuilder {
     return this;
   }
 
-  /** Step 7: Add metadata to wall group (public API only; no internal fields like actualWallWidth/Height) */
+  /** Step 7: Add metadata to wall group (modelParams, bounds) */
   addMetadata(): this {
     if (!this.ctx.wallGroup) return this;
+
+    const w = this.ctx.wallWidth;
+    const h = this.ctx.actualWallHeight;
+    const halfL = this.ctx.wallLength / 2;
+    const z0 = 0;
+
+    const keypoints = {
+      bottomLeft: { x: 0, y: 0, z: z0 },
+      topLeft: { x: 0, y: h, z: z0 },
+      bottomRight: { x: w, y: 0, z: z0 },
+      topRight: { x: w, y: h, z: z0 }
+    };
+    const centroid = { x: w / 2, y: h / 2, z: z0 };
+
+    const modelParams = {
+      isWalkable: false,
+      isCollidable: true,
+      roles: ['COLLIDABLE', 'REFERENCE'] as const,
+      keypoints,
+      centroid
+    };
+
+    const wallPlacement = this.params.wall.placement;
+    const completedLocalMin = { x: 0, y: 0, z: -halfL };
+    const completedLocalMax = { x: w, y: this.ctx.wallHeight, z: halfL };
+    const executionLocalMax = { x: w, y: h, z: halfL };
+
+    const bounds: WallBounds = {
+      completed: localAABBToWorld(completedLocalMin, completedLocalMax, wallPlacement),
+      execution: localAABBToWorld(completedLocalMin, executionLocalMax, wallPlacement),
+      openings: [],
+      openingsExpanded: []
+    };
+
+    const expansionFactor = { x: 0.1, y: 0.05, z: 0.3 };
+    const wallHeight = this.ctx.wallHeight;
+    const openings = this.params.openings || [];
+    for (const opening of openings) {
+      const s = opening.size;
+      const pos = opening.placement.position; // relative to wall center
+      const halfL2 = s.l / 2;
+      const halfH = s.h / 2;
+      const halfW = s.w / 2;
+      // Convert opening center from wall-center space to group local (bottom-left origin)
+      const centerX = pos.x + w / 2;
+      const centerY = pos.y + wallHeight / 2;
+      const centerZ = pos.z;
+      const openMin = { x: centerX - halfL2, y: centerY - halfH, z: centerZ - halfW };
+      const openMax = { x: centerX + halfL2, y: centerY + halfH, z: centerZ + halfW };
+      bounds.openings.push(localAABBToWorld(openMin, openMax, wallPlacement));
+      const expMin = {
+        x: openMin.x - expansionFactor.x,
+        y: openMin.y - expansionFactor.y,
+        z: openMin.z - expansionFactor.z
+      };
+      const expMax = {
+        x: openMax.x + expansionFactor.x,
+        y: openMax.y + expansionFactor.y,
+        z: openMax.z + expansionFactor.z
+      };
+      bounds.openingsExpanded.push(localAABBToWorld(expMin, expMax, wallPlacement));
+    }
 
     this.ctx.wallGroup.userData = {
       objectType: 'MasonryWall',
       wall: this.params.wall,
       openings: this.params.openings,
-      task: { completion: this.params.task.completion }
+      task: { completion: this.params.task.completion },
+      modelParams,
+      bounds
     };
     return this;
   }

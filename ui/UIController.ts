@@ -175,6 +175,18 @@ export class UIController {
     return this.placeholders.getShowActualWall();
   }
 
+  getShowCentroid(): boolean {
+    return this.placeholders.getShowCentroid();
+  }
+
+  getShowKeypoints(): boolean {
+    return this.placeholders.getShowKeypoints();
+  }
+
+  getShowBounds(): boolean {
+    return this.placeholders.getShowBounds();
+  }
+
   getWireframeEnabled(): boolean {
     return this.placeholders.getWireframeEnabled();
   }

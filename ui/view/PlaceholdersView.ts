@@ -16,10 +16,14 @@ export class PlaceholdersView {
   private actualWallLabel: HTMLElement | null;
   private floorToggle: HTMLInputElement | null;
   private floorLabel: HTMLElement | null;
+  private debugCentroidToggle: HTMLInputElement | null;
+  private debugKeypointsToggle: HTMLInputElement | null;
+  private debugBoundsToggle: HTMLInputElement | null;
 
   private placeholderControl: HTMLElement | null;
   private actualWallControl: HTMLElement | null;
   private floorControl: HTMLElement | null;
+  private debugControl: HTMLElement | null;
 
   constructor() {
     this.wireframeToggle = document.getElementById('wireframe-toggle') as HTMLInputElement;
@@ -34,6 +38,10 @@ export class PlaceholdersView {
     this.placeholderControl = document.getElementById('wall-placeholder-control');
     this.actualWallControl = document.getElementById('actual-wall-control');
     this.floorControl = document.getElementById('floor-control');
+    this.debugControl = document.getElementById('debug-control');
+    this.debugCentroidToggle = document.getElementById('debug-centroid-toggle') as HTMLInputElement;
+    this.debugKeypointsToggle = document.getElementById('debug-keypoints-toggle') as HTMLInputElement;
+    this.debugBoundsToggle = document.getElementById('debug-bounds-toggle') as HTMLInputElement;
   }
 
   onWireframeChange(callback: (checked: boolean) => void): void {
@@ -64,6 +72,18 @@ export class PlaceholdersView {
     });
   }
 
+  onDebugCentroidChange(callback: () => void): void {
+    this.debugCentroidToggle?.addEventListener('change', () => callback());
+  }
+
+  onDebugKeypointsChange(callback: () => void): void {
+    this.debugKeypointsToggle?.addEventListener('change', () => callback());
+  }
+
+  onDebugBoundsChange(callback: () => void): void {
+    this.debugBoundsToggle?.addEventListener('change', () => callback());
+  }
+
   private updateLabelStyle(label: HTMLElement | null, isActive: boolean): void {
     if (!label) return;
     const style = isActive ? LABEL_STYLES.active : LABEL_STYLES.inactive;
@@ -77,6 +97,9 @@ export class PlaceholdersView {
     }
     if (this.actualWallControl) {
       this.actualWallControl.style.display = isWallOutputMode ? 'none' : '';
+    }
+    if (this.debugControl) {
+      this.debugControl.style.display = isWallOutputMode ? 'none' : '';
     }
   }
 
@@ -94,5 +117,17 @@ export class PlaceholdersView {
 
   isFloorChecked(): boolean {
     return this.floorToggle?.checked ?? false;
+  }
+
+  isDebugCentroidChecked(): boolean {
+    return this.debugCentroidToggle?.checked ?? false;
+  }
+
+  isDebugKeypointsChecked(): boolean {
+    return this.debugKeypointsToggle?.checked ?? false;
+  }
+
+  isDebugBoundsChecked(): boolean {
+    return this.debugBoundsToggle?.checked ?? false;
   }
 }

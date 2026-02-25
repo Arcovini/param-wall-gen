@@ -62,11 +62,6 @@ export type TaskParams = {
   completion: number;      // 0..1 normalized (0=empty, 1=complete)
 };
 
-// ===== Visualization Types =====
-
-/** Debug visualization mode for openings */
-export type VisualizationMode = 'red' | 'wireframe' | 'none';
-
 // ===== Main API Type =====
 
 /** Parameters for buildMasonryWall function */
@@ -74,7 +69,6 @@ export interface BuildMasonryWallParams {
   wall: WallParams;
   openings: OpeningParams[];
   task: TaskParams;
-  visualization?: VisualizationMode;  // Optional debug visualization
 }
 
 // ===== Model and Bounds Types (returned in userData) =====

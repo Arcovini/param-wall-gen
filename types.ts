@@ -119,5 +119,4 @@ export interface BuildMasonryWallParams {
   wall: WallParams;
   openings: OpeningParams[];
   task: TaskParams;
-  visualization?: VisualizationMode;
 }

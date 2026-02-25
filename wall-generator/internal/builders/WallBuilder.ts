@@ -318,17 +318,18 @@ export class WallBuilder {
     if (!this.ctx.wallGroup) return this;
 
     const w = this.ctx.wallWidth;
-    const h = this.ctx.actualWallHeight;
+    const wallHeight = this.ctx.wallHeight; // completed wall height (100%)
+    const actualWallHeight = this.ctx.actualWallHeight; // execution height
     const halfL = this.ctx.wallLength / 2;
     const z0 = 0;
 
     const keypoints = {
       bottomLeft: { x: 0, y: 0, z: z0 },
-      topLeft: { x: 0, y: h, z: z0 },
+      topLeft: { x: 0, y: wallHeight, z: z0 },
       bottomRight: { x: w, y: 0, z: z0 },
-      topRight: { x: w, y: h, z: z0 }
+      topRight: { x: w, y: wallHeight, z: z0 }
     };
-    const centroid = { x: w / 2, y: h / 2, z: z0 };
+    const centroid = { x: w / 2, y: wallHeight / 2, z: z0 };
 
     const modelParams = {
       isWalkable: false,
@@ -341,7 +342,7 @@ export class WallBuilder {
     const wallPlacement = this.params.wall.placement;
     const completedLocalMin = { x: 0, y: 0, z: -halfL };
     const completedLocalMax = { x: w, y: this.ctx.wallHeight, z: halfL };
-    const executionLocalMax = { x: w, y: h, z: halfL };
+    const executionLocalMax = { x: w, y: actualWallHeight, z: halfL };
 
     const bounds: WallBounds = {
       completed: localAABBToWorld(completedLocalMin, completedLocalMax, wallPlacement),
@@ -351,7 +352,6 @@ export class WallBuilder {
     };
 
     const expansionFactor = { x: 0.1, y: 0.05, z: 0.3 };
-    const wallHeight = this.ctx.wallHeight;
     const openings = this.params.openings || [];
     for (const opening of openings) {
       const s = opening.size;

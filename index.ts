@@ -681,9 +681,7 @@ function init(): void {
       })),
       task: {
         completion: completion
-      },
-      // In wall-output mode, don't show opening visualizations (not part of exported THREE.Group)
-      visualization: viewMode === 'wall-output' ? 'none' : uiController.getVisualizationMode()
+      }
     };
 
     // Generate new wall

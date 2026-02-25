@@ -35,7 +35,6 @@ export type {
   WallParams,
   OpeningParams,
   TaskParams,
-  VisualizationMode,
   BuildMasonryWallParams,
   OpeningBoundsForRow,
   ModelRole,

@@ -23,6 +23,7 @@
 
 // ===== Public API =====
 export { buildMasonryWall } from './buildMasonryWall';
+export { getActualWallDimensions, type ActualWallDimensions } from './getActualWallDimensions';
 
 // ===== Public Types =====
 export type {

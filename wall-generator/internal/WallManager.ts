@@ -140,10 +140,8 @@ export class WallManager {
     // Apply placement transformations to the wall group
     applyPlacement(wallGroup, { x: positionX, y: positionY, z: positionZ }, yawDegrees);
 
-    // Store calculated dimensions in userData for other generators to use
-    // Store the TARGET wallWidth as actualWallWidth so buildMasonryWall uses it for intersection
-    wallGroup.userData.actualWallWidth = wallWidth;
-    wallGroup.userData.actualWallHeight = completedWallHeight;
+    // Dimensions (actualWallWidth = wallWidth, actualWallHeight = completedWallHeight) are
+    // kept in WallBuilder context only; not stored on the group so they are not part of the public API.
 
     return wallGroup;
   }

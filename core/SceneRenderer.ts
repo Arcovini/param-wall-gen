@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer, RenderPass, EffectPass, BloomEffect, ToneMappingEffect, ToneMappingMode, BrightnessContrastEffect } from 'postprocessing';
 import { CharacterController } from './CharacterController';
+import { RenderStats } from './RenderStats';
 
 // Type declarations for the external 'n8ao' package are provided in a separate ambient declaration file (types/n8ao.d.ts).
 
@@ -19,6 +20,7 @@ export class SceneRenderer {
   private composer!: EffectComposer;
   private controls!: OrbitControls;
   private characterController!: CharacterController;
+  private renderStats!: RenderStats;
   private animationId: number | null = null;
   private canvas!: HTMLCanvasElement;
   private brightnessContrastEffect!: BrightnessContrastEffect;
@@ -51,7 +53,15 @@ export class SceneRenderer {
     this.initializeLighting();
     this.generateEnvironment();
     this.initializePostProcessing();
+    this.initializeRenderStats();
     this.registerEventHandlers();
+  }
+
+  /**
+   * Initializes RenderStats for color histogram display
+   */
+  private initializeRenderStats(): void {
+    this.renderStats = new RenderStats(this.canvas);
   }
 
   /**
@@ -63,7 +73,8 @@ export class SceneRenderer {
       alpha: false,
       powerPreference: "high-performance",
       stencil: false,
-      depth: false
+      depth: false,
+      preserveDrawingBuffer: true // Required for histogram pixel reading
     });
 
     // Color space (tone mapping handled by ToneMappingEffect in post-processing)
@@ -424,6 +435,7 @@ export class SceneRenderer {
     this.characterController.update();
     this.controls.update();
     this.composer.render();
+    this.renderStats.update();
   }
 
   /**
@@ -474,6 +486,13 @@ export class SceneRenderer {
   }
 
   /**
+   * Gets the RenderStats for histogram display
+   */
+  getRenderStats(): RenderStats {
+    return this.renderStats;
+  }
+
+  /**
    * Cleans up resources
    */
   dispose(): void {
@@ -490,6 +509,7 @@ export class SceneRenderer {
     // Dispose controls
     this.controls.dispose();
     this.characterController.dispose();
+    this.renderStats.dispose();
 
     // Dispose composer
     this.composer.dispose();

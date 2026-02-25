@@ -13,7 +13,7 @@ import { ViewControlsController, type ViewMode } from './controller/ViewControls
 export type { OpeningData };
 export type { ColumnParams };
 export type { BeamParams };
-export type GeneratorMode = 'wall' | 'column' | 'beam' | 'construction';
+export type GeneratorMode = 'wall' | 'column' | 'beam' | 'construction' | 'cavalete' | 'cavalete2';
 
 export class UIController {
   private placeholders: PlaceholdersController;
@@ -96,6 +96,8 @@ export class UIController {
     const isColumnMode = this.generatorMode === 'column';
     const isBeamMode = this.generatorMode === 'beam';
     const isConstructionMode = this.generatorMode === 'construction';
+    const isCavaleteMode = this.generatorMode === 'cavalete';
+    const isCavalete2Mode = this.generatorMode === 'cavalete2';
 
     // Toggle wall params section
     if (this.wallParamsSection) {
@@ -127,9 +129,9 @@ export class UIController {
       this.taskSection.classList.toggle('hidden', !isWallMode);
     }
 
-    // Toggle materials section (hide in construction mode)
+    // Toggle materials section (hide in construction/cavalete modes)
     if (this.materialsSection) {
-      this.materialsSection.classList.toggle('hidden', isConstructionMode);
+      this.materialsSection.classList.toggle('hidden', isConstructionMode || isCavaleteMode || isCavalete2Mode);
     }
 
     // Toggle material controls based on generator mode

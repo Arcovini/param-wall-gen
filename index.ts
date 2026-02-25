@@ -12,7 +12,7 @@ import { SceneUtils } from './ui/SceneUtils';
 import { UIController } from './ui/UIController';
 import { UploadConfiguration } from './core/UploadConfiguration';
 import { ConstructionLoader } from './core/ConstructionLoader';
-import { buildMasonryWall } from './wall-generator';
+import { buildMasonryWall, getActualWallDimensions } from './wall-generator';
 import { buildColumn } from './column-generator';
 import { buildBeam } from './beam-generator';
 import { WallVisualizer } from './ui/WallVisualizer';
@@ -31,7 +31,11 @@ let sceneRenderer: SceneRenderer | null = null;
 let uiController: UIController | null = null;
 let uploadConfiguration: UploadConfiguration | null = null;
 let constructionLoader: ConstructionLoader | null = null;
+let cavaleteLoader: ConstructionLoader | null = null;
+let cavalete2Loader: ConstructionLoader | null = null;
 let isLoadingConstruction = false;
+let isLoadingCavalete = false;
+let isLoadingCavalete2 = false;
 
 // ===== LOADING OVERLAY HELPERS =====
 function showLoadingOverlay(text: string): void {
@@ -52,11 +56,11 @@ function hideLoadingOverlay(): void {
   }
 }
 
-function updateLoadingProgress(percentage: number): void {
+function updateLoadingProgress(percentage: number, label: string = 'construction site'): void {
   const overlay = document.getElementById('loading-overlay');
   const loadingText = overlay?.querySelector('.loading-text');
   if (loadingText) {
-    loadingText.textContent = `Loading construction site... ${percentage}%`;
+    loadingText.textContent = `Loading ${label}... ${percentage}%`;
   }
 }
 
@@ -371,7 +375,7 @@ function init(): void {
       }
 
       constructionLoader
-        .load('/construction_site_building_site_architecture.glb', updateLoadingProgress)
+        .load('/construction_site_building_site_architecture.glb', (p) => updateLoadingProgress(p, 'construction site'))
         .then((model) => {
           isLoadingConstruction = false;
           hideLoadingOverlay();
@@ -397,6 +401,102 @@ function init(): void {
           isLoadingConstruction = false;
           hideLoadingOverlay();
           console.error('Failed to load construction site:', error);
+        });
+
+      return;
+    }
+
+    // Cavalete mode - load and display cavalete GLB model
+    if (generatorMode === 'cavalete') {
+      // Prevent duplicate loading
+      if (isLoadingCavalete) return;
+
+      // Initialize loader if needed
+      if (!cavaleteLoader) {
+        cavaleteLoader = new ConstructionLoader();
+      }
+
+      // Show loading overlay only if not cached
+      if (!cavaleteLoader.isCached()) {
+        showLoadingOverlay('Loading cavalete...');
+        isLoadingCavalete = true;
+      }
+
+      cavaleteLoader
+        .load('/cavalete.glb', (p) => updateLoadingProgress(p, 'cavalete'))
+        .then((model) => {
+          isLoadingCavalete = false;
+          hideLoadingOverlay();
+
+          // Remove any existing wall group that might have been added during loading
+          if (currentWallGroup) {
+            scene.remove(currentWallGroup);
+          }
+
+          currentWallGroup = model;
+
+          // Apply wireframe if enabled
+          if (uiController?.getWireframeEnabled()) {
+            SceneUtils.setWireframeMode(currentWallGroup, true);
+          }
+
+          scene.add(currentWallGroup);
+
+          // Adjust camera to frame the model
+          adjustCameraForConstruction(model);
+        })
+        .catch((error) => {
+          isLoadingCavalete = false;
+          hideLoadingOverlay();
+          console.error('Failed to load cavalete:', error);
+        });
+
+      return;
+    }
+
+    // Cavalete 2 mode - load and display cavalete2 GLB model
+    if (generatorMode === 'cavalete2') {
+      // Prevent duplicate loading
+      if (isLoadingCavalete2) return;
+
+      // Initialize loader if needed
+      if (!cavalete2Loader) {
+        cavalete2Loader = new ConstructionLoader();
+      }
+
+      // Show loading overlay only if not cached
+      if (!cavalete2Loader.isCached()) {
+        showLoadingOverlay('Loading cavalete 2...');
+        isLoadingCavalete2 = true;
+      }
+
+      cavalete2Loader
+        .load('/cavalete2.glb', (p) => updateLoadingProgress(p, 'cavalete 2'))
+        .then((model) => {
+          isLoadingCavalete2 = false;
+          hideLoadingOverlay();
+
+          // Remove any existing wall group that might have been added during loading
+          if (currentWallGroup) {
+            scene.remove(currentWallGroup);
+          }
+
+          currentWallGroup = model;
+
+          // Apply wireframe if enabled
+          if (uiController?.getWireframeEnabled()) {
+            SceneUtils.setWireframeMode(currentWallGroup, true);
+          }
+
+          scene.add(currentWallGroup);
+
+          // Adjust camera to frame the model
+          adjustCameraForConstruction(model);
+        })
+        .catch((error) => {
+          isLoadingCavalete2 = false;
+          hideLoadingOverlay();
+          console.error('Failed to load cavalete 2:', error);
         });
 
       return;
@@ -603,9 +703,12 @@ function init(): void {
 
       // Add Actual Wall Placeholder (Green Box) - represents VISIBLE/TRUNCATED dimensions
       if (uiController.getShowActualWall()) {
+        const { actualWallWidth, actualWallHeight } = getActualWallDimensions(buildParams);
         WallVisualizer.addActualPlaceholder(
           currentWallGroup,
-          params.wallLength
+          params.wallLength,
+          actualWallWidth,
+          actualWallHeight
         );
       }
     }
@@ -641,6 +744,14 @@ export function dispose(): void {
   if (constructionLoader) {
     constructionLoader.clearCache();
     constructionLoader = null;
+  }
+  if (cavaleteLoader) {
+    cavaleteLoader.clearCache();
+    cavaleteLoader = null;
+  }
+  if (cavalete2Loader) {
+    cavalete2Loader.clearCache();
+    cavalete2Loader = null;
   }
   // UIManager doesn't have a dispose method yet, but if it did, we'd call it here
 }

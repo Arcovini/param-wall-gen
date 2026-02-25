@@ -99,6 +99,7 @@ buildMasonryWall(params)
 - ✅ Added multi-opening safety checks to prevent block extension conflicts
 - ✅ Added wall top cap showing brick+cement pattern at top of completed wall (RowGenerator.createWallTopCap)
 - ✅ Fixed lintel visibility check to use snapped bounds instead of original opening parameters
+- ✅ Removed `actualWallWidth`/`actualWallHeight` from returned group's `userData`; dimensions live in builder context and via `getActualWallDimensions(params)` for tests/UI.
 
 ### Remaining
 
@@ -114,6 +115,7 @@ buildMasonryWall(params)
 - **Wall pivot**: Walls are shifted to bottom-left corner as origin point
 - **JSON Config**: Wall configurations can be imported/exported via `core/UploadConfiguration.ts`
 - **Bounds-clamping**: Row geometry fits exactly within `wallWidth` by clamping block positions to wall bounds and creating partial blocks at edges. No CSG intersection needed for wall width.
+- **Returned group `userData`**: Only public API fields (`objectType`, `wall`, `openings`, `task`, `pivotOffset`). Internal dimensions are in builder context; use `getActualWallDimensions(params)` for tests or UI.
 
 ## Type Definitions
 

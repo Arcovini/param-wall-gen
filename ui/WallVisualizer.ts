@@ -59,16 +59,16 @@ export class WallVisualizer {
 
   /**
    * Adds the "Actual Wall" placeholder (Green)
-   * Represents the actual built dimensions (truncated to block count)
+   * Represents the actual built dimensions (truncated to block count).
+   * Caller should obtain actualWidth/actualHeight from getActualWallDimensions(params), not from the group.
    */
   static addActualPlaceholder(
     wallGroup: THREE.Group,
-    targetLength: number
+    targetLength: number,
+    actualWidth: number,
+    actualHeight: number
   ): void {
-    const actualWidth = wallGroup.userData.actualWallWidth || 0;
-    const actualHeight = wallGroup.userData.actualWallHeight || 0;
-
-    if (actualWidth === 0 || actualHeight === 0) {
+    if (actualWidth <= 0 || actualHeight <= 0) {
       return;
     }
 

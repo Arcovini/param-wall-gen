@@ -156,7 +156,8 @@ export class WallBuilder {
       this.ctx.yawDegrees, this.params.task.completion,
       this.ctx.openingBoundsForRows
     );
-    this.ctx.actualWallWidth = this.ctx.wallGroup.userData.actualWallWidth || this.ctx.wallWidth;
+    // Context is the source of truth; actualWallWidth matches target width from row generation
+    this.ctx.actualWallWidth = this.ctx.wallWidth;
     return this;
   }
 
@@ -310,12 +311,11 @@ export class WallBuilder {
     return this;
   }
 
-  /** Step 7: Add metadata to wall group */
+  /** Step 7: Add metadata to wall group (public API only; no internal fields like actualWallWidth/Height) */
   addMetadata(): this {
     if (!this.ctx.wallGroup) return this;
 
     this.ctx.wallGroup.userData = {
-      ...this.ctx.wallGroup.userData,
       objectType: 'MasonryWall',
       wall: this.params.wall,
       openings: this.params.openings,

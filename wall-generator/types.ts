@@ -119,3 +119,111 @@ export interface OpeningBoundsForRow {
   snappedBottomY: number; // Snapped bottom Y (aligned to row block edge)
   snappedTopY: number;    // Snapped top Y (aligned to row block edge)
 }
+
+// ===== Solid Wall spec (wall-solid.md) =====
+
+/** Construction state for Solid Wall element */
+export type ConstructionState = 'PROJECTED' | 'REAL' | 'KNOWN';
+
+/** Task state passed to handleTaskStateChange (completion 0–100, schedule/quality) */
+export interface TaskState {
+  completionPercentage: number;
+  scheduleStatus?: 'ON_TIME' | 'DELAYED' | 'AHEAD';
+  qualityStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
+}
+
+/** Single style property to apply (opacity, visibleHeight, highlightColor, outlineColor, outlineWidth) */
+export interface StyleValue {
+  property: string;
+  value: number | string;
+}
+
+/** Result of handleTaskStateChange: state + style to apply on the adapter */
+export interface ElementStyleUpdate {
+  constructionState: ConstructionState;
+  completionPercentage: number;
+  styleValues: StyleValue[];
+}
+
+/** Simulation config (getSimulationConfig) */
+export interface SimulationConfig {
+  roles: ModelRole[];
+  isWalkable: boolean;
+  isCollidable: boolean;
+}
+
+/** Physical dependency rule (getPhysicalDependencyRules) */
+export interface PhysicalDependencyRule {
+  strategy: 'BELOW' | 'ABOVE' | 'BESIDE' | 'ADJACENT';
+  targetTypes: string[];
+  expansion: Position;
+  description?: string;
+}
+
+/** Single stochastic parameter (getStochasticParams) */
+export interface StochasticParamDef {
+  name: string;
+  mean: number;
+  stdDev: number;
+  unit: string;
+  distribution: 'normal' | 'uniform';
+  observation?: string;
+}
+
+/** Key point IDs per wall-solid.md §7 */
+export type KeyPointId =
+  | 'CORNER_BOTTOM_LEFT'
+  | 'CORNER_BOTTOM_RIGHT'
+  | 'CORNER_TOP_LEFT'
+  | 'CORNER_TOP_RIGHT'
+  | 'CENTER_FACE_FRONT'
+  | 'CENTER_FACE_BACK'
+  | 'MID_BASE'
+  | 'MID_TOP'
+  | `OPENING_CENTER_${number}`;
+
+/** Key points map: semantic ID → position (local or world) */
+export type KeyPointsMap = Record<KeyPointId, Position>;
+
+/** Material family ID (masonry-wall-materials) */
+export type MaterialId =
+  | 'brick-ceramic'
+  | 'brick-concrete'
+  | 'concrete-cast'
+  | 'concrete-precast'
+  | 'mortar-finish'
+  | 'plaster-finish';
+
+/** Result of selectMaterials(seed) */
+export interface SelectedMaterials {
+  main: MaterialId;
+  finish?: MaterialId;
+}
+
+/** Element params as in spec (length, height, thickness, position, rotation, openings) */
+export interface ElementParams {
+  length: number;
+  height: number;
+  thickness: number;
+  openings: OpeningParams[];
+  position: Position;
+  rotation: { x: number; y: number; z: number; w: number }; // Quaternion
+}
+
+/** userData shape on THREE.Group returned by buildMasonryWall / createInstance */
+export interface SolidWallUserData {
+  objectType: string;
+  id?: string;
+  typeId?: string;
+  ifcGlobalId?: string;
+  wall: WallParams;
+  openings: OpeningParams[];
+  task: { completion: number };
+  modelParams: ModelParams;
+  bounds: WallBounds;
+}
+
+/** Solid wall instance: object with userData (e.g. THREE.Group from buildMasonryWall) */
+export interface SolidWallInstance {
+  userData: SolidWallUserData;
+}

@@ -24,6 +24,27 @@
 // ===== Public API =====
 export { buildMasonryWall } from './buildMasonryWall';
 
+// ===== Solid Wall API (wall-solid.md) =====
+export {
+  createInstance,
+  getCompletedBoundingBox,
+  getExecutionStateBoundingBox,
+  getOpeningBoundingBoxes,
+  getExpandedOpeningBoundingBoxes,
+  getCentroid,
+  getKeyPoints,
+  getPhysicalDependencyRules,
+  getSimulationConfig,
+  getStochasticParams,
+  selectMaterials,
+  handleTaskStateChange,
+  EXPANSION_FACTOR,
+  TYPE_ID
+} from './SolidWall';
+export type { IFCProjectElement, CreateInstanceParams } from './SolidWall';
+
+export { updateInstance, dispose } from './adapters/ThreeSolidWallAdapter';
+
 // ===== Public Types =====
 export type {
   Position,
@@ -41,5 +62,19 @@ export type {
   Keypoints,
   ModelParams,
   Bounds3D,
-  WallBounds
+  WallBounds,
+  ConstructionState,
+  TaskState,
+  StyleValue,
+  ElementStyleUpdate,
+  SimulationConfig,
+  PhysicalDependencyRule,
+  StochasticParamDef,
+  KeyPointId,
+  KeyPointsMap,
+  MaterialId,
+  SelectedMaterials,
+  ElementParams,
+  SolidWallUserData,
+  SolidWallInstance
 } from './types';

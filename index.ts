@@ -12,7 +12,7 @@ import { SceneUtils } from './ui/SceneUtils';
 import { UIController } from './ui/UIController';
 import { UploadConfiguration } from './core/UploadConfiguration';
 import { ConstructionLoader } from './core/ConstructionLoader';
-import { buildMasonryWall, getActualWallDimensions } from './wall-generator';
+import { buildMasonryWall } from './wall-generator';
 import { buildColumn } from './column-generator';
 import { buildBeam } from './beam-generator';
 import { WallVisualizer } from './ui/WallVisualizer';
@@ -703,7 +703,15 @@ function init(): void {
 
       // Add Actual Wall Placeholder (Green Box) - represents VISIBLE/TRUNCATED dimensions
       if (uiController.getShowActualWall()) {
-        const { actualWallWidth, actualWallHeight } = getActualWallDimensions(buildParams);
+        const { wall, task } = buildParams;
+        const wh = wall.size.h;
+        const bh = wall.blockSize.h;
+        const ct = wall.cementThickness;
+        const totalRows = Math.floor(wh / (bh + ct));
+        const visibleRows = Math.floor(totalRows * Math.max(0, Math.min(1, task.completion)));
+        const actualWallHeight =
+          visibleRows > 0 ? visibleRows * bh + (visibleRows - 1) * ct : 0;
+        const actualWallWidth = wall.size.w;
         WallVisualizer.addActualPlaceholder(
           currentWallGroup,
           params.wallLength,

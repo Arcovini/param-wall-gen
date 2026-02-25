@@ -319,8 +319,7 @@ export class WallBuilder {
       objectType: 'MasonryWall',
       wall: this.params.wall,
       openings: this.params.openings,
-      task: { completion: this.params.task.completion },
-      pivotOffset: { x: this.ctx.wallWidth / 2, y: this.ctx.wallHeight / 2 }
+      task: { completion: this.params.task.completion }
     };
     return this;
   }

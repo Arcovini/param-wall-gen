@@ -210,17 +210,24 @@ export interface ElementParams {
   rotation: { x: number; y: number; z: number; w: number }; // Quaternion
 }
 
-/** userData shape on THREE.Group returned by buildMasonryWall / createInstance */
+/** userData shape on THREE.Group returned by buildMasonryWall / createInstance (wall-solid.md §5) */
 export interface SolidWallUserData {
   objectType: string;
   id?: string;
   typeId?: string;
   ifcGlobalId?: string;
+  /** Position (world); also derivable from wall.placement.position */
+  position?: Position;
+  /** Rotation as quaternion (world); also derivable from wall.placement.direction */
+  rotation?: { x: number; y: number; z: number; w: number };
   wall: WallParams;
   openings: OpeningParams[];
   task: { completion: number };
   modelParams: ModelParams;
   bounds: WallBounds;
+  constructionState?: ConstructionState;
+  completionPercentage?: number; // 0–100
+  taskIds?: string[];
 }
 
 /** Solid wall instance: object with userData (e.g. THREE.Group from buildMasonryWall) */

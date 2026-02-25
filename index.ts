@@ -12,7 +12,14 @@ import { SceneUtils } from './ui/SceneUtils';
 import { UIController } from './ui/UIController';
 import { UploadConfiguration } from './core/UploadConfiguration';
 import { ConstructionLoader } from './core/ConstructionLoader';
-import { buildMasonryWall } from './wall-generator';
+import {
+  createInstance,
+  getCompletedBoundingBox,
+  getExecutionStateBoundingBox,
+  getOpeningBoundingBoxes,
+  getExpandedOpeningBoundingBoxes
+} from './wall-generator';
+import type { SolidWallInstance } from './wall-generator';
 import { buildColumn } from './column-generator';
 import { buildBeam } from './beam-generator';
 import { WallVisualizer } from './ui/WallVisualizer';
@@ -684,8 +691,8 @@ function init(): void {
       }
     };
 
-    // Generate new wall
-    currentWallGroup = buildMasonryWall(buildParams);
+    // Generate new wall (Solid Wall API: createInstance fills id, typeId, constructionState, completionPercentage, taskIds)
+    currentWallGroup = createInstance(undefined, { buildParams });
 
     // Apply current wireframe state to the new wall
     if (uiController.getWireframeEnabled()) {
@@ -730,10 +737,14 @@ function init(): void {
       if (uiController.getShowKeypoints()) {
         WallVisualizer.addKeypointsMarkers(currentWallGroup);
       }
-      if (uiController.getShowBounds() && currentWallGroup.userData.bounds) {
-        currentBoundsDebugGroup = WallVisualizer.createBoundsDebugGroup(
-          currentWallGroup.userData.bounds as Parameters<typeof WallVisualizer.createBoundsDebugGroup>[0]
-        );
+      if (uiController.getShowBounds()) {
+        const instance = currentWallGroup as unknown as SolidWallInstance;
+        currentBoundsDebugGroup = WallVisualizer.createBoundsDebugGroup({
+          completed: getCompletedBoundingBox(instance),
+          execution: getExecutionStateBoundingBox(instance),
+          openings: getOpeningBoundingBoxes(instance),
+          openingsExpanded: getExpandedOpeningBoundingBoxes(instance)
+        });
         scene.add(currentBoundsDebugGroup);
       }
     }

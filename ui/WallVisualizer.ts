@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { VisualizationMode } from '../types';
-import type { Bounds3D } from '../wall-generator';
+import type { Bounds3D, SolidWallInstance } from '../wall-generator';
+import { getCentroid, getKeyPoints } from '../wall-generator';
 
 export class WallVisualizer {
   /**
@@ -120,12 +121,10 @@ export class WallVisualizer {
   }
 
   /**
-   * Adds a centroid marker (sphere) as child of wallGroup. Uses userData.modelParams.centroid (local space).
+   * Adds a centroid marker (sphere) as child of wallGroup. Uses getCentroid (local space).
    */
   static addCentroidMarker(wallGroup: THREE.Group): void {
-    const modelParams = wallGroup.userData?.modelParams;
-    if (!modelParams?.centroid) return;
-    const c = modelParams.centroid;
+    const c = getCentroid(wallGroup as unknown as SolidWallInstance);
     const geometry = new THREE.SphereGeometry(0.06, 16, 16);
     const material = new THREE.MeshBasicMaterial({ color: 0xff00ff });
     const mesh = new THREE.Mesh(geometry, material);
@@ -135,16 +134,19 @@ export class WallVisualizer {
   }
 
   /**
-   * Adds four keypoint markers (small spheres) as children of wallGroup. Uses userData.modelParams.keypoints (local space).
+   * Adds four corner keypoint markers (small spheres) as children of wallGroup. Uses getKeyPoints (local space).
    */
   static addKeypointsMarkers(wallGroup: THREE.Group): void {
-    const modelParams = wallGroup.userData?.modelParams;
-    if (!modelParams?.keypoints) return;
-    const kp = modelParams.keypoints;
+    const kp = getKeyPoints(wallGroup as unknown as SolidWallInstance);
     const color = 0x00ffff;
     const geometry = new THREE.SphereGeometry(0.04, 12, 12);
     const material = new THREE.MeshBasicMaterial({ color });
-    const points = [kp.bottomLeft, kp.topLeft, kp.bottomRight, kp.topRight] as const;
+    const points = [
+      kp.CORNER_BOTTOM_LEFT,
+      kp.CORNER_TOP_LEFT,
+      kp.CORNER_BOTTOM_RIGHT,
+      kp.CORNER_TOP_RIGHT
+    ] as const;
     const names = ['DebugKP_BL', 'DebugKP_TL', 'DebugKP_BR', 'DebugKP_TR'] as const;
     for (let i = 0; i < points.length; i++) {
       const p = points[i];

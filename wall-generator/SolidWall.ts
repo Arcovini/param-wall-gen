@@ -26,18 +26,38 @@ import type {
   SelectedMaterials,
   BuildMasonryWallParams,
   WallParams,
-  OpeningParams
+  OpeningParams,
+  ModelParams
 } from './types';
 
 const TYPE_ID = 'SOLID_WALL';
 const EXPANSION_FACTOR = { x: 0.1, y: 0.05, z: 0.3 };
 
-/** Placeholder for IFC element (to be implemented when IFC is integrated) */
+/** Quaternion { x, y, z, w } for rotation from IFC */
+export interface QuaternionLike {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+}
+
+/** Opening data extractable from IFC */
+export interface IFCOpening {
+  position?: Position;
+  size?: { width?: number; height?: number; depth?: number };
+}
+
+/** IFC element shape for extraction (wall-solid.md §5); adapter fills from loader */
 export interface IFCProjectElement {
   globalId?: string;
   ifcType?: string;
   predefinedType?: string;
-  // ... properties, geometry, openings, placement
+  length?: number;
+  height?: number;
+  thickness?: number;
+  openings?: IFCOpening[];
+  position?: Position;
+  rotation?: QuaternionLike;
 }
 
 /** Params override when creating instance (e.g. from IFC) */
@@ -45,31 +65,188 @@ export interface CreateInstanceParams {
   id?: string;
   typeId?: string;
   ifcGlobalId?: string;
+  taskIds?: string[];
   /** Build params for geometry; required when not using IFC */
   buildParams?: BuildMasonryWallParams;
 }
 
+function quaternionToYaw(q: QuaternionLike): number {
+  const { x, y, z, w } = q;
+  const siny = 2 * (w * y - z * x);
+  const cosy = 1 - 2 * (x * x + y * y);
+  return Math.atan2(siny, cosy);
+}
+
+function hashGlobalId(globalId: string): string {
+  let h = 0;
+  for (let i = 0; i < globalId.length; i++) {
+    h = ((h << 5) - h + globalId.charCodeAt(i)) | 0;
+  }
+  return `solid-wall-${Math.abs(h).toString(36)}`;
+}
+
+function createEmptySolidWallUserData(overrides?: Partial<SolidWallUserData>): SolidWallUserData {
+  const emptyBounds: WallBounds = {
+    completed: { min: { x: 0, y: 0, z: 0 }, max: { x: 0, y: 0, z: 0 } },
+    execution: { min: { x: 0, y: 0, z: 0 }, max: { x: 0, y: 0, z: 0 } },
+    openings: [],
+    openingsExpanded: []
+  };
+  return {
+    objectType: 'SolidWall',
+    wall: {} as WallParams,
+    openings: [],
+    task: { completion: 0 },
+    modelParams: {
+      isWalkable: false,
+      isCollidable: true,
+      roles: ['COLLIDABLE', 'REFERENCE'],
+      keypoints: {} as ModelParams['keypoints'],
+      centroid: { x: 0, y: 0, z: 0 }
+    },
+    bounds: emptyBounds,
+    constructionState: 'PROJECTED',
+    completionPercentage: 0,
+    taskIds: [],
+    ...overrides
+  };
+}
+
+/** Map IFC element to BuildMasonryWallParams (default block/cement when not from IFC) */
+function ifcElementToBuildParams(ifc: IFCProjectElement): BuildMasonryWallParams | null {
+  const length = ifc.length ?? 0;
+  const height = ifc.height ?? 0;
+  const thickness = ifc.thickness ?? 0;
+  if (length <= 0 || height <= 0 || thickness <= 0) return null;
+  const position = ifc.position ?? { x: 0, y: 0, z: 0 };
+  const yaw = ifc.rotation != null ? quaternionToYaw(ifc.rotation) : 0;
+  const openings: OpeningParams[] = (ifc.openings ?? []).map((o) => ({
+    placement: {
+      parent: null,
+      position: o.position ?? { x: 0, y: 0, z: 0 },
+      direction: { yaw: 0 }
+    },
+    size: {
+      l: o.size?.width ?? 0,
+      w: o.size?.depth ?? 0,
+      h: o.size?.height ?? 0
+    }
+  }));
+  const wall: WallParams = {
+    placement: { parent: null, position, direction: { yaw } },
+    size: { l: thickness, w: length, h: height },
+    blockSize: { l: 0.39, h: 0.14, w: 0 },
+    cementThickness: 0.02
+  };
+  return { wall, openings, task: { completion: 0 } };
+}
+
+function completionToConstructionState(completion: number): ConstructionState {
+  if (completion <= 0) return 'PROJECTED';
+  if (completion >= 1) return 'KNOWN';
+  return 'REAL';
+}
+
+function fillInstanceUserData(
+  ud: SolidWallUserData,
+  opts: {
+    id: string;
+    typeId: string;
+    ifcGlobalId?: string;
+    constructionState: ConstructionState;
+    completionPercentage: number;
+    taskIds: string[];
+    position?: Position;
+    rotation?: QuaternionLike;
+  }
+): void {
+  ud.id = opts.id;
+  ud.typeId = opts.typeId;
+  if (opts.ifcGlobalId != null) ud.ifcGlobalId = opts.ifcGlobalId;
+  ud.constructionState = opts.constructionState;
+  ud.completionPercentage = opts.completionPercentage;
+  ud.taskIds = opts.taskIds;
+  if (opts.position != null) ud.position = opts.position;
+  if (opts.rotation != null) ud.rotation = opts.rotation;
+}
+
 /**
- * createInstance — Factory: create Solid Wall element.
- * When IFC is integrated: validate ifcElement (IfcWall, SOLIDWALL), extract params, then build.
- * For now: accepts optional identity + buildParams, builds via buildMasonryWall, attaches identity to userData.
+ * createInstance — Factory: create Solid Wall element (wall-solid.md §5).
+ * With ifcElement: validates IfcWall/SOLIDWALL, extracts params, builds, sets constructionState PROJECTED, completionPercentage 0, taskIds [].
+ * Without IFC: uses params.buildParams, derives constructionState/completionPercentage from task.completion.
  */
 export function createInstance(
-  _ifcElement?: IFCProjectElement,
+  ifcElement?: IFCProjectElement,
   params?: CreateInstanceParams
 ): THREE.Group {
-  const buildParams = params?.buildParams;
+  let buildParams: BuildMasonryWallParams | null = null;
+  let fromIFC = false;
+  let ifcGlobalId: string | undefined;
+  let position: Position | undefined;
+  let rotation: QuaternionLike | undefined;
+
+  if (ifcElement != null) {
+    if (ifcElement.ifcType !== 'IfcWall' || ifcElement.predefinedType !== 'SOLIDWALL') {
+      const empty = new THREE.Group();
+      empty.name = 'SolidWall_Empty';
+      empty.userData = createEmptySolidWallUserData();
+      return empty;
+    }
+    buildParams = ifcElementToBuildParams(ifcElement);
+    if (!buildParams) {
+      const empty = new THREE.Group();
+      empty.name = 'SolidWall_Empty';
+      empty.userData = createEmptySolidWallUserData();
+      return empty;
+    }
+    fromIFC = true;
+    ifcGlobalId = ifcElement.globalId;
+    position = ifcElement.position;
+    rotation = ifcElement.rotation;
+  } else {
+    buildParams = params?.buildParams ?? null;
+  }
+
   if (!buildParams) {
     const empty = new THREE.Group();
     empty.name = 'SolidWall_Empty';
-    empty.userData = { objectType: 'SolidWall', bounds: { completed: { min: { x: 0, y: 0, z: 0 }, max: { x: 0, y: 0, z: 0 } }, execution: { min: { x: 0, y: 0, z: 0 }, max: { x: 0, y: 0, z: 0 } }, openings: [], openingsExpanded: [] }, modelParams: { isWalkable: false, isCollidable: true, roles: ['COLLIDABLE', 'REFERENCE'], keypoints: {} as any, centroid: { x: 0, y: 0, z: 0 } }, wall: {} as WallParams, openings: [], task: { completion: 0 } };
+    empty.userData = createEmptySolidWallUserData();
     return empty;
   }
+
   const group = buildMasonryWall(buildParams);
   const ud = group.userData as SolidWallUserData;
-  ud.id = params?.id ?? crypto.randomUUID?.() ?? `solid-wall-${Date.now()}`;
-  ud.typeId = params?.typeId ?? TYPE_ID;
-  if (params?.ifcGlobalId != null) ud.ifcGlobalId = params.ifcGlobalId;
+  const wall = buildParams.wall;
+  const task = buildParams.task;
+  const completion = Math.max(0, Math.min(1, task.completion));
+
+  const id =
+    params?.id ??
+    (fromIFC && ifcElement?.globalId ? hashGlobalId(ifcElement.globalId) : null) ??
+    (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : null) ??
+    `solid-wall-${Date.now()}`;
+
+  fillInstanceUserData(ud, {
+    id,
+    typeId: params?.typeId ?? TYPE_ID,
+    ifcGlobalId: fromIFC ? ifcGlobalId : params?.ifcGlobalId,
+    constructionState: fromIFC ? 'PROJECTED' : completionToConstructionState(completion),
+    completionPercentage: fromIFC ? 0 : completion * 100,
+    taskIds: params?.taskIds ?? [],
+    position: position ?? wall.placement.position,
+    rotation: fromIFC ? rotation : undefined
+  });
+
+  if (ud.rotation == null && wall.placement.direction) {
+    const yaw = wall.placement.direction.yaw;
+    ud.rotation = {
+      x: 0,
+      y: Math.sin(yaw / 2),
+      z: 0,
+      w: Math.cos(yaw / 2)
+    };
+  }
+
   return group;
 }
 

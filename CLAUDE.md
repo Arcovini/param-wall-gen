@@ -117,6 +117,45 @@ buildMasonryWall(params)
 - **Bounds-clamping**: Row geometry fits exactly within `wallWidth` by clamping block positions to wall bounds and creating partial blocks at edges. No CSG intersection needed for wall width.
 - **Returned group `userData`**: Public API fields: `objectType`, `wall`, `openings`, `task`, `modelParams` (isWalkable, isCollidable, roles, keypoints, centroid), `bounds` (completed, execution, openings, openingsExpanded — all AABBs in world coordinates). Single public function is `buildMasonryWall(params)`. Local convention: origin at bottom-left; keypoints and centroid on plane z=0.
 
+## Solid Wall API (wall-solid.md)
+
+Public API in `wall-generator/SolidWall.ts` and `wall-generator/adapters/ThreeSolidWallAdapter.ts`.
+
+**Fronteira do repositório:** Motor Syncker (tarefas, estados, grafo de dependências) e IFC completo ficam fora deste repositório. `createInstance` e `handleTaskStateChange` fornecem a interface (userData, ElementStyleUpdate) para integração com o motor.
+
+### Type-level / factory (no instance required)
+
+| Method | Status | Notes |
+|--------|--------|-------|
+| `createInstance(ifcElement?, params?)` | ✅ Working | Returns THREE.Group + userData (id, typeId, constructionState, completionPercentage, taskIds). Validates IFC (IfcWall/SOLIDWALL), extracts params, or uses params.buildParams. |
+| `getPhysicalDependencyRules()` | ✅ Working | Returns static rules (BELOW, ABOVE, BESIDE, ADJACENT). |
+| `getSimulationConfig()` | ✅ Working | Returns { roles, isWalkable, isCollidable }. |
+| `getStochasticParams()` | ✅ Working | Returns §11 stochastic params table. |
+| `selectMaterials(seed, elementId?)` | ✅ Working | Returns { main, finish }; wired to build via CreateInstanceParams.materialSeed. |
+| `handleTaskStateChange(instance, taskState)` | ✅ Working | Returns ElementStyleUpdate. |
+
+### Instance getters (accept group with SolidWall userData)
+
+| Method | Status | Notes |
+|--------|--------|-------|
+| `getCompletedBoundingBox(instance)` | ✅ Working | Reads userData.bounds.completed. |
+| `getExecutionStateBoundingBox(instance)` | ✅ Working | Reads userData.bounds.execution. |
+| `getOpeningBoundingBoxes(instance)` | ✅ Working | Reads userData.bounds.openings. |
+| `getExpandedOpeningBoundingBoxes(instance)` | ✅ Working | Reads userData.bounds.openingsExpanded. |
+| `getCentroid(instance)` | ✅ Working | Reads userData.modelParams.centroid (local). |
+| `getCentroidWorld(instance)` | ✅ Working | Centroide em coordenadas de mundo (placement aplicado). |
+| `getKeyPoints(instance)` | ✅ Working | Computes full keypoints map (incl. OPENING_CENTER_n). |
+| `getKeyPointsWorld(instance)` | ✅ Working | Key points em coordenadas de mundo. |
+
+### Adapter (ThreeSolidWallAdapter)
+
+| Method | Status | Notes |
+|--------|--------|-------|
+| `updateInstance(group, styleUpdate)` | ✅ Working | Applies opacity; visibleHeight → clipPlane; highlightColor → material.emissive; outlineColor/outlineWidth in userData for consumer outline pass. |
+| `dispose(instance)` | ✅ Working | Disposes geometry, materials, textures. |
+
+App creates wall via `createInstance(undefined, { buildParams })` in `index.ts`. No SolidWallInstance class; instance = THREE.Group with SolidWallUserData.
+
 ## Type Definitions
 
 - `types.ts` - Core type definitions including `BuildMasonryWallParams`, opening types

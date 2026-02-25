@@ -8,6 +8,8 @@
 
 import * as THREE from 'three';
 import { buildMasonryWall } from './buildMasonryWall';
+import { transformPointByPlacement, quaternionToYaw } from './internal/WallPlacement';
+import { MaterialManager } from './internal/MaterialManager';
 import type {
   Position,
   Bounds3D,
@@ -27,19 +29,14 @@ import type {
   BuildMasonryWallParams,
   WallParams,
   OpeningParams,
-  ModelParams
+  ModelParams,
+  QuaternionLike
 } from './types';
 
 const TYPE_ID = 'SOLID_WALL';
 const EXPANSION_FACTOR = { x: 0.1, y: 0.05, z: 0.3 };
 
-/** Quaternion { x, y, z, w } for rotation from IFC */
-export interface QuaternionLike {
-  x: number;
-  y: number;
-  z: number;
-  w: number;
-}
+export type { QuaternionLike };
 
 /** Opening data extractable from IFC */
 export interface IFCOpening {
@@ -68,13 +65,10 @@ export interface CreateInstanceParams {
   taskIds?: string[];
   /** Build params for geometry; required when not using IFC */
   buildParams?: BuildMasonryWallParams;
-}
-
-function quaternionToYaw(q: QuaternionLike): number {
-  const { x, y, z, w } = q;
-  const siny = 2 * (w * y - z * x);
-  const cosy = 1 - 2 * (x * x + y * y);
-  return Math.atan2(siny, cosy);
+  /** Seed to select material family (brick-ceramic, brick-concrete, etc.); applied before build */
+  materialSeed?: number;
+  /** When true, sample getStochasticParams() and apply deltas to dimensions (one sample per build) */
+  applyStochastic?: boolean;
 }
 
 function hashGlobalId(globalId: string): string {
@@ -83,6 +77,77 @@ function hashGlobalId(globalId: string): string {
     h = ((h << 5) - h + globalId.charCodeAt(i)) | 0;
   }
   return `solid-wall-${Math.abs(h).toString(36)}`;
+}
+
+function sampleNormal(mean: number, stdDev: number): number {
+  const u1 = Math.random();
+  const u2 = Math.random();
+  const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  return mean + stdDev * z;
+}
+
+function sampleUniform(min: number, max: number): number {
+  return min + Math.random() * (max - min);
+}
+
+/** Sample getStochasticParams() once and add deltas to buildParams.wall dimensions. */
+function applyStochasticToBuildParams(buildParams: BuildMasonryWallParams): void {
+  const params = getStochasticParams();
+  const wall = buildParams.wall;
+  const byName: Record<string, number> = {};
+  for (const p of params) {
+    if (p.distribution === 'normal') {
+      byName[p.name] = sampleNormal(p.mean, p.stdDev);
+    } else if (p.distribution === 'uniform') {
+      const half = (p.stdDev * 2) / 2;
+      byName[p.name] = sampleUniform(p.mean - half, p.mean + half);
+    }
+  }
+  if (byName['thickness_tolerance'] != null) wall.size.l += byName['thickness_tolerance'];
+  if (byName['height_tolerance'] != null) wall.size.h += byName['height_tolerance'];
+  if (byName['mortar_joint_thickness'] != null) wall.cementThickness += byName['mortar_joint_thickness'];
+  if (byName['alignment_deviation'] != null) {
+    wall.placement.position.x += byName['alignment_deviation'];
+    wall.placement.position.z += byName['alignment_deviation'] * 0.5;
+  }
+  if (wall.blockSize && byName['height_tolerance'] != null) {
+    wall.blockSize.h += byName['height_tolerance'] * 0.1;
+  }
+}
+
+/** Apply material family (main + finish) to MaterialManager before build. */
+function applyMaterialSelection(main: MaterialId, _finish?: MaterialId): void {
+  const mm = MaterialManager.getInstance();
+  switch (main) {
+    case 'brick-ceramic':
+      mm.setBrickColor(0xC45C3E);
+      mm.setDarkBrickColor(0x8B3A2A);
+      mm.setCementColor(0xC0C0B8);
+      mm.setLintelColor(0xE5E5E5);
+      mm.setInfillColor(0xB0B0A8);
+      break;
+    case 'brick-concrete':
+      mm.setBrickColor(0x6B6B6B);
+      mm.setDarkBrickColor(0x4A4A4A);
+      mm.setCementColor(0x9E9E9E);
+      mm.setLintelColor(0x808080);
+      mm.setInfillColor(0x757575);
+      break;
+    case 'concrete-cast':
+    case 'concrete-precast':
+      mm.setBrickColor(0x8C8C8C);
+      mm.setDarkBrickColor(0x6E6E6E);
+      mm.setCementColor(0x9E9E9E);
+      mm.setLintelColor(0x8C8C8C);
+      mm.setInfillColor(0x7A7A7A);
+      break;
+    default:
+      mm.setBrickColor(0xC45C3E);
+      mm.setDarkBrickColor(0x8B3A2A);
+      mm.setCementColor(0xC0C0B8);
+      mm.setLintelColor(0xE5E5E5);
+      mm.setInfillColor(0xB0B0A8);
+  }
 }
 
 function createEmptySolidWallUserData(overrides?: Partial<SolidWallUserData>): SolidWallUserData {
@@ -214,6 +279,18 @@ export function createInstance(
     return empty;
   }
 
+  const idForMaterials =
+    params?.id ??
+    (fromIFC && ifcElement?.globalId ? hashGlobalId(ifcElement.globalId) : null) ??
+    undefined;
+  if (params?.materialSeed != null) {
+    const selected = selectMaterials(params.materialSeed, idForMaterials);
+    applyMaterialSelection(selected.main, selected.finish);
+  }
+  if (params?.applyStochastic) {
+    applyStochasticToBuildParams(buildParams);
+  }
+
   const group = buildMasonryWall(buildParams);
   const ud = group.userData as SolidWallUserData;
   const wall = buildParams.wall;
@@ -268,10 +345,17 @@ export function getExpandedOpeningBoundingBoxes(instance: SolidWallInstance): Bo
   return (instance.userData.bounds as WallBounds).openingsExpanded ?? [];
 }
 
-// ----- Centroide (local; transform to world in adapter if needed) -----
+// ----- Centroide (local; transform to world via getCentroidWorld) -----
 
 export function getCentroid(instance: SolidWallInstance): Position {
   return (instance.userData.modelParams as SolidWallUserData['modelParams']).centroid;
+}
+
+/** Centroide em coordenadas de mundo (placement aplicado). */
+export function getCentroidWorld(instance: SolidWallInstance): Position {
+  const centroid = (instance.userData.modelParams as SolidWallUserData['modelParams']).centroid;
+  const placement = (instance.userData.wall as WallParams).placement;
+  return transformPointByPlacement(centroid, placement);
 }
 
 // ----- Key points (full set with semantic IDs per §7) -----
@@ -304,6 +388,17 @@ export function getKeyPoints(instance: SolidWallInstance): KeyPointsMap {
   });
 
   return map as KeyPointsMap;
+}
+
+/** Key points em coordenadas de mundo (placement aplicado a cada ponto). */
+export function getKeyPointsWorld(instance: SolidWallInstance): KeyPointsMap {
+  const localMap = getKeyPoints(instance);
+  const placement = (instance.userData.wall as WallParams).placement;
+  const worldMap: Partial<KeyPointsMap> = {};
+  for (const [id, pos] of Object.entries(localMap)) {
+    worldMap[id as KeyPointId] = transformPointByPlacement(pos, placement);
+  }
+  return worldMap as KeyPointsMap;
 }
 
 // ----- Type-level: dependency rules (static) -----

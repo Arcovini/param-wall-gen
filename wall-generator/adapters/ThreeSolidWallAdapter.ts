@@ -35,16 +35,43 @@ export function updateInstance(
       });
     }
     if (sv.property === 'visibleHeight') {
-      (group.userData as Record<string, unknown>).visibleHeight = sv.value;
-      // TODO: apply horizontal clipPlane at y = visibleHeight when render path supports it
+      const value = typeof sv.value === 'number' ? sv.value : parseFloat(String(sv.value));
+      (group.userData as Record<string, unknown>).visibleHeight = value;
+      const plane =
+        value > 0
+          ? new THREE.Plane(new THREE.Vector3(0, -1, 0), -value)
+          : null;
+      group.traverse((obj) => {
+        if ((obj as THREE.Mesh).isMesh && (obj as THREE.Mesh).material) {
+          const mat = (obj as THREE.Mesh).material as THREE.Material;
+          const materials = Array.isArray(mat) ? mat : [mat];
+          materials.forEach((m) => {
+            if ('clippingPlanes' in m) {
+              (m as THREE.Material & { clippingPlanes?: THREE.Plane[] }).clippingPlanes = plane ? [plane] : [];
+              (m as THREE.Material & { clipIntersection?: boolean }).clipIntersection = false;
+              if ('needsUpdate' in m) (m as THREE.Material & { needsUpdate?: boolean }).needsUpdate = true;
+            }
+          });
+        }
+      });
     }
-    if (sv.property === 'highlightColor' || sv.property === 'outlineColor') {
-      (group.userData as Record<string, unknown>)[sv.property] = sv.value;
-      // TODO: apply via material.emissive or outline pass
+    if (sv.property === 'highlightColor') {
+      (group.userData as Record<string, unknown>).highlightColor = sv.value;
+      const hex = typeof sv.value === 'number' ? sv.value : parseHex(String(sv.value));
+      const intensity = 0.25;
+      group.traverse((obj) => {
+        if ((obj as THREE.Mesh).isMesh && (obj as THREE.Mesh).material) {
+          const mat = (obj as THREE.Mesh).material as THREE.Material;
+          const materials = Array.isArray(mat) ? mat : [mat];
+          materials.forEach((m) => applyEmissive(m, hex, intensity));
+        }
+      });
+    }
+    if (sv.property === 'outlineColor') {
+      (group.userData as Record<string, unknown>).outlineColor = sv.value;
     }
     if (sv.property === 'outlineWidth') {
       (group.userData as Record<string, unknown>).outlineWidth = sv.value;
-      // TODO: apply via outline pass
     }
   }
 }
@@ -53,6 +80,20 @@ function setOpacity(mat: THREE.Material, value: number): void {
   mat.opacity = value;
   mat.transparent = value < 1;
   if ('needsUpdate' in mat) (mat as THREE.Material & { needsUpdate?: boolean }).needsUpdate = true;
+}
+
+function parseHex(str: string): number {
+  if (str.startsWith('#')) str = str.slice(1);
+  return parseInt(str, 16);
+}
+
+function applyEmissive(mat: THREE.Material, hex: number, intensity: number): void {
+  const m = mat as THREE.MeshStandardMaterial;
+  if (m.emissive != null) {
+    m.emissive.setHex(hex);
+    m.emissiveIntensity = intensity;
+    if ('needsUpdate' in m) (m as THREE.Material & { needsUpdate?: boolean }).needsUpdate = true;
+  }
 }
 
 /**

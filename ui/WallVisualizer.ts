@@ -134,25 +134,17 @@ export class WallVisualizer {
   }
 
   /**
-   * Adds four corner keypoint markers (small spheres) as children of wallGroup. Uses getKeyPoints (local space).
+   * Adds keypoint markers (small spheres) for all keypoints from getKeyPoints (9 fixed + OPENING_CENTER_n). Local space.
    */
   static addKeypointsMarkers(wallGroup: THREE.Group): void {
     const kp = getKeyPoints(wallGroup as unknown as SolidWallInstance);
     const color = 0x00ffff;
     const geometry = new THREE.SphereGeometry(0.04, 12, 12);
     const material = new THREE.MeshBasicMaterial({ color });
-    const points = [
-      kp.CORNER_BOTTOM_LEFT,
-      kp.CORNER_TOP_LEFT,
-      kp.CORNER_BOTTOM_RIGHT,
-      kp.CORNER_TOP_RIGHT
-    ] as const;
-    const names = ['DebugKP_BL', 'DebugKP_TL', 'DebugKP_BR', 'DebugKP_TR'] as const;
-    for (let i = 0; i < points.length; i++) {
-      const p = points[i];
+    for (const [id, pos] of Object.entries(kp)) {
       const m = new THREE.Mesh(geometry.clone(), material.clone());
-      m.position.set(p.x, p.y, p.z);
-      m.name = names[i];
+      m.position.set(pos.x, pos.y, pos.z);
+      m.name = `DebugKP_${id}`;
       wallGroup.add(m);
     }
   }

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { Placement, Position } from '../types';
+import type { Placement, Position, QuaternionLike } from '../types';
 
 /**
  * Converts degrees to radians
@@ -8,13 +8,26 @@ export function degreesToRadians(degrees: number): number {
   return degrees * (Math.PI / 180);
 }
 
+/** Yaw (radians) from quaternion (Y-up rotation). */
+export function quaternionToYaw(q: QuaternionLike): number {
+  const { x, y, z, w } = q;
+  const siny = 2 * (w * y - z * x);
+  const cosy = 1 - 2 * (x * x + y * y);
+  return Math.atan2(siny, cosy);
+}
+
+/** Yaw in radians from placement: from rotation if present, else direction.yaw. */
+export function getPlacementYaw(placement: Placement): number {
+  return placement.rotation != null ? quaternionToYaw(placement.rotation) : placement.direction.yaw;
+}
+
 /**
  * Transforms a point from local space to world space using placement (position + yaw around Y).
  * Used to compute world AABBs for bounds.
  */
 export function transformPointByPlacement(local: Position, placement: Placement): Position {
-  const { position, direction } = placement;
-  const yaw = direction.yaw;
+  const { position } = placement;
+  const yaw = getPlacementYaw(placement);
   const cos = Math.cos(yaw);
   const sin = Math.sin(yaw);
   // Y-up: rotate (x, z) by yaw around Y

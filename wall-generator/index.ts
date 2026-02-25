@@ -32,7 +32,9 @@ export {
   getOpeningBoundingBoxes,
   getExpandedOpeningBoundingBoxes,
   getCentroid,
+  getCentroidWorld,
   getKeyPoints,
+  getKeyPointsWorld,
   getPhysicalDependencyRules,
   getSimulationConfig,
   getStochasticParams,
@@ -49,6 +51,7 @@ export { updateInstance, dispose } from './adapters/ThreeSolidWallAdapter';
 export type {
   Position,
   Direction,
+  QuaternionLike,
   Placement,
   Size,
   MaterialConfig,

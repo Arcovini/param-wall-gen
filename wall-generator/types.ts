@@ -13,11 +13,16 @@ export type Position = { x: number; y: number; z: number };
 /** Direction/rotation (yaw in radians) */
 export type Direction = { yaw: number };
 
+/** Quaternion { x, y, z, w } for rotation (e.g. from IFC) */
+export type QuaternionLike = { x: number; y: number; z: number; w: number };
+
 /** Hierarchical placement with parent reference */
 export type Placement = {
   parent: Placement | null;
   position: Position;
   direction: Direction;
+  /** When set, yaw is derived from this for transforms; takes precedence over direction.yaw */
+  rotation?: QuaternionLike;
 };
 
 /** 3D dimensions: length, width, height (meters) */
@@ -90,6 +95,8 @@ export interface ModelParams {
   isCollidable: boolean;
   roles: ModelRole[];
   keypoints: Keypoints;
+  /** Full keypoints map (9 fixed + OPENING_CENTER_n) when set by builder */
+  keypointsFull?: KeyPointsMap;
   centroid: Position;
 }
 

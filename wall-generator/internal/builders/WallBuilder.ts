@@ -9,15 +9,14 @@
  */
 
 import * as THREE from 'three';
-import type { BuildMasonryWallParams, OpeningBoundsForRow } from '../../types';
-import type { WallBounds } from '../../types';
+import type { BuildMasonryWallParams, OpeningBoundsForRow, WallBounds, KeyPointsMap, Position } from '../../types';
 import { WallManager } from '../WallManager';
 import { OpeningGenerator, type OpeningData, snapToRowBoundaries } from '../OpeningGenerator';
 import { InfillGenerator } from '../InfillGenerator';
 import { RowGenerator } from '../RowGenerator';
 import { cutOpenings } from '../processing/OpeningCutter';
 import { MaterialManager } from '../MaterialManager';
-import { localAABBToWorld } from '../WallPlacement';
+import { localAABBToWorld, getPlacementYaw } from '../WallPlacement';
 
 // Singleton WallManager instance (reuses textures/materials)
 const wallManagerInstance = new WallManager();
@@ -95,7 +94,7 @@ export class WallBuilder {
     this.ctx.positionX = wall.placement.position.x;
     this.ctx.positionY = wall.placement.position.y;
     this.ctx.positionZ = wall.placement.position.z;
-    this.ctx.yawDegrees = wall.placement.direction.yaw * (180 / Math.PI);
+    this.ctx.yawDegrees = getPlacementYaw(wall.placement) * (180 / Math.PI);
 
     this.ctx.totalRows = Math.floor(this.ctx.wallHeight / (this.ctx.blockHeight + this.ctx.cementThickness));
     this.ctx.visibleRows = Math.floor(this.ctx.totalRows * Math.max(0, Math.min(1, task.completion)));
@@ -331,11 +330,32 @@ export class WallBuilder {
     };
     const centroid = { x: w / 2, y: wallHeight / 2, z: z0 };
 
+    const keypointsFull: Record<string, Position> = {
+      CORNER_BOTTOM_LEFT: { x: 0, y: 0, z: z0 },
+      CORNER_BOTTOM_RIGHT: { x: w, y: 0, z: z0 },
+      CORNER_TOP_LEFT: { x: 0, y: wallHeight, z: z0 },
+      CORNER_TOP_RIGHT: { x: w, y: wallHeight, z: z0 },
+      CENTER_FACE_FRONT: { x: w / 2, y: wallHeight / 2, z: 0 },
+      CENTER_FACE_BACK: { x: w / 2, y: wallHeight / 2, z: this.ctx.wallLength },
+      MID_BASE: { x: w / 2, y: 0, z: halfL },
+      MID_TOP: { x: w / 2, y: wallHeight, z: halfL }
+    };
+    const openingsList = this.params.openings || [];
+    openingsList.forEach((op, i) => {
+      const pos = op.placement.position;
+      keypointsFull[`OPENING_CENTER_${i}`] = {
+        x: pos.x + w / 2,
+        y: pos.y + wallHeight / 2,
+        z: halfL
+      };
+    });
+
     const modelParams = {
       isWalkable: false,
       isCollidable: true,
       roles: ['COLLIDABLE', 'REFERENCE'] as const,
       keypoints,
+      keypointsFull: keypointsFull as KeyPointsMap,
       centroid
     };
 

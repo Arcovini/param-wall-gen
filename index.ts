@@ -626,7 +626,7 @@ function init(): void {
       return; // Exit early for block/row views
     }
 
-    // WALL VIEW and WALL OUTPUT VIEW (both use buildMasonryWall)
+    // WALL VIEW and WALL OUTPUT VIEW (both use createInstance)
     // Both modes use all user parameters, but wall-output shows only the exported THREE.Group
 
     /**

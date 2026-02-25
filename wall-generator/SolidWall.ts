@@ -69,6 +69,8 @@ export interface CreateInstanceParams {
   materialSeed?: number;
   /** When true, sample getStochasticParams() and apply deltas to dimensions (one sample per build) */
   applyStochastic?: boolean;
+  /** Completion 0..1; overrides task.completion when creating from IFC (e.g. mock). Ignored when using buildParams. */
+  completion?: number;
 }
 
 function hashGlobalId(globalId: string): string {
@@ -291,8 +293,13 @@ export function createInstance(
     applyStochasticToBuildParams(buildParams);
   }
 
+  if (params?.completion != null) {
+    buildParams.task = { ...buildParams.task, completion: Math.max(0, Math.min(1, params.completion)) };
+  }
+
   const group = buildMasonryWall(buildParams);
   const ud = group.userData as SolidWallUserData;
+  ud.objectType = 'SolidWall';
   const wall = buildParams.wall;
   const task = buildParams.task;
   const completion = Math.max(0, Math.min(1, task.completion));
@@ -307,8 +314,8 @@ export function createInstance(
     id,
     typeId: params?.typeId ?? TYPE_ID,
     ifcGlobalId: fromIFC ? ifcGlobalId : params?.ifcGlobalId,
-    constructionState: fromIFC ? 'PROJECTED' : completionToConstructionState(completion),
-    completionPercentage: fromIFC ? 0 : completion * 100,
+    constructionState: completionToConstructionState(completion),
+    completionPercentage: completion * 100,
     taskIds: params?.taskIds ?? [],
     position: position ?? wall.placement.position,
     rotation: fromIFC ? rotation : undefined

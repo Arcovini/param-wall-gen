@@ -2,12 +2,14 @@
  * wall-generator - Parametric Masonry Wall Generator
  *
  * A standalone module for generating 3D parametric masonry walls with THREE.js.
+ * Public entry point: {@link createInstance}.
  *
  * @example
  * ```typescript
- * import { buildMasonryWall } from './wall-generator';
+ * import { createInstance } from './wall-generator';
+ * import type { BuildMasonryWallParams } from './wall-generator';
  *
- * const wallGroup = buildMasonryWall({
+ * const buildParams: BuildMasonryWallParams = {
  *   wall: {
  *     placement: { parent: null, position: { x: 0, y: 0, z: 0 }, direction: { yaw: 0 } },
  *     size: { l: 0.2, w: 3, h: 2 },
@@ -16,13 +18,12 @@
  *   },
  *   openings: [],
  *   task: { completion: 1.0 }
- * });
+ * };
+ *
+ * const wallGroup = createInstance(undefined, { buildParams });
  * scene.add(wallGroup);
  * ```
  */
-
-// ===== Public API =====
-export { buildMasonryWall } from './buildMasonryWall';
 
 // ===== Solid Wall API (wall-solid.md) =====
 export {

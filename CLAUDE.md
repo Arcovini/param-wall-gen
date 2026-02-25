@@ -40,7 +40,7 @@ buildMasonryWall(params)
 
 ### Core Components
 
-- **`buildMasonryWall.ts`** - Main API entry point, accepts `BuildMasonryWallParams` and returns `THREE.Group`
+- **`buildMasonryWall.ts`** - Internal geometry builder, accepts `BuildMasonryWallParams` and returns `THREE.Group` (not exported publicly; called by `createInstance`)
 - **`index.ts`** - Application initialization, wires SceneRenderer + UIController + UploadConfiguration
 - **`core/SceneRenderer.ts`** - Three.js scene/camera/renderer/post-processing management
 - **`ui/`** - UI controllers and utilities (see UI Components section below)
@@ -99,7 +99,9 @@ buildMasonryWall(params)
 - ✅ Added multi-opening safety checks to prevent block extension conflicts
 - ✅ Added wall top cap showing brick+cement pattern at top of completed wall (RowGenerator.createWallTopCap)
 - ✅ Fixed lintel visibility check to use snapped bounds instead of original opening parameters
-- ✅ Removed `actualWallWidth`/`actualWallHeight` and `pivotOffset` from returned group's `userData`; single API function is `buildMasonryWall(params)`; test app computes actual dimensions locally for placeholders.
+- ✅ Removed `actualWallWidth`/`actualWallHeight` and `pivotOffset` from returned group's `userData`; test app computes actual dimensions locally for placeholders.
+- ✅ Privatized `buildMasonryWall` (no longer exported from `wall-generator/index.ts`); single public entry point is `createInstance(ifcElement?, params?)`.
+- ✅ Fixed `objectType` consistency: `createInstance` now always sets `objectType: 'SolidWall'` (previously builds returned `'MasonryWall'` from builder while empty returns used `'SolidWall'`).
 
 ### Remaining
 
@@ -115,7 +117,7 @@ buildMasonryWall(params)
 - **Wall pivot**: Walls are shifted to bottom-left corner as origin point
 - **JSON Config**: Wall configurations can be imported/exported via `core/UploadConfiguration.ts`
 - **Bounds-clamping**: Row geometry fits exactly within `wallWidth` by clamping block positions to wall bounds and creating partial blocks at edges. No CSG intersection needed for wall width.
-- **Returned group `userData`**: Public API fields: `objectType`, `wall`, `openings`, `task`, `modelParams` (isWalkable, isCollidable, roles, keypoints, centroid), `bounds` (completed, execution, openings, openingsExpanded — all AABBs in world coordinates). Single public function is `buildMasonryWall(params)`. Local convention: origin at bottom-left; keypoints and centroid on plane z=0.
+- **Returned group `userData`**: Public API fields: `objectType` (`'SolidWall'`), `id`, `typeId`, `constructionState`, `completionPercentage`, `taskIds`, `wall`, `openings`, `task`, `modelParams` (isWalkable, isCollidable, roles, keypoints, centroid), `bounds` (completed, execution, openings, openingsExpanded — all AABBs in world coordinates). Single public entry point is `createInstance(ifcElement?, params?)`; `buildMasonryWall` is internal. Local convention: origin at bottom-left; keypoints and centroid on plane z=0.
 
 ## Solid Wall API (wall-solid.md)
 

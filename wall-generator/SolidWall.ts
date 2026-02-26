@@ -65,12 +65,25 @@ export interface CreateInstanceParams {
   taskIds?: string[];
   /** Build params for geometry; required when not using IFC */
   buildParams?: BuildMasonryWallParams;
-  /** Seed to select material family (brick-ceramic, brick-concrete, etc.); applied before build */
+  /** Main material preset (brick-ceramic, brick-concrete, etc.). When set, this preset is applied; takes precedence over materialSeed and id-based selection. */
+  mainMaterialId?: MaterialId;
+  /** Finish material preset (mortar-finish, plaster-finish). Optional; used by applyMaterialSelection when supported. */
+  finishMaterialId?: MaterialId;
+  /** Seed to select material family when mainMaterialId is not set; applied before build. */
   materialSeed?: number;
   /** When true, sample getStochasticParams() and apply deltas to dimensions (one sample per build) */
   applyStochastic?: boolean;
   /** Completion 0..1; overrides task.completion when creating from IFC (e.g. mock). Ignored when using buildParams. */
   completion?: number;
+}
+
+/** Preset colors in #RRGGBB for UI (e.g. color inputs). */
+export interface MaterialPresetColors {
+  brick: string;
+  darkBrick: string;
+  cement: string;
+  lintel: string;
+  infill: string;
 }
 
 function hashGlobalId(globalId: string): string {
@@ -285,10 +298,21 @@ export function createInstance(
     params?.id ??
     (fromIFC && ifcElement?.globalId ? hashGlobalId(ifcElement.globalId) : null) ??
     undefined;
-  if (params?.materialSeed != null) {
+
+  if (params?.mainMaterialId != null) {
+    applyMaterialSelection(params.mainMaterialId, params.finishMaterialId);
+  } else if (params?.materialSeed != null) {
     const selected = selectMaterials(params.materialSeed, idForMaterials);
     applyMaterialSelection(selected.main, selected.finish);
+  } else {
+    const elementId =
+      idForMaterials ??
+      (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `wall-${Date.now()}`);
+    const seed = simpleHash(elementId);
+    const selected = selectMaterials(seed, elementId);
+    applyMaterialSelection(selected.main, selected.finish);
   }
+
   if (params?.applyStochastic) {
     applyStochasticToBuildParams(buildParams);
   }
@@ -366,32 +390,42 @@ export function getCentroidWorld(instance: SolidWallInstance): Position {
 }
 
 // ----- Key points (full set with semantic IDs per §7) -----
+// All keypoints are in local space with origin at wall centroid (same as geometry and placement).
 
 export function getKeyPoints(instance: SolidWallInstance): KeyPointsMap {
+  const modelParams = instance.userData.modelParams as SolidWallUserData['modelParams'] | undefined;
+  if (modelParams?.keypointsFull != null) {
+    return modelParams.keypointsFull;
+  }
+
+  // Fallback when instance has no built geometry (e.g. params-only): compute in center space.
   const wall = instance.userData.wall as WallParams;
   const openings = (instance.userData.openings as OpeningParams[]) ?? [];
   const length = wall.size.w;
   const height = wall.size.h;
   const thickness = wall.size.l;
+  const halfW = length / 2;
+  const halfH = height / 2;
   const halfL = thickness / 2;
 
   const map: Partial<KeyPointsMap> = {
-    CORNER_BOTTOM_LEFT: { x: 0, y: 0, z: 0 },
-    CORNER_BOTTOM_RIGHT: { x: length, y: 0, z: 0 },
-    CORNER_TOP_LEFT: { x: 0, y: height, z: 0 },
-    CORNER_TOP_RIGHT: { x: length, y: height, z: 0 },
-    CENTER_FACE_FRONT: { x: length / 2, y: height / 2, z: 0 },
-    CENTER_FACE_BACK: { x: length / 2, y: height / 2, z: thickness },
-    MID_BASE: { x: length / 2, y: 0, z: halfL },
-    MID_TOP: { x: length / 2, y: height, z: halfL }
+    CORNER_BOTTOM_LEFT: { x: -halfW, y: -halfH, z: 0 },
+    CORNER_BOTTOM_RIGHT: { x: halfW, y: -halfH, z: 0 },
+    CORNER_TOP_LEFT: { x: -halfW, y: halfH, z: 0 },
+    CORNER_TOP_RIGHT: { x: halfW, y: halfH, z: 0 },
+    CENTER_FACE_FRONT: { x: 0, y: 0, z: -halfL },
+    CENTER_FACE_BACK: { x: 0, y: 0, z: halfL },
+    MID_BASE: { x: 0, y: -halfH, z: halfL },
+    MID_TOP: { x: 0, y: halfH, z: halfL }
   };
 
-  const wallCenterY = height / 2;
-  const wallCenterX = length / 2;
   openings.forEach((op, i) => {
-    const cx = op.placement.position.x + wallCenterX;
-    const cy = op.placement.position.y + wallCenterY;
-    (map as Record<string, Position>)[`OPENING_CENTER_${i}`] = { x: cx, y: cy, z: halfL };
+    // op.placement.position is already relative to wall center
+    (map as Record<string, Position>)[`OPENING_CENTER_${i}`] = {
+      x: op.placement.position.x,
+      y: op.placement.position.y,
+      z: halfL
+    };
   });
 
   return map as KeyPointsMap;
@@ -458,6 +492,47 @@ export function selectMaterials(seed: number, elementId?: string): SelectedMater
   const main = MAIN_MATERIAL_IDS[n % MAIN_MATERIAL_IDS.length];
   const finish = FINISH_IDS[(n >> 16) % FINISH_IDS.length];
   return { main, finish };
+}
+
+/** Hex number to #RRGGBB string for HTML color inputs */
+function hexToHash(hex: number): string {
+  return '#' + hex.toString(16).padStart(6, '0');
+}
+
+/** Returns preset colors for a main material in #RRGGBB format (for UI). Same values as applyMaterialSelection. */
+export function getMaterialPresetColors(main: MaterialId): MaterialPresetColors {
+  switch (main) {
+    case 'brick-ceramic':
+      return {
+        brick: hexToHash(0xC45C3E),
+        darkBrick: hexToHash(0x8B3A2A),
+        cement: hexToHash(0xC0C0B8),
+        lintel: hexToHash(0xE5E5E5),
+        infill: hexToHash(0xB0B0A8)
+      };
+    case 'brick-concrete':
+      return {
+        brick: hexToHash(0x6B6B6B),
+        darkBrick: hexToHash(0x4A4A4A),
+        cement: hexToHash(0x9E9E9E),
+        lintel: hexToHash(0x808080),
+        infill: hexToHash(0x757575)
+      };
+    case 'concrete-cast':
+    case 'concrete-precast':
+      return {
+        brick: hexToHash(0x8C8C8C),
+        darkBrick: hexToHash(0x6E6E6E),
+        cement: hexToHash(0x9E9E9E),
+        lintel: hexToHash(0x8C8C8C),
+        infill: hexToHash(0x7A7A7A)
+      };
+    case 'mortar-finish':
+    case 'plaster-finish':
+      return getMaterialPresetColors('brick-ceramic');
+    default:
+      return getMaterialPresetColors('brick-ceramic');
+  }
 }
 
 // ----- handleTaskStateChange (§12) -----

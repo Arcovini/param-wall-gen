@@ -138,17 +138,19 @@ centroid: {
 
 ### Key points
 
-| ID | Semantic | Posição relativa |
-|----|----------|------------------|
-| `CORNER_BOTTOM_LEFT` | Canto inferior esquerdo | `(0, 0, 0)` |
-| `CORNER_BOTTOM_RIGHT` | Canto inferior direito | `(length, 0, 0)` |
-| `CORNER_TOP_LEFT` | Canto superior esquerdo | `(0, height, 0)` |
-| `CORNER_TOP_RIGHT` | Canto superior direito | `(length, height, 0)` |
-| `CENTER_FACE_FRONT` | Centro da face frontal | `(length/2, height/2, 0)` |
-| `CENTER_FACE_BACK` | Centro da face traseira | `(length/2, height/2, thickness)` |
-| `MID_BASE` | Ponto médio da base | `(length/2, 0, thickness/2)` |
-| `MID_TOP` | Ponto médio do topo | `(length/2, height, thickness/2)` |
-| `OPENING_CENTER_n` | Centro da abertura n | `(opening_n.center_x, opening_n.center_y, thickness/2)` |
+Posições em **espaço local com origem no centroide da parede** (centro em `(0, 0, 0)`; mesma convenção da geometria e do placement). Cantos em `±(length/2, height/2, 0)`; espessura em `z ∈ [-thickness/2, thickness/2]`.
+
+| ID | Semantic | Posição relativa (origem = centroide) |
+|----|----------|--------------------------------------|
+| `CORNER_BOTTOM_LEFT` | Canto inferior esquerdo | `(-length/2, -height/2, 0)` |
+| `CORNER_BOTTOM_RIGHT` | Canto inferior direito | `(length/2, -height/2, 0)` |
+| `CORNER_TOP_LEFT` | Canto superior esquerdo | `(-length/2, height/2, 0)` |
+| `CORNER_TOP_RIGHT` | Canto superior direito | `(length/2, height/2, 0)` |
+| `CENTER_FACE_FRONT` | Centro da face frontal | `(0, 0, -thickness/2)` |
+| `CENTER_FACE_BACK` | Centro da face traseira | `(0, 0, thickness/2)` |
+| `MID_BASE` | Ponto médio da base | `(0, -height/2, thickness/2)` |
+| `MID_TOP` | Ponto médio do topo | `(0, height/2, thickness/2)` |
+| `OPENING_CENTER_n` | Centro da abertura n | `(opening_n.position.x, opening_n.position.y, thickness/2)` — `position` já relativo ao centro |
 
 ---
 

@@ -93,11 +93,13 @@ const wallGroup = createInstance(ifcElement);
 | Campo | Tipo | Descrição |
 |-------|------|-----------|
 | `buildParams` | `BuildMasonryWallParams` | Parâmetros de geometria (obrigatório sem IFC) |
-| `id` | `string?` | ID da instância (auto-gerado se omitido) |
+| `id` | `string?` | ID da instância (auto-gerado se omitido); usado para derivar material quando não há `mainMaterialId` nem `materialSeed` |
 | `typeId` | `string?` | Tipo do elemento (default: `'SOLID_WALL'`) |
 | `ifcGlobalId` | `string?` | GlobalId IFC (preenchido automaticamente se via IFC) |
 | `taskIds` | `string[]?` | IDs de tarefas vinculadas |
-| `materialSeed` | `number?` | Seed para seleção de material |
+| `mainMaterialId` | `MaterialId?` | Preset de material principal (brick-ceramic, brick-concrete, etc.). Precedência: mainMaterialId > materialSeed > id. |
+| `finishMaterialId` | `MaterialId?` | Preset de acabamento (mortar-finish, plaster-finish) |
+| `materialSeed` | `number?` | Seed para seleção de material (usado quando `mainMaterialId` não está definido) |
 | `applyStochastic` | `boolean?` | Aplicar variação estocástica às dimensões |
 | `completion` | `number?` | Override do progresso (0–1) |
 
@@ -124,6 +126,7 @@ Todas aceitam `SolidWallInstance` (qualquer objeto com `userData: SolidWallUserD
 | `getSimulationConfig()` | `SimulationConfig` | Configuração de simulação (roles, walkable, collidable) |
 | `getStochasticParams()` | `StochasticParamDef[]` | Parâmetros estocásticos (tolerâncias, rugosidade) |
 | `selectMaterials(seed, elementId?)` | `SelectedMaterials` | Seleção determinística de material por seed |
+| `getMaterialPresetColors(main)` | `MaterialPresetColors` | Cores do preset em #RRGGBB (brick, darkBrick, cement, lintel, infill) para UI |
 
 ### Estado de tarefa
 

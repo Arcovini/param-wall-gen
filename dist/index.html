@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Three.js Cube - Isometric View</title>
-  <script type="module" crossorigin src="/assets/index-CXeVmEAd.js"></script>
+  <script type="module" crossorigin src="/assets/index-DkNJqdcx.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/index-Ck4H81R6.css">
 </head>
 
@@ -158,6 +158,23 @@
 
         <!-- Wall-specific material controls -->
         <div id="wall-materials-controls">
+          <div class="control-group">
+            <label for="material-preset-select">Material preset</label>
+            <select id="material-preset-select" style="width: 100%; padding: 5px; border-radius: 4px; border: 1px solid #ccc; background: white; font-size: 14px;">
+              <option value="auto">Auto (por ID)</option>
+              <option value="brick-ceramic">Tijolo cerâmico</option>
+              <option value="brick-concrete">Bloco de concreto</option>
+              <option value="concrete-cast">Concreto moldado in-loco</option>
+              <option value="concrete-precast">Concreto pré-moldado</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="wall-id-input">Wall ID</label>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <input type="text" id="wall-id-input" readonly style="flex: 1; padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-size: 12px; font-family: monospace;">
+              <button type="button" id="wall-id-randomize-btn" class="test-button" style="white-space: nowrap;">Randomize ID</button>
+            </div>
+          </div>
           <div class="control-group">
             <label for="brick-color">Brick Color</label>
             <input type="color" id="brick-color" value="#c45c3e">

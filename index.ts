@@ -16,10 +16,11 @@ import {
   createInstance,
   getCompletedBoundingBox,
   getExecutionStateBoundingBox,
-  getOpeningBoundingBoxes,
-  getExpandedOpeningBoundingBoxes
+  getExpandedOpeningBoundingBoxes,
+  getMaterialPresetColors,
+  getOpeningBoundingBoxes
 } from './wall-generator';
-import type { SolidWallInstance } from './wall-generator';
+import type { MaterialId, SolidWallInstance } from './wall-generator';
 import { buildColumn } from './column-generator';
 import { buildBeam } from './beam-generator';
 import { WallVisualizer } from './ui/WallVisualizer';
@@ -287,7 +288,10 @@ function init(): void {
     });
   }
 
-  // Wire up material color controls
+  // Wire up material color controls and preset / wall id
+  const materialPresetSelect = document.getElementById('material-preset-select') as HTMLSelectElement;
+  const wallIdInput = document.getElementById('wall-id-input') as HTMLInputElement;
+  const wallIdRandomizeBtn = document.getElementById('wall-id-randomize-btn') as HTMLButtonElement;
   const brickColorInput = document.getElementById('brick-color') as HTMLInputElement;
   const brickColorSigmaInput = document.getElementById('brick-color-sigma') as HTMLInputElement;
   const darkBrickColorInput = document.getElementById('dark-brick-color') as HTMLInputElement;
@@ -296,6 +300,37 @@ function init(): void {
   const lintelColorSigmaInput = document.getElementById('lintel-color-sigma') as HTMLInputElement;
   const infillColorInput = document.getElementById('infill-color') as HTMLInputElement;
   const infillColorSigmaInput = document.getElementById('infill-color-sigma') as HTMLInputElement;
+
+  // Initialize Wall ID (so "Auto" material has a stable id to derive from)
+  if (wallIdInput && !wallIdInput.value) {
+    wallIdInput.value =
+      (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : null) ??
+      `wall-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  }
+
+  // Material preset change: overwrite color inputs with preset values, then rebuild
+  materialPresetSelect?.addEventListener('change', () => {
+    const preset = materialPresetSelect.value;
+    if (preset !== 'auto') {
+      const colors = getMaterialPresetColors(preset as MaterialId);
+      if (brickColorInput) brickColorInput.value = colors.brick;
+      if (darkBrickColorInput) darkBrickColorInput.value = colors.darkBrick;
+      if (cementColorInput) cementColorInput.value = colors.cement;
+      if (lintelColorInput) lintelColorInput.value = colors.lintel;
+      if (infillColorInput) infillColorInput.value = colors.infill;
+    }
+    updateWall();
+  });
+
+  // Randomize Wall ID: new id and rebuild (when preset is "Auto", material will change)
+  wallIdRandomizeBtn?.addEventListener('click', () => {
+    if (wallIdInput) {
+      wallIdInput.value =
+        (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : null) ??
+        `wall-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      updateWall();
+    }
+  });
 
   // Column-specific color controls
   const columnColorInput = document.getElementById('column-color') as HTMLInputElement;
@@ -692,7 +727,13 @@ function init(): void {
     };
 
     // Generate new wall (Solid Wall API: createInstance fills id, typeId, constructionState, completionPercentage, taskIds)
-    currentWallGroup = createInstance(undefined, { buildParams });
+    const materialPreset = materialPresetSelect?.value ?? 'auto';
+    const wallId = wallIdInput?.value?.trim() || undefined;
+    currentWallGroup = createInstance(undefined, {
+      buildParams,
+      id: wallId,
+      mainMaterialId: materialPreset !== 'auto' ? (materialPreset as MaterialId) : undefined
+    });
 
     // Apply current wireframe state to the new wall
     if (uiController.getWireframeEnabled()) {

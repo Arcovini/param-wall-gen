@@ -40,11 +40,12 @@ export {
   getSimulationConfig,
   getStochasticParams,
   selectMaterials,
+  getMaterialPresetColors,
   handleTaskStateChange,
   EXPANSION_FACTOR,
   TYPE_ID
 } from './SolidWall';
-export type { IFCProjectElement, CreateInstanceParams } from './SolidWall';
+export type { IFCProjectElement, CreateInstanceParams, MaterialPresetColors } from './SolidWall';
 
 export { updateInstance, dispose } from './adapters/ThreeSolidWallAdapter';
 

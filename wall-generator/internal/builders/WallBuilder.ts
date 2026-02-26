@@ -296,56 +296,43 @@ export class WallBuilder {
     return this;
   }
 
-  /** Step 6: Shift geometry to bottom-left pivot point */
-  shiftToBottomLeftPivot(): this {
-    if (!this.ctx.wallGroup) return this;
-
-    const halfWidth = this.ctx.wallWidth / 2;
-    const halfHeight = this.ctx.wallHeight / 2;
-
-    this.ctx.wallGroup.children.forEach(child => {
-      if (child instanceof THREE.Mesh || child instanceof THREE.Group) {
-        child.position.x += halfWidth;
-        child.position.y += halfHeight;
-      }
-    });
-    return this;
-  }
-
-  /** Step 7: Add metadata to wall group (modelParams, bounds) */
+  /** Step 6: Add metadata to wall group (modelParams, bounds). Origin is at centroid. */
   addMetadata(): this {
     if (!this.ctx.wallGroup) return this;
 
     const w = this.ctx.wallWidth;
     const wallHeight = this.ctx.wallHeight; // completed wall height (100%)
     const actualWallHeight = this.ctx.actualWallHeight; // execution height
+    const halfW = w / 2;
+    const halfH = wallHeight / 2;
     const halfL = this.ctx.wallLength / 2;
     const z0 = 0;
 
+    // Origin at centroid; keypoints in local (center) space
     const keypoints = {
-      bottomLeft: { x: 0, y: 0, z: z0 },
-      topLeft: { x: 0, y: wallHeight, z: z0 },
-      bottomRight: { x: w, y: 0, z: z0 },
-      topRight: { x: w, y: wallHeight, z: z0 }
+      bottomLeft: { x: -halfW, y: -halfH, z: z0 },
+      topLeft: { x: -halfW, y: halfH, z: z0 },
+      bottomRight: { x: halfW, y: -halfH, z: z0 },
+      topRight: { x: halfW, y: halfH, z: z0 }
     };
-    const centroid = { x: w / 2, y: wallHeight / 2, z: z0 };
+    const centroid = { x: 0, y: 0, z: z0 };
 
     const keypointsFull: Record<string, Position> = {
-      CORNER_BOTTOM_LEFT: { x: 0, y: 0, z: z0 },
-      CORNER_BOTTOM_RIGHT: { x: w, y: 0, z: z0 },
-      CORNER_TOP_LEFT: { x: 0, y: wallHeight, z: z0 },
-      CORNER_TOP_RIGHT: { x: w, y: wallHeight, z: z0 },
-      CENTER_FACE_FRONT: { x: w / 2, y: wallHeight / 2, z: 0 },
-      CENTER_FACE_BACK: { x: w / 2, y: wallHeight / 2, z: this.ctx.wallLength },
-      MID_BASE: { x: w / 2, y: 0, z: halfL },
-      MID_TOP: { x: w / 2, y: wallHeight, z: halfL }
+      CORNER_BOTTOM_LEFT: { x: -halfW, y: -halfH, z: z0 },
+      CORNER_BOTTOM_RIGHT: { x: halfW, y: -halfH, z: z0 },
+      CORNER_TOP_LEFT: { x: -halfW, y: halfH, z: z0 },
+      CORNER_TOP_RIGHT: { x: halfW, y: halfH, z: z0 },
+      CENTER_FACE_FRONT: { x: 0, y: 0, z: -halfL },
+      CENTER_FACE_BACK: { x: 0, y: 0, z: halfL },
+      MID_BASE: { x: 0, y: -halfH, z: halfL },
+      MID_TOP: { x: 0, y: halfH, z: halfL }
     };
     const openingsList = this.params.openings || [];
     openingsList.forEach((op, i) => {
-      const pos = op.placement.position;
+      const pos = op.placement.position; // already relative to wall center
       keypointsFull[`OPENING_CENTER_${i}`] = {
-        x: pos.x + w / 2,
-        y: pos.y + wallHeight / 2,
+        x: pos.x,
+        y: pos.y,
         z: halfL
       };
     });
@@ -360,9 +347,9 @@ export class WallBuilder {
     };
 
     const wallPlacement = this.params.wall.placement;
-    const completedLocalMin = { x: 0, y: 0, z: -halfL };
-    const completedLocalMax = { x: w, y: this.ctx.wallHeight, z: halfL };
-    const executionLocalMax = { x: w, y: actualWallHeight, z: halfL };
+    const completedLocalMin = { x: -halfW, y: -halfH, z: -halfL };
+    const completedLocalMax = { x: halfW, y: halfH, z: halfL };
+    const executionLocalMax = { x: halfW, y: -halfH + actualWallHeight, z: halfL };
 
     const bounds: WallBounds = {
       completed: localAABBToWorld(completedLocalMin, completedLocalMax, wallPlacement),
@@ -375,16 +362,15 @@ export class WallBuilder {
     const openings = this.params.openings || [];
     for (const opening of openings) {
       const s = opening.size;
-      const pos = opening.placement.position; // relative to wall center
+      const pos = opening.placement.position; // relative to wall center (origin = centroid)
       const halfL2 = s.l / 2;
       const halfH = s.h / 2;
-      const halfW = s.w / 2;
-      // Convert opening center from wall-center space to group local (bottom-left origin)
-      const centerX = pos.x + w / 2;
-      const centerY = pos.y + wallHeight / 2;
+      const halfWOpening = s.w / 2;
+      const centerX = pos.x;
+      const centerY = pos.y;
       const centerZ = pos.z;
-      const openMin = { x: centerX - halfL2, y: centerY - halfH, z: centerZ - halfW };
-      const openMax = { x: centerX + halfL2, y: centerY + halfH, z: centerZ + halfW };
+      const openMin = { x: centerX - halfL2, y: centerY - halfH, z: centerZ - halfWOpening };
+      const openMax = { x: centerX + halfL2, y: centerY + halfH, z: centerZ + halfWOpening };
       bounds.openings.push(localAABBToWorld(openMin, openMax, wallPlacement));
       const expMin = {
         x: openMin.x - expansionFactor.x,

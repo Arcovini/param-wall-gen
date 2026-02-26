@@ -33,7 +33,6 @@ buildMasonryWall(params)
   .addInfill()
   .createOpenings()
   .applyCsgOperations()
-  .shiftToBottomLeftPivot()
   .addMetadata()
   .build();
 ```
@@ -114,10 +113,10 @@ buildMasonryWall(params)
 
 - **CSG Library**: Uses `three-bvh-csg` for boolean operations (not ThreeCSG or other alternatives)
 - **Post-processing**: Uses `postprocessing` library with N8AO ambient occlusion (`n8ao` package)
-- **Wall pivot**: Walls are shifted to bottom-left corner as origin point
+- **Wall origin**: Group origin is at the wall centroid (center); geometry is built in center space
 - **JSON Config**: Wall configurations can be imported/exported via `core/UploadConfiguration.ts`
 - **Bounds-clamping**: Row geometry fits exactly within `wallWidth` by clamping block positions to wall bounds and creating partial blocks at edges. No CSG intersection needed for wall width.
-- **Returned group `userData`**: Public API fields: `objectType` (`'SolidWall'`), `id`, `typeId`, `constructionState`, `completionPercentage`, `taskIds`, `wall`, `openings`, `task`, `modelParams` (isWalkable, isCollidable, roles, keypoints, centroid), `bounds` (completed, execution, openings, openingsExpanded — all AABBs in world coordinates). Single public entry point is `createInstance(ifcElement?, params?)`; `buildMasonryWall` is internal. Local convention: origin at bottom-left; keypoints and centroid on plane z=0.
+- **Returned group `userData`**: Public API fields: `objectType` (`'SolidWall'`), `id`, `typeId`, `constructionState`, `completionPercentage`, `taskIds`, `wall`, `openings`, `task`, `modelParams` (isWalkable, isCollidable, roles, keypoints, centroid), `bounds` (completed, execution, openings, openingsExpanded — all AABBs in world coordinates). Single public entry point is `createInstance(ifcElement?, params?)`; `buildMasonryWall` is internal. Local convention: origin at centroid; keypoints and bounds in center space (e.g. corners at ±halfWidth, ±halfHeight).
 
 ## Solid Wall API (wall-solid.md)
 

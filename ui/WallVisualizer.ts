@@ -47,13 +47,12 @@ export class WallVisualizer {
     height: number,
     length: number
   ): void {
-    // Center of box is at (width/2, height/2, 0) relative to bottom-left pivot
+    // Box and pivot centered at origin (centroid)
     const mesh = this.createPlaceholderMesh(width, height, length, 0xffff00, 0.5);
-    mesh.position.set(width / 2, height / 2, 0);
+    mesh.position.set(0, 0, 0);
     mesh.name = 'TargetWallPlaceholder';
     wallGroup.add(mesh);
 
-    // Add pivot point indicator at the bottom-left corner
     const pivotIndicator = this.createPivotIndicator();
     pivotIndicator.position.set(0, 0, 0);
     wallGroup.add(pivotIndicator);
@@ -74,9 +73,8 @@ export class WallVisualizer {
       return;
     }
 
-    // Center of box is at (actualWidth/2, actualHeight/2, 0)
     const mesh = this.createPlaceholderMesh(actualWidth, actualHeight, targetLength, 0x00ff00, 0.5);
-    mesh.position.set(actualWidth / 2, actualHeight / 2, 0);
+    mesh.position.set(0, 0, 0);
     mesh.name = 'ActualWallPlaceholder';
 
     wallGroup.add(mesh);

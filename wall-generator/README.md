@@ -165,6 +165,10 @@ Todas aceitam `SolidWallInstance` (qualquer objeto com `userData: SolidWallUserD
 | `TYPE_ID` | `'SOLID_WALL'` | Identificador do tipo de elemento |
 | `EXPANSION_FACTOR` | `{ x: 0.1, y: 0.05, z: 0.3 }` | Fator de expansão para AABBs de abertura |
 
+## Origem local (pivot)
+
+O `THREE.Group` da parede tem **origem no centroide** (centro da parede). Todas as coordenadas em `keypoints`, `keypointsFull`, `centroid` e os AABBs em espaço local são relativas a esse centro. Ex.: cantos em `±(largura/2, altura/2, 0)`.
+
 ## Estrutura do `userData`
 
 O `THREE.Group` retornado por `createInstance` contém em `userData`:
@@ -174,7 +178,7 @@ O `THREE.Group` retornado por `createInstance` contém em `userData`:
   objectType: 'SolidWall';
   id: string;
   typeId: string;                     // 'SOLID_WALL'
-  ifcGlobalId?: string;
+  ifcGlobalId?: string; 
   position: Position;
   rotation: { x, y, z, w };          // Quaternion
   wall: WallParams;
@@ -184,7 +188,7 @@ O `THREE.Group` retornado por `createInstance` contém em `userData`:
     isWalkable: boolean;
     isCollidable: boolean;
     roles: ['COLLIDABLE', 'REFERENCE'];
-    keypoints: Keypoints;             // 4 cantos no plano z=0
+    keypoints: Keypoints;             // 4 cantos no plano z=0 (espaço centro)
     keypointsFull: KeyPointsMap;      // 9 pontos fixos + OPENING_CENTER_n
     centroid: Position;
   };

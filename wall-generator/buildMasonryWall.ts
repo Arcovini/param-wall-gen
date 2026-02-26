@@ -29,7 +29,6 @@ export function buildMasonryWall(params: BuildMasonryWallParams): THREE.Group {
     .addInfill()
     .createOpenings()
     .applyCsgOperations()
-    .shiftToBottomLeftPivot()
     .addMetadata()
     .build();
 }

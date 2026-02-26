@@ -7,9 +7,9 @@ import { SRGBColorSpace } from 'three';
  */
 export class MaterialManager {
   private static instance: MaterialManager;
-  private static readonly DEFAULT_BRICK_COLOR = 0xC45C3E;
-  private static readonly DEFAULT_DARK_BRICK_COLOR = 0x8B3A2A; // Darker/burnt brick color
-  private static readonly DEFAULT_CEMENT_COLOR = 0xC0C0B8;
+  private static readonly DEFAULT_BRICK_COLOR = 0xE7A976;
+  private static readonly DEFAULT_DARK_BRICK_COLOR = 0xC87C4A; // Darker/burnt brick color
+  private static readonly DEFAULT_CEMENT_COLOR = 0x6C6C6B;
   private static readonly DEFAULT_LINTEL_COLOR = 0xE5E5E5;
   private static readonly DEFAULT_INFILL_COLOR = 0xB0B0A8;
   private static readonly DARK_BRICK_RATIO = 0.15; // Fixed at 15% of bricks are dark

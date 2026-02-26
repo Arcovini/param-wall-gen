@@ -196,8 +196,6 @@ export type KeyPointsMap = Record<KeyPointId, Position>;
 export type MaterialId =
   | 'brick-ceramic'
   | 'brick-concrete'
-  | 'concrete-cast'
-  | 'concrete-precast'
   | 'mortar-finish'
   | 'plaster-finish';
 

@@ -77,13 +77,19 @@ export interface CreateInstanceParams {
   completion?: number;
 }
 
-/** Preset colors in #RRGGBB for UI (e.g. color inputs). */
+/** Default color variation sigma for all presets (brick, lintel, infill). */
+export const DEFAULT_PRESET_SIGMA = 0.2;
+
+/** Preset colors in #RRGGBB for UI (e.g. color inputs), plus optional sigma for variation. */
 export interface MaterialPresetColors {
   brick: string;
   darkBrick: string;
   cement: string;
   lintel: string;
   infill: string;
+  brickSigma: number;
+  lintelSigma: number;
+  infillSigma: number;
 }
 
 function hashGlobalId(globalId: string): string {
@@ -135,31 +141,23 @@ function applyMaterialSelection(main: MaterialId, _finish?: MaterialId): void {
   const mm = MaterialManager.getInstance();
   switch (main) {
     case 'brick-ceramic':
-      mm.setBrickColor(0xC45C3E);
-      mm.setDarkBrickColor(0x8B3A2A);
-      mm.setCementColor(0xC0C0B8);
+      mm.setBrickColor(0xE7A976);
+      mm.setDarkBrickColor(0xC87C4A);
+      mm.setCementColor(0x6C6C6B);
       mm.setLintelColor(0xE5E5E5);
       mm.setInfillColor(0xB0B0A8);
       break;
     case 'brick-concrete':
-      mm.setBrickColor(0x6B6B6B);
-      mm.setDarkBrickColor(0x4A4A4A);
-      mm.setCementColor(0x9E9E9E);
+      mm.setBrickColor(0xCFCFCF);
+      mm.setDarkBrickColor(0x9D9D9D);
+      mm.setCementColor(0x6F6F6F);
       mm.setLintelColor(0x808080);
       mm.setInfillColor(0x757575);
       break;
-    case 'concrete-cast':
-    case 'concrete-precast':
-      mm.setBrickColor(0x8C8C8C);
-      mm.setDarkBrickColor(0x6E6E6E);
-      mm.setCementColor(0x9E9E9E);
-      mm.setLintelColor(0x8C8C8C);
-      mm.setInfillColor(0x7A7A7A);
-      break;
     default:
-      mm.setBrickColor(0xC45C3E);
-      mm.setDarkBrickColor(0x8B3A2A);
-      mm.setCementColor(0xC0C0B8);
+      mm.setBrickColor(0xE7A976);
+      mm.setDarkBrickColor(0xC87C4A);
+      mm.setCementColor(0x6C6C6B);
       mm.setLintelColor(0xE5E5E5);
       mm.setInfillColor(0xB0B0A8);
   }
@@ -475,7 +473,7 @@ export function getStochasticParams(): StochasticParamDef[] {
 
 // ----- Materials: select by seed (§9) -----
 
-const MAIN_MATERIAL_IDS: MaterialId[] = ['brick-ceramic', 'brick-concrete', 'concrete-cast', 'concrete-precast'];
+const MAIN_MATERIAL_IDS: MaterialId[] = ['brick-ceramic', 'brick-concrete'];
 const FINISH_IDS: MaterialId[] = ['mortar-finish', 'plaster-finish'];
 
 function simpleHash(str: string): number {
@@ -499,33 +497,28 @@ function hexToHash(hex: number): string {
   return '#' + hex.toString(16).padStart(6, '0');
 }
 
-/** Returns preset colors for a main material in #RRGGBB format (for UI). Same values as applyMaterialSelection. */
+const PRESET_SIGMA = { brickSigma: DEFAULT_PRESET_SIGMA, lintelSigma: DEFAULT_PRESET_SIGMA, infillSigma: DEFAULT_PRESET_SIGMA };
+
+/** Returns preset colors for a main material in #RRGGBB format (for UI). Same values as applyMaterialSelection. Sigma 0.2 for variation. */
 export function getMaterialPresetColors(main: MaterialId): MaterialPresetColors {
   switch (main) {
     case 'brick-ceramic':
       return {
-        brick: hexToHash(0xC45C3E),
-        darkBrick: hexToHash(0x8B3A2A),
-        cement: hexToHash(0xC0C0B8),
+        brick: hexToHash(0xE7A976),
+        darkBrick: hexToHash(0xC87C4A),
+        cement: hexToHash(0x6C6C6B),
         lintel: hexToHash(0xE5E5E5),
-        infill: hexToHash(0xB0B0A8)
+        infill: hexToHash(0xB0B0A8),
+        ...PRESET_SIGMA
       };
     case 'brick-concrete':
       return {
-        brick: hexToHash(0x6B6B6B),
-        darkBrick: hexToHash(0x4A4A4A),
-        cement: hexToHash(0x9E9E9E),
+        brick: hexToHash(0xCFCFCF),
+        darkBrick: hexToHash(0x9D9D9D),
+        cement: hexToHash(0x6F6F6F),
         lintel: hexToHash(0x808080),
-        infill: hexToHash(0x757575)
-      };
-    case 'concrete-cast':
-    case 'concrete-precast':
-      return {
-        brick: hexToHash(0x8C8C8C),
-        darkBrick: hexToHash(0x6E6E6E),
-        cement: hexToHash(0x9E9E9E),
-        lintel: hexToHash(0x8C8C8C),
-        infill: hexToHash(0x7A7A7A)
+        infill: hexToHash(0x757575),
+        ...PRESET_SIGMA
       };
     case 'mortar-finish':
     case 'plaster-finish':

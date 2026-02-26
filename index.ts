@@ -308,7 +308,7 @@ function init(): void {
       `wall-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
   }
 
-  // Material preset change: overwrite color inputs with preset values, then rebuild
+  // Material preset change: overwrite color and sigma inputs with preset values, then rebuild
   materialPresetSelect?.addEventListener('change', () => {
     const preset = materialPresetSelect.value;
     if (preset !== 'auto') {
@@ -318,6 +318,9 @@ function init(): void {
       if (cementColorInput) cementColorInput.value = colors.cement;
       if (lintelColorInput) lintelColorInput.value = colors.lintel;
       if (infillColorInput) infillColorInput.value = colors.infill;
+      if (brickColorSigmaInput) brickColorSigmaInput.value = String(colors.brickSigma);
+      if (lintelColorSigmaInput) lintelColorSigmaInput.value = String(colors.lintelSigma);
+      if (infillColorSigmaInput) infillColorSigmaInput.value = String(colors.infillSigma);
     }
     updateWall();
   });

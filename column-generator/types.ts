@@ -191,12 +191,14 @@ export interface IFCColumnElement {
   rotation?: QuaternionLike;
 }
 
-/** Params override when creating instance (e.g. from IFC) */
+/** Params for createInstance. All column fields are optional overrides when IFC is provided; without IFC, column (with placement, size) is required. */
 export interface CreateColumnInstanceParams {
   id?: string;
   typeId?: string;
   ifcGlobalId?: string;
   taskIds?: string[];
-  buildParams?: BuildColumnParams;
-  completion?: number; // 0..1, overrides task when creating from IFC
+  /** Column geometry. Required without IFC (must include placement, size). With IFC, acts as partial override. */
+  column?: Partial<ColumnParams>;
+  /** Construction completion 0..1 (0 = projected, 1 = complete). Defaults to 0. */
+  completion?: number;
 }

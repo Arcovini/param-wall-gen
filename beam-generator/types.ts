@@ -183,12 +183,14 @@ export interface IFCBeamElement {
   rotation?: QuaternionLike;
 }
 
-/** Params override when creating instance (e.g. from IFC) */
+/** Params for createInstance. All beam fields are optional overrides when IFC is provided; without IFC, beam (with placement, size) is required. */
 export interface CreateBeamInstanceParams {
   id?: string;
   typeId?: string;
   ifcGlobalId?: string;
   taskIds?: string[];
-  buildParams?: BuildBeamParams;
-  completion?: number; // 0..1, overrides task when creating from IFC
+  /** Beam geometry. Required without IFC (must include placement, size). With IFC, acts as partial override. */
+  beam?: Partial<BeamParams>;
+  /** Construction completion 0..1 (0 = projected, 1 = complete). Defaults to 0. */
+  completion?: number;
 }

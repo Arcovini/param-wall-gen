@@ -122,41 +122,53 @@ export function createInstance(
   let position: Position | undefined;
   let rotation: QuaternionLike | undefined;
 
-  if (ifcElement != null) {
-    if (ifcElement.ifcType !== 'IfcColumn') {
-      const empty = new THREE.Group();
-      empty.name = 'SolidColumn_Empty';
-      empty.userData = createEmptySolidColumnUserData();
-      return empty;
-    }
-    buildParams = ifcColumnToBuildParams(ifcElement);
-    if (!buildParams) {
-      const empty = new THREE.Group();
-      empty.name = 'SolidColumn_Empty';
-      empty.userData = createEmptySolidColumnUserData();
-      return empty;
-    }
-    fromIFC = true;
-    ifcGlobalId = ifcElement.globalId;
-    position = ifcElement.position;
-    rotation = ifcElement.rotation;
-  } else {
-    buildParams = params?.buildParams ?? null;
-  }
-
-  if (!buildParams) {
+  const emptyResult = (): THREE.Group => {
     const empty = new THREE.Group();
     empty.name = 'SolidColumn_Empty';
     empty.userData = createEmptySolidColumnUserData();
     return empty;
+  };
+
+  if (ifcElement != null) {
+    // --- IFC path: extract base, then apply overrides ---
+    if (ifcElement.ifcType !== 'IfcColumn') return emptyResult();
+    buildParams = ifcColumnToBuildParams(ifcElement);
+    if (!buildParams) return emptyResult();
+
+    fromIFC = true;
+    ifcGlobalId = ifcElement.globalId;
+    position = ifcElement.position;
+    rotation = ifcElement.rotation;
+
+    if (params?.column) {
+      const ov = params.column;
+      if (ov.placement) buildParams.column.placement = ov.placement;
+      if (ov.size) buildParams.column.size = ov.size;
+      if (ov.material) buildParams.column.material = ov.material;
+      if (ov.placement) {
+        position = ov.placement.position;
+        rotation = undefined;
+      }
+    }
+  } else {
+    // --- Manual path: assemble from flat params ---
+    const columnPartial = params?.column;
+    if (!columnPartial?.placement || !columnPartial?.size) {
+      return emptyResult();
+    }
+    const column: ColumnParams = {
+      placement: columnPartial.placement,
+      size: columnPartial.size,
+      ...(columnPartial.material ? { material: columnPartial.material } : {})
+    };
+    buildParams = { column, task: { completion: 0 } };
   }
 
-  if (params?.completion != null) {
-    buildParams = {
-      ...buildParams,
-      task: { completion: Math.max(0, Math.min(1, params.completion)) }
-    };
-  }
+  // Apply completion
+  const clampedCompletion = params?.completion != null
+    ? Math.max(0, Math.min(1, params.completion))
+    : buildParams.task?.completion ?? 0;
+  buildParams = { ...buildParams, task: { completion: clampedCompletion } };
 
   const group = buildColumn(buildParams);
   const ud = group.userData as SolidColumnUserData;

@@ -21,14 +21,10 @@ import { createInstance as createColumnInstance } from './column-generator';
 import { createInstance as createBeamInstance } from './beam-generator';
 import { WallVisualizer } from './ui/WallVisualizer';
 import type { BuildMasonryWallParams, ExtractedWall } from './types';
-import type { BuildColumnParams } from './column-generator';
-import type { BuildBeamParams } from './beam-generator';
+import type { ColumnParams } from './column-generator';
+import type { BeamParams } from './beam-generator';
 
 const DEGREES_TO_RADIANS = Math.PI / 180;
-
-// ===== TYPE RE-EXPORTS =====
-// Re-export types for external consumption
-export type { BuildMasonryWallParams };
 
 // ===== SINGLETON INSTANCES =====
 let sceneRenderer: SceneRenderer | null = null;
@@ -575,33 +571,31 @@ function init(): void {
     if (generatorMode === 'column') {
       const columnParams = uiController.getColumnParams();
 
-      const buildParams: BuildColumnParams = {
-        column: {
-          size: {
-            l: columnParams.depth,   // Depth (front-to-back)
-            w: columnParams.width,   // Width (left-to-right)
-            h: columnParams.height   // Height (bottom-to-top)
+      const columnDef: ColumnParams = {
+        size: {
+          l: columnParams.depth,   // Depth (front-to-back)
+          w: columnParams.width,   // Width (left-to-right)
+          h: columnParams.height   // Height (bottom-to-top)
+        },
+        placement: {
+          parent: null,
+          position: {
+            x: columnParams.positionX,
+            y: columnParams.positionY,
+            z: columnParams.positionZ
           },
-          placement: {
-            parent: null,
-            position: {
-              x: columnParams.positionX,
-              y: columnParams.positionY,
-              z: columnParams.positionZ
-            },
-            direction: { yaw: columnParams.yawDegrees * DEGREES_TO_RADIANS }
-          },
-          material: {
-            color: columnColorInput?.value,
-            colorSigma: parseFloat(columnColorSigmaInput?.value) || 0,
-            texture: columnTextureSelect?.value || undefined,
-            textureRepeatX: parseFloat(columnTextureRepeatXInput?.value) || 1,
-            textureRepeatY: parseFloat(columnTextureRepeatYInput?.value) || 1
-          }
+          direction: { yaw: columnParams.yawDegrees * DEGREES_TO_RADIANS }
+        },
+        material: {
+          color: columnColorInput?.value,
+          colorSigma: parseFloat(columnColorSigmaInput?.value) || 0,
+          texture: columnTextureSelect?.value || undefined,
+          textureRepeatX: parseFloat(columnTextureRepeatXInput?.value) || 1,
+          textureRepeatY: parseFloat(columnTextureRepeatYInput?.value) || 1
         }
       };
 
-      currentWallGroup = createColumnInstance(undefined, { buildParams });
+      currentWallGroup = createColumnInstance(undefined, { column: columnDef });
 
       if (uiController.getWireframeEnabled()) {
         SceneUtils.setWireframeMode(currentWallGroup, true);
@@ -616,33 +610,31 @@ function init(): void {
     if (generatorMode === 'beam') {
       const beamParams = uiController.getBeamParams();
 
-      const buildParams: BuildBeamParams = {
-        beam: {
-          size: {
-            l: beamParams.depth,
-            w: beamParams.width,
-            h: beamParams.height
+      const beamDef: BeamParams = {
+        size: {
+          l: beamParams.depth,
+          w: beamParams.width,
+          h: beamParams.height
+        },
+        placement: {
+          parent: null,
+          position: {
+            x: beamParams.positionX,
+            y: beamParams.positionY,
+            z: beamParams.positionZ
           },
-          placement: {
-            parent: null,
-            position: {
-              x: beamParams.positionX,
-              y: beamParams.positionY,
-              z: beamParams.positionZ
-            },
-            direction: { yaw: beamParams.yawDegrees * DEGREES_TO_RADIANS }
-          },
-          material: {
-            color: beamColorInput?.value,
-            colorSigma: parseFloat(beamColorSigmaInput?.value) || 0,
-            texture: beamTextureSelect?.value || undefined,
-            textureRepeatX: parseFloat(beamTextureRepeatXInput?.value) || 1,
-            textureRepeatY: parseFloat(beamTextureRepeatYInput?.value) || 1
-          }
+          direction: { yaw: beamParams.yawDegrees * DEGREES_TO_RADIANS }
+        },
+        material: {
+          color: beamColorInput?.value,
+          colorSigma: parseFloat(beamColorSigmaInput?.value) || 0,
+          texture: beamTextureSelect?.value || undefined,
+          textureRepeatX: parseFloat(beamTextureRepeatXInput?.value) || 1,
+          textureRepeatY: parseFloat(beamTextureRepeatYInput?.value) || 1
         }
       };
 
-      currentWallGroup = createBeamInstance(undefined, { buildParams });
+      currentWallGroup = createBeamInstance(undefined, { beam: beamDef });
 
       if (uiController.getWireframeEnabled()) {
         SceneUtils.setWireframeMode(currentWallGroup, true);

@@ -1,7 +1,7 @@
 /**
  * beam-generator - Public API
  *
- * Main entry point: createInstance. buildBeam is available for advanced use.
+ * Public entry point: {@link createInstance}.
  */
 
 // ===== Solid Beam API =====
@@ -23,9 +23,6 @@ export type { IFCBeamElement, CreateBeamInstanceParams } from './types';
 
 export { updateInstance, dispose } from './adapters/ThreeSolidBeamAdapter';
 
-// ===== Low-level build (advanced use) =====
-export { buildBeam } from './buildBeam';
-
 // ===== Public Types =====
 export type {
   Position,
@@ -36,7 +33,6 @@ export type {
   BeamMaterialConfig,
   BeamParams,
   TaskParams,
-  BuildBeamParams,
   Bounds3D,
   BeamBounds,
   ConstructionState,

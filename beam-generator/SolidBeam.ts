@@ -122,41 +122,53 @@ export function createInstance(
   let position: Position | undefined;
   let rotation: QuaternionLike | undefined;
 
-  if (ifcElement != null) {
-    if (ifcElement.ifcType !== 'IfcBeam') {
-      const empty = new THREE.Group();
-      empty.name = 'SolidBeam_Empty';
-      empty.userData = createEmptySolidBeamUserData();
-      return empty;
-    }
-    buildParams = ifcBeamToBuildParams(ifcElement);
-    if (!buildParams) {
-      const empty = new THREE.Group();
-      empty.name = 'SolidBeam_Empty';
-      empty.userData = createEmptySolidBeamUserData();
-      return empty;
-    }
-    fromIFC = true;
-    ifcGlobalId = ifcElement.globalId;
-    position = ifcElement.position;
-    rotation = ifcElement.rotation;
-  } else {
-    buildParams = params?.buildParams ?? null;
-  }
-
-  if (!buildParams) {
+  const emptyResult = (): THREE.Group => {
     const empty = new THREE.Group();
     empty.name = 'SolidBeam_Empty';
     empty.userData = createEmptySolidBeamUserData();
     return empty;
+  };
+
+  if (ifcElement != null) {
+    // --- IFC path: extract base, then apply overrides ---
+    if (ifcElement.ifcType !== 'IfcBeam') return emptyResult();
+    buildParams = ifcBeamToBuildParams(ifcElement);
+    if (!buildParams) return emptyResult();
+
+    fromIFC = true;
+    ifcGlobalId = ifcElement.globalId;
+    position = ifcElement.position;
+    rotation = ifcElement.rotation;
+
+    if (params?.beam) {
+      const ov = params.beam;
+      if (ov.placement) buildParams.beam.placement = ov.placement;
+      if (ov.size) buildParams.beam.size = ov.size;
+      if (ov.material) buildParams.beam.material = ov.material;
+      if (ov.placement) {
+        position = ov.placement.position;
+        rotation = undefined;
+      }
+    }
+  } else {
+    // --- Manual path: assemble from flat params ---
+    const beamPartial = params?.beam;
+    if (!beamPartial?.placement || !beamPartial?.size) {
+      return emptyResult();
+    }
+    const beam: BeamParams = {
+      placement: beamPartial.placement,
+      size: beamPartial.size,
+      ...(beamPartial.material ? { material: beamPartial.material } : {})
+    };
+    buildParams = { beam, task: { completion: 0 } };
   }
 
-  if (params?.completion != null) {
-    buildParams = {
-      ...buildParams,
-      task: { completion: Math.max(0, Math.min(1, params.completion)) }
-    };
-  }
+  // Apply completion
+  const clampedCompletion = params?.completion != null
+    ? Math.max(0, Math.min(1, params.completion))
+    : buildParams.task?.completion ?? 0;
+  buildParams = { ...buildParams, task: { completion: clampedCompletion } };
 
   const group = buildBeam(buildParams);
   const ud = group.userData as SolidBeamUserData;

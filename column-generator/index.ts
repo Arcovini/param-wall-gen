@@ -1,7 +1,7 @@
 /**
  * column-generator - Public API
  *
- * Main entry point: createInstance. buildColumn is available for advanced use.
+ * Public entry point: {@link createInstance}.
  */
 
 // ===== Solid Column API =====
@@ -23,9 +23,6 @@ export type { IFCColumnElement, CreateColumnInstanceParams } from './types';
 
 export { updateInstance, dispose } from './adapters/ThreeSolidColumnAdapter';
 
-// ===== Low-level build (advanced use) =====
-export { buildColumn } from './buildColumn';
-
 // ===== Public Types =====
 export type {
   Position,
@@ -36,7 +33,6 @@ export type {
   ColumnMaterialConfig,
   ColumnParams,
   TaskParams,
-  BuildColumnParams,
   Bounds3D,
   ColumnBounds,
   ConstructionState,

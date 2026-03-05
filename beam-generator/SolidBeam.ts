@@ -1,52 +1,52 @@
 /**
- * Solid Column API
+ * Solid Beam API
  *
- * Type-level and instance methods for SOLID_COLUMN element type.
- * Mirrors the wall-generator Solid Wall API style.
+ * Type-level and instance methods for SOLID_BEAM element type.
+ * Mirrors the column-generator Solid Column API style.
  */
 
 import * as THREE from 'three';
-import { buildColumn } from './buildColumn';
-import { transformPointByPlacement, quaternionToYaw, localAABBToWorld } from './internal/ColumnPlacement';
+import { buildBeam } from './buildBeam';
+import { transformPointByPlacement, quaternionToYaw, localAABBToWorld } from './internal/BeamPlacement';
 import type {
   Position,
   Bounds3D,
-  ColumnBounds,
-  ColumnKeyPointsMap,
-  SolidColumnUserData,
-  SolidColumnInstance,
+  BeamBounds,
+  BeamKeyPointsMap,
+  SolidBeamUserData,
+  SolidBeamInstance,
   TaskState,
   ElementStyleUpdate,
   ConstructionState,
   SimulationConfig,
   PhysicalDependencyRule,
   StochasticParamDef,
-  BuildColumnParams,
-  ColumnParams,
+  BuildBeamParams,
+  BeamParams,
   ModelParams,
-  IFCColumnElement,
-  CreateColumnInstanceParams,
+  IFCBeamElement,
+  CreateBeamInstanceParams,
   QuaternionLike
 } from './types';
 
-const TYPE_ID = 'SOLID_COLUMN';
+const TYPE_ID = 'SOLID_BEAM';
 
 function hashGlobalId(globalId: string): string {
   let h = 0;
   for (let i = 0; i < globalId.length; i++) {
     h = ((h << 5) - h + globalId.charCodeAt(i)) | 0;
   }
-  return `solid-column-${Math.abs(h).toString(36)}`;
+  return `solid-beam-${Math.abs(h).toString(36)}`;
 }
 
-function createEmptySolidColumnUserData(overrides?: Partial<SolidColumnUserData>): SolidColumnUserData {
-  const emptyBounds: ColumnBounds = {
+function createEmptySolidBeamUserData(overrides?: Partial<SolidBeamUserData>): SolidBeamUserData {
+  const emptyBounds: BeamBounds = {
     completed: { min: { x: 0, y: 0, z: 0 }, max: { x: 0, y: 0, z: 0 } },
     execution: { min: { x: 0, y: 0, z: 0 }, max: { x: 0, y: 0, z: 0 } }
   };
   return {
-    objectType: 'SolidColumn',
-    column: {} as ColumnParams,
+    objectType: 'SolidBeam',
+    beam: {} as BeamParams,
     task: { completion: 0 },
     modelParams: {
       isWalkable: false,
@@ -63,19 +63,19 @@ function createEmptySolidColumnUserData(overrides?: Partial<SolidColumnUserData>
   };
 }
 
-/** Map IFC element to BuildColumnParams */
-function ifcColumnToBuildParams(ifc: IFCColumnElement): BuildColumnParams | null {
+/** Map IFC element to BuildBeamParams */
+function ifcBeamToBuildParams(ifc: IFCBeamElement): BuildBeamParams | null {
   const w = ifc.width ?? ifc.length ?? 0;
   const h = ifc.height ?? 0;
   const l = ifc.length ?? ifc.width ?? 0;
   if (w <= 0 || h <= 0 || l <= 0) return null;
   const position = ifc.position ?? { x: 0, y: 0, z: 0 };
   const yaw = ifc.rotation != null ? quaternionToYaw(ifc.rotation) : 0;
-  const column: ColumnParams = {
+  const beam: BeamParams = {
     placement: { parent: null, position, direction: { yaw } },
     size: { l, w, h }
   };
-  return { column, task: { completion: 0 } };
+  return { beam, task: { completion: 0 } };
 }
 
 function completionToConstructionState(completion: number): ConstructionState {
@@ -85,7 +85,7 @@ function completionToConstructionState(completion: number): ConstructionState {
 }
 
 function fillInstanceUserData(
-  ud: SolidColumnUserData,
+  ud: SolidBeamUserData,
   opts: {
     id: string;
     typeId: string;
@@ -108,32 +108,32 @@ function fillInstanceUserData(
 }
 
 /**
- * createInstance — Factory: create Solid Column element.
- * With ifcElement: validates IfcColumn, extracts params, builds, sets PROJECTED, 0%, [].
+ * createInstance — Factory: create Solid Beam element.
+ * With ifcElement: validates IfcBeam, extracts params, builds, sets PROJECTED, 0%, [].
  * Without IFC: uses params.buildParams, derives state from task.completion or params.completion.
  */
 export function createInstance(
-  ifcElement?: IFCColumnElement,
-  params?: CreateColumnInstanceParams
+  ifcElement?: IFCBeamElement,
+  params?: CreateBeamInstanceParams
 ): THREE.Group {
-  let buildParams: BuildColumnParams | null = null;
+  let buildParams: BuildBeamParams | null = null;
   let fromIFC = false;
   let ifcGlobalId: string | undefined;
   let position: Position | undefined;
   let rotation: QuaternionLike | undefined;
 
   if (ifcElement != null) {
-    if (ifcElement.ifcType !== 'IfcColumn') {
+    if (ifcElement.ifcType !== 'IfcBeam') {
       const empty = new THREE.Group();
-      empty.name = 'SolidColumn_Empty';
-      empty.userData = createEmptySolidColumnUserData();
+      empty.name = 'SolidBeam_Empty';
+      empty.userData = createEmptySolidBeamUserData();
       return empty;
     }
-    buildParams = ifcColumnToBuildParams(ifcElement);
+    buildParams = ifcBeamToBuildParams(ifcElement);
     if (!buildParams) {
       const empty = new THREE.Group();
-      empty.name = 'SolidColumn_Empty';
-      empty.userData = createEmptySolidColumnUserData();
+      empty.name = 'SolidBeam_Empty';
+      empty.userData = createEmptySolidBeamUserData();
       return empty;
     }
     fromIFC = true;
@@ -146,8 +146,8 @@ export function createInstance(
 
   if (!buildParams) {
     const empty = new THREE.Group();
-    empty.name = 'SolidColumn_Empty';
-    empty.userData = createEmptySolidColumnUserData();
+    empty.name = 'SolidBeam_Empty';
+    empty.userData = createEmptySolidBeamUserData();
     return empty;
   }
 
@@ -158,19 +158,20 @@ export function createInstance(
     };
   }
 
-  const group = buildColumn(buildParams);
-  const ud = group.userData as SolidColumnUserData;
-  ud.objectType = 'SolidColumn';
+  const group = buildBeam(buildParams);
+  const ud = group.userData as SolidBeamUserData;
+  ud.objectType = 'SolidBeam';
 
-  const column = buildParams.column;
+  const beam = buildParams.beam;
   const task = buildParams.task ?? { completion: 1 };
   const completion = Math.max(0, Math.min(1, task.completion));
 
-  const halfW = column.size.w / 2;
-  const halfH = column.size.h / 2;
-  const halfL = column.size.l / 2;
-
-  const centroid = { x: 0, y: 0, z: 0 };
+  // Beam group local space: origin at one end; box from (0,0,0) to (size.w, size.h, size.l)
+  const centroid = {
+    x: beam.size.w / 2,
+    y: beam.size.h / 2,
+    z: beam.size.l / 2
+  };
 
   const modelParams: ModelParams = {
     isWalkable: false,
@@ -180,17 +181,17 @@ export function createInstance(
     centroid
   };
 
-  const placement = column.placement;
-  const completedLocalMin = { x: -halfW, y: -halfH, z: -halfL };
-  const completedLocalMax = { x: halfW, y: halfH, z: halfL };
-  const executionLocalMax = { x: halfW, y: -halfH + column.size.h * completion, z: halfL };
+  const placement = beam.placement;
+  const localMin = { x: 0, y: 0, z: 0 };
+  const completedLocalMax = { x: beam.size.w, y: beam.size.h, z: beam.size.l };
+  const executionLocalMax = { x: beam.size.w, y: beam.size.h * completion, z: beam.size.l };
 
-  const bounds: ColumnBounds = {
-    completed: localAABBToWorld(completedLocalMin, completedLocalMax, placement),
-    execution: localAABBToWorld(completedLocalMin, executionLocalMax, placement)
+  const bounds: BeamBounds = {
+    completed: localAABBToWorld(localMin, completedLocalMax, placement),
+    execution: localAABBToWorld(localMin, executionLocalMax, placement)
   };
 
-  ud.column = column;
+  ud.beam = beam;
   ud.task = task;
   ud.modelParams = modelParams;
   ud.bounds = bounds;
@@ -199,7 +200,7 @@ export function createInstance(
     params?.id ??
     (fromIFC && ifcElement?.globalId ? hashGlobalId(ifcElement.globalId) : null) ??
     (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : null) ??
-    `solid-column-${Date.now()}`;
+    `solid-beam-${Date.now()}`;
 
   fillInstanceUserData(ud, {
     id,
@@ -208,12 +209,12 @@ export function createInstance(
     constructionState: completionToConstructionState(completion),
     completionPercentage: completion * 100,
     taskIds: params?.taskIds ?? [],
-    position: position ?? column.placement.position,
+    position: position ?? beam.placement.position,
     rotation: fromIFC ? rotation : undefined
   });
 
-  if (ud.rotation == null && column.placement.direction) {
-    const yaw = column.placement.direction.yaw;
+  if (ud.rotation == null && beam.placement.direction) {
+    const yaw = beam.placement.direction.yaw;
     ud.rotation = {
       x: 0,
       y: Math.sin(yaw / 2),
@@ -227,39 +228,39 @@ export function createInstance(
 
 // ----- Bounding boxes -----
 
-export function getCompletedBoundingBox(instance: SolidColumnInstance): Bounds3D {
-  return (instance.userData.bounds as ColumnBounds).completed;
+export function getCompletedBoundingBox(instance: SolidBeamInstance): Bounds3D {
+  return (instance.userData.bounds as BeamBounds).completed;
 }
 
-/** Not meaningful for SolidColumn; returns null and logs a warning. */
-export function getExecutionStateBoundingBox(_instance: SolidColumnInstance): Bounds3D | null {
-  console.warn('getExecutionStateBoundingBox is not supported for SolidColumn.');
+/** Not meaningful for SolidBeam; returns null and logs a warning. */
+export function getExecutionStateBoundingBox(_instance: SolidBeamInstance): Bounds3D | null {
+  console.warn('getExecutionStateBoundingBox is not supported for SolidBeam.');
   return null;
 }
 
 // ----- Centroid -----
 
-export function getCentroid(instance: SolidColumnInstance): Position {
-  return (instance.userData.modelParams as SolidColumnUserData['modelParams']).centroid;
+export function getCentroid(instance: SolidBeamInstance): Position {
+  return (instance.userData.modelParams as SolidBeamUserData['modelParams']).centroid;
 }
 
-export function getCentroidWorld(instance: SolidColumnInstance): Position {
-  const centroid = (instance.userData.modelParams as SolidColumnUserData['modelParams']).centroid;
-  const placement = (instance.userData.column as ColumnParams).placement;
+export function getCentroidWorld(instance: SolidBeamInstance): Position {
+  const centroid = (instance.userData.modelParams as SolidBeamUserData['modelParams']).centroid;
+  const placement = (instance.userData.beam as BeamParams).placement;
   return transformPointByPlacement(centroid, placement);
 }
 
-// ----- Key points (not meaningful for column; return null + warning) -----
+// ----- Key points (not meaningful for beam; return null + warning) -----
 
-/** Not meaningful for SolidColumn; returns null and logs a warning. */
-export function getKeyPoints(_instance: SolidColumnInstance): ColumnKeyPointsMap | null {
-  console.warn('getKeyPoints is not supported for SolidColumn.');
+/** Not meaningful for SolidBeam; returns null and logs a warning. */
+export function getKeyPoints(_instance: SolidBeamInstance): BeamKeyPointsMap | null {
+  console.warn('getKeyPoints is not supported for SolidBeam.');
   return null;
 }
 
-/** Not meaningful for SolidColumn; returns null and logs a warning. */
-export function getKeyPointsWorld(_instance: SolidColumnInstance): ColumnKeyPointsMap | null {
-  console.warn('getKeyPointsWorld is not supported for SolidColumn.');
+/** Not meaningful for SolidBeam; returns null and logs a warning. */
+export function getKeyPointsWorld(_instance: SolidBeamInstance): BeamKeyPointsMap | null {
+  console.warn('getKeyPointsWorld is not supported for SolidBeam.');
   return null;
 }
 
@@ -267,9 +268,9 @@ export function getKeyPointsWorld(_instance: SolidColumnInstance): ColumnKeyPoin
 
 export function getPhysicalDependencyRules(): PhysicalDependencyRule[] {
   return [
-    { strategy: 'BELOW', targetTypes: ['SLAB', 'FOUNDATION'], expansion: { x: 0, y: -0.05, z: 0 }, description: 'Piso ou fundação que sustenta a coluna.' },
-    { strategy: 'ABOVE', targetTypes: ['BEAM', 'SLAB'], expansion: { x: 0, y: 0.05, z: 0 }, description: 'Viga ou laje que se apoia sobre a coluna.' },
-    { strategy: 'BESIDE', targetTypes: ['SOLID_WALL', 'COLUMN'], expansion: { x: 0.05, y: 0, z: 0.05 }, description: 'Parede ou coluna adjacente.' }
+    { strategy: 'BELOW', targetTypes: ['SOLID_COLUMN', 'SOLID_WALL'], expansion: { x: 0, y: -0.05, z: 0 }, description: 'Coluna ou parede que sustenta a viga.' },
+    { strategy: 'ABOVE', targetTypes: ['SLAB'], expansion: { x: 0, y: 0.05, z: 0 }, description: 'Laje que se apoia sobre a viga.' },
+    { strategy: 'BESIDE', targetTypes: ['SOLID_BEAM', 'SOLID_WALL'], expansion: { x: 0.05, y: 0, z: 0.05 }, description: 'Viga ou parede adjacente.' }
   ];
 }
 
@@ -284,14 +285,14 @@ export function getSimulationConfig(): SimulationConfig {
 export function getStochasticParams(): StochasticParamDef[] {
   return [
     { name: 'cross_section_tolerance', mean: 0, stdDev: 0.005, unit: 'm', distribution: 'normal', observation: 'Tolerância dimensional da seção.' },
-    { name: 'height_tolerance', mean: 0, stdDev: 0.003, unit: 'm', distribution: 'normal', observation: 'Variação de altura.' }
+    { name: 'length_tolerance', mean: 0, stdDev: 0.003, unit: 'm', distribution: 'normal', observation: 'Variação de comprimento.' }
   ];
 }
 
 // ----- handleTaskStateChange -----
 
 export function handleTaskStateChange(
-  instance: SolidColumnInstance,
+  instance: SolidBeamInstance,
   taskState: TaskState
 ): ElementStyleUpdate {
   const pct = taskState.completionPercentage;
@@ -314,8 +315,8 @@ export function handleTaskStateChange(
     styleValues.push({ property: 'outlineColor', value: '#E53E3E' });
     styleValues.push({ property: 'outlineWidth', value: 3 });
   }
-  const column = instance.userData.column as ColumnParams;
-  const height = column.size.h;
+  const beam = instance.userData.beam as BeamParams;
+  const height = beam.size.h;
   styleValues.push({
     property: 'visibleHeight',
     value: (height * pct) / 100

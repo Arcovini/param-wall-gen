@@ -13,11 +13,16 @@ export type Position = { x: number; y: number; z: number };
 /** Direction/rotation (yaw in radians) */
 export type Direction = { yaw: number };
 
+/** Quaternion { x, y, z, w } for rotation (e.g. from IFC) */
+export type QuaternionLike = { x: number; y: number; z: number; w: number };
+
 /** Hierarchical placement with parent reference */
 export type Placement = {
   parent: Placement | null;
   position: Position;
   direction: Direction;
+  /** When set, used for transforms; takes precedence over direction.yaw */
+  rotation?: QuaternionLike;
 };
 
 /** 3D dimensions: length, width, height (meters) */
@@ -45,7 +50,145 @@ export interface BeamParams {
   material?: BeamMaterialConfig;     // Optional material properties
 }
 
+/** Task/construction progress parameters */
+export interface TaskParams {
+  completion: number; // 0..1 normalized (0=empty, 1=complete)
+}
+
 /** Parameters for buildBeam function */
 export interface BuildBeamParams {
   beam: BeamParams;
+  task?: TaskParams;
+}
+
+// ===== Model and Bounds (Solid Beam API) =====
+
+/** Role of the model for physics/navigation */
+export type ModelRole = 'COLLIDABLE' | 'REFERENCE';
+
+/** Four corner points at half depth (e.g. z=0 in beam local space) */
+export interface Keypoints {
+  bottomLeft: Position;
+  topLeft: Position;
+  bottomRight: Position;
+  topRight: Position;
+}
+
+/** Axis-aligned bounding box (min/max in world or local) */
+export interface Bounds3D {
+  min: Position;
+  max: Position;
+}
+
+/** Bounds for beam (no openings) */
+export interface BeamBounds {
+  completed: Bounds3D;
+  execution: Bounds3D;
+}
+
+/** Construction state for Solid Beam element */
+export type ConstructionState = 'PROJECTED' | 'REAL' | 'KNOWN';
+
+/** Task state passed to handleTaskStateChange */
+export interface TaskState {
+  completionPercentage: number;
+  scheduleStatus?: 'ON_TIME' | 'DELAYED' | 'AHEAD';
+  qualityStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
+}
+
+/** Single style property to apply */
+export interface StyleValue {
+  property: string;
+  value: number | string;
+}
+
+/** Result of handleTaskStateChange: state + style to apply on the adapter */
+export interface ElementStyleUpdate {
+  constructionState: ConstructionState;
+  completionPercentage: number;
+  styleValues: StyleValue[];
+}
+
+/** Simulation config (getSimulationConfig) */
+export interface SimulationConfig {
+  roles: ModelRole[];
+  isWalkable: boolean;
+  isCollidable: boolean;
+}
+
+/** Physical dependency rule (getPhysicalDependencyRules) */
+export interface PhysicalDependencyRule {
+  strategy: 'BELOW' | 'ABOVE' | 'BESIDE' | 'ADJACENT';
+  targetTypes: string[];
+  expansion: Position;
+  description?: string;
+}
+
+/** Single stochastic parameter (getStochasticParams) */
+export interface StochasticParamDef {
+  name: string;
+  mean: number;
+  stdDev: number;
+  unit: string;
+  distribution: 'normal' | 'uniform';
+  observation?: string;
+}
+
+/** Beam key point IDs (not used; API returns null for column/beam) */
+export type BeamKeyPointId = string;
+
+/** Beam key points map: semantic ID → position (local or world). Not meaningful for beam; getKeyPoints/getKeyPointsWorld return null. */
+export type BeamKeyPointsMap = Record<BeamKeyPointId, Position>;
+
+/** Model metadata: walkable, collidable, roles, keypoints, centroid */
+export interface ModelParams {
+  isWalkable: boolean;
+  isCollidable: boolean;
+  roles: ModelRole[];
+  keypoints: Keypoints;
+  keypointsFull?: BeamKeyPointsMap;
+  centroid: Position;
+}
+
+/** userData shape on THREE.Group returned by createInstance */
+export interface SolidBeamUserData {
+  objectType: string;
+  id?: string;
+  typeId?: string;
+  ifcGlobalId?: string;
+  position?: Position;
+  rotation?: QuaternionLike;
+  beam: BeamParams;
+  task: TaskParams;
+  modelParams: ModelParams;
+  bounds: BeamBounds;
+  constructionState?: ConstructionState;
+  completionPercentage?: number; // 0–100
+  taskIds?: string[];
+}
+
+/** Solid beam instance: object with userData (e.g. THREE.Group from createInstance) */
+export interface SolidBeamInstance {
+  userData: SolidBeamUserData;
+}
+
+/** IFC element shape for beam (adapter fills from loader) */
+export interface IFCBeamElement {
+  globalId?: string;
+  ifcType?: string;
+  length?: number;
+  width?: number;
+  height?: number;
+  position?: Position;
+  rotation?: QuaternionLike;
+}
+
+/** Params override when creating instance (e.g. from IFC) */
+export interface CreateBeamInstanceParams {
+  id?: string;
+  typeId?: string;
+  ifcGlobalId?: string;
+  taskIds?: string[];
+  buildParams?: BuildBeamParams;
+  completion?: number; // 0..1, overrides task when creating from IFC
 }

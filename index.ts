@@ -18,7 +18,7 @@ import {
 } from './wall-generator';
 import type { MaterialId } from './wall-generator';
 import { createInstance as createColumnInstance } from './column-generator';
-import { buildBeam } from './beam-generator';
+import { createInstance as createBeamInstance } from './beam-generator';
 import { WallVisualizer } from './ui/WallVisualizer';
 import type { BuildMasonryWallParams, ExtractedWall } from './types';
 import type { BuildColumnParams } from './column-generator';
@@ -642,7 +642,7 @@ function init(): void {
         }
       };
 
-      currentWallGroup = buildBeam(buildParams);
+      currentWallGroup = createBeamInstance(undefined, { buildParams });
 
       if (uiController.getWireframeEnabled()) {
         SceneUtils.setWireframeMode(currentWallGroup, true);

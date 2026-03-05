@@ -6,10 +6,9 @@
  *
  * @example
  * ```typescript
- * import { createInstance } from './wall-generator';
- * import type { BuildMasonryWallParams } from './wall-generator';
+ * import { createInstance } from 'syncker-lib';
  *
- * const buildParams: BuildMasonryWallParams = {
+ * const wallGroup = createInstance(undefined, {
  *   wall: {
  *     placement: { parent: null, position: { x: 0, y: 0, z: 0 }, direction: { yaw: 0 } },
  *     size: { l: 0.2, w: 3, h: 2 },
@@ -17,10 +16,9 @@
  *     cementThickness: 0.01
  *   },
  *   openings: [],
- *   task: { completion: 1.0 }
- * };
- *
- * const wallGroup = createInstance(undefined, { buildParams });
+ *   completion: 1.0,
+ *   mainMaterialId: 'brick-ceramic'
+ * });
  * scene.add(wallGroup);
  * ```
  */
@@ -45,9 +43,9 @@ export {
   EXPANSION_FACTOR,
   TYPE_ID
 } from './SolidWall';
-export type { IFCProjectElement, CreateInstanceParams, MaterialPresetColors } from './SolidWall';
+export type { IFCProjectElement, MaterialPresetColors } from './SolidWall';
 
-export { updateInstance, dispose } from './adapters/ThreeSolidWallAdapter';
+export { dispose } from './adapters/ThreeSolidWallAdapter';
 
 // ===== Public Types =====
 export type {
@@ -61,7 +59,6 @@ export type {
   WallParams,
   OpeningParams,
   TaskParams,
-  BuildMasonryWallParams,
   OpeningBoundsForRow,
   ModelRole,
   Keypoints,

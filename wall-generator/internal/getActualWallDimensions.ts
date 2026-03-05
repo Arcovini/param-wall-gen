@@ -3,8 +3,8 @@
  * Single source of truth for tests and UI; not stored on the returned THREE.Group.
  */
 
-import type { BuildMasonryWallParams } from './types';
-import { RowGenerator } from './internal/RowGenerator';
+import type { BuildMasonryWallParams } from '../types';
+import { RowGenerator } from './RowGenerator';
 
 export interface ActualWallDimensions {
   actualWallWidth: number;

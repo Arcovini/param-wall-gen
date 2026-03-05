@@ -7,7 +7,7 @@
  */
 
 import * as THREE from 'three';
-import { buildMasonryWall } from './buildMasonryWall';
+import { buildMasonryWall } from './internal/buildMasonryWall';
 import { transformPointByPlacement, quaternionToYaw } from './internal/WallPlacement';
 import { MaterialManager } from './internal/MaterialManager';
 import type {
@@ -57,24 +57,26 @@ export interface IFCProjectElement {
   rotation?: QuaternionLike;
 }
 
-/** Params override when creating instance (e.g. from IFC) */
+/** Params for createInstance. All wall fields are optional overrides when IFC is provided; without IFC, wall (with placement, size, blockSize, cementThickness) is required. */
 export interface CreateInstanceParams {
   id?: string;
   typeId?: string;
   ifcGlobalId?: string;
   taskIds?: string[];
-  /** Build params for geometry; required when not using IFC */
-  buildParams?: BuildMasonryWallParams;
-  /** Main material preset (brick-ceramic, brick-concrete, etc.). When set, this preset is applied; takes precedence over materialSeed and id-based selection. */
-  mainMaterialId?: MaterialId;
-  /** Finish material preset (mortar-finish, plaster-finish). Optional; used by applyMaterialSelection when supported. */
-  finishMaterialId?: MaterialId;
-  /** Seed to select material family when mainMaterialId is not set; applied before build. */
-  materialSeed?: number;
-  /** When true, sample getStochasticParams() and apply deltas to dimensions (one sample per build) */
-  applyStochastic?: boolean;
-  /** Completion 0..1; overrides task.completion when creating from IFC (e.g. mock). Ignored when using buildParams. */
+  /** Wall geometry. Required without IFC (must include placement, size, blockSize, cementThickness). With IFC, acts as partial override. */
+  wall?: Partial<WallParams>;
+  /** Openings (doors/windows). Without IFC: defaults to []. With IFC: replaces IFC openings when provided. */
+  openings?: OpeningParams[];
+  /** Construction completion 0..1 (0 = projected, 1 = complete). Defaults to 0. */
   completion?: number;
+  /** Main material preset (brick-ceramic, brick-concrete, etc.). Takes precedence over materialSeed. */
+  mainMaterialId?: MaterialId;
+  /** Finish material preset (mortar-finish, plaster-finish). */
+  finishMaterialId?: MaterialId;
+  /** Seed to select material family when mainMaterialId is not set. */
+  materialSeed?: number;
+  /** When true, sample getStochasticParams() and apply deltas to dimensions. */
+  applyStochastic?: boolean;
 }
 
 /** Default color variation sigma for all presets (brick, lintel, infill). */
@@ -250,13 +252,24 @@ function fillInstanceUserData(
 
 /**
  * createInstance — Factory: create Solid Wall element (wall-solid.md §5).
- * With ifcElement: validates IfcWall/SOLIDWALL, extracts params, builds, sets constructionState PROJECTED, completionPercentage 0, taskIds [].
- * Without IFC: uses params.buildParams, derives constructionState/completionPercentage from task.completion.
+ *
+ * With ifcElement: validates IfcWall/SOLIDWALL, extracts base geometry, then
+ * merges any overrides from params (wall fields, openings, completion).
+ *
+ * Without IFC: assembles geometry from params.wall (required), params.openings,
+ * and params.completion.
  */
 export function createInstance(
   ifcElement?: IFCProjectElement,
   params?: CreateInstanceParams
 ): THREE.Group {
+  const emptyResult = (): THREE.Group => {
+    const empty = new THREE.Group();
+    empty.name = 'SolidWall_Empty';
+    empty.userData = createEmptySolidWallUserData();
+    return empty;
+  };
+
   let buildParams: BuildMasonryWallParams | null = null;
   let fromIFC = false;
   let ifcGlobalId: string | undefined;
@@ -264,34 +277,60 @@ export function createInstance(
   let rotation: QuaternionLike | undefined;
 
   if (ifcElement != null) {
+    // --- IFC path: extract base, then apply overrides ---
     if (ifcElement.ifcType !== 'IfcWall' || ifcElement.predefinedType !== 'SOLIDWALL') {
-      const empty = new THREE.Group();
-      empty.name = 'SolidWall_Empty';
-      empty.userData = createEmptySolidWallUserData();
-      return empty;
+      return emptyResult();
     }
     buildParams = ifcElementToBuildParams(ifcElement);
-    if (!buildParams) {
-      const empty = new THREE.Group();
-      empty.name = 'SolidWall_Empty';
-      empty.userData = createEmptySolidWallUserData();
-      return empty;
-    }
+    if (!buildParams) return emptyResult();
+
     fromIFC = true;
     ifcGlobalId = ifcElement.globalId;
     position = ifcElement.position;
     rotation = ifcElement.rotation;
+
+    // Merge wall overrides from params (shallow per field)
+    if (params?.wall) {
+      const ov = params.wall;
+      if (ov.placement) buildParams.wall.placement = ov.placement;
+      if (ov.size) buildParams.wall.size = ov.size;
+      if (ov.blockSize) buildParams.wall.blockSize = ov.blockSize;
+      if (ov.cementThickness != null) buildParams.wall.cementThickness = ov.cementThickness;
+      if (ov.materials) buildParams.wall.materials = ov.materials;
+      // Update derived position/rotation when placement is overridden
+      if (ov.placement) {
+        position = ov.placement.position;
+        rotation = undefined;
+      }
+    }
+    if (params?.openings) buildParams.openings = params.openings;
   } else {
-    buildParams = params?.buildParams ?? null;
+    // --- Manual path: assemble from flat params ---
+    const wallPartial = params?.wall;
+    if (!wallPartial?.placement || !wallPartial?.size || !wallPartial?.blockSize || wallPartial?.cementThickness == null) {
+      return emptyResult();
+    }
+    const wall: WallParams = {
+      placement: wallPartial.placement,
+      size: wallPartial.size,
+      blockSize: wallPartial.blockSize,
+      cementThickness: wallPartial.cementThickness,
+      ...(wallPartial.materials ? { materials: wallPartial.materials } : {})
+    };
+    buildParams = {
+      wall,
+      openings: params?.openings ?? [],
+      task: { completion: 0 }
+    };
   }
 
-  if (!buildParams) {
-    const empty = new THREE.Group();
-    empty.name = 'SolidWall_Empty';
-    empty.userData = createEmptySolidWallUserData();
-    return empty;
-  }
+  // Apply completion
+  const clampedCompletion = params?.completion != null
+    ? Math.max(0, Math.min(1, params.completion))
+    : buildParams.task.completion;
+  buildParams.task = { completion: clampedCompletion };
 
+  // --- Materials ---
   const idForMaterials =
     params?.id ??
     (fromIFC && ifcElement?.globalId ? hashGlobalId(ifcElement.globalId) : null) ??
@@ -315,16 +354,12 @@ export function createInstance(
     applyStochasticToBuildParams(buildParams);
   }
 
-  if (params?.completion != null) {
-    buildParams.task = { ...buildParams.task, completion: Math.max(0, Math.min(1, params.completion)) };
-  }
-
+  // --- Build geometry ---
   const group = buildMasonryWall(buildParams);
   const ud = group.userData as SolidWallUserData;
   ud.objectType = 'SolidWall';
   const wall = buildParams.wall;
-  const task = buildParams.task;
-  const completion = Math.max(0, Math.min(1, task.completion));
+  const completion = buildParams.task.completion;
 
   const id =
     params?.id ??
@@ -413,8 +448,8 @@ export function getKeyPoints(instance: SolidWallInstance): KeyPointsMap {
     CORNER_TOP_RIGHT: { x: halfW, y: halfH, z: 0 },
     CENTER_FACE_FRONT: { x: 0, y: 0, z: -halfL },
     CENTER_FACE_BACK: { x: 0, y: 0, z: halfL },
-    MID_BASE: { x: 0, y: -halfH, z: 0 },
-    MID_TOP: { x: 0, y: halfH, z: 0 }
+    MID_BASE: { x: 0, y: -halfH, z: halfL },
+    MID_TOP: { x: 0, y: halfH, z: halfL }
   };
 
   openings.forEach((op, i) => {
@@ -422,7 +457,7 @@ export function getKeyPoints(instance: SolidWallInstance): KeyPointsMap {
     (map as Record<string, Position>)[`OPENING_CENTER_${i}`] = {
       x: op.placement.position.x,
       y: op.placement.position.y,
-      z: 0
+      z: halfL
     };
   });
 

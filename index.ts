@@ -752,7 +752,9 @@ function init(): void {
     const materialPreset = materialPresetSelect?.value ?? 'auto';
     const wallId = wallIdInput?.value?.trim() || undefined;
     currentWallGroup = createInstance(undefined, {
-      buildParams,
+      wall: buildParams.wall,
+      openings: buildParams.openings,
+      completion: buildParams.task.completion,
       id: wallId,
       mainMaterialId: materialPreset !== 'auto' ? (materialPreset as MaterialId) : undefined
     });

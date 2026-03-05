@@ -324,8 +324,8 @@ export class WallBuilder {
       CORNER_TOP_RIGHT: { x: halfW, y: halfH, z: z0 },
       CENTER_FACE_FRONT: { x: 0, y: 0, z: -halfL },
       CENTER_FACE_BACK: { x: 0, y: 0, z: halfL },
-      MID_BASE: { x: 0, y: -halfH, z: halfL },
-      MID_TOP: { x: 0, y: halfH, z: halfL }
+      MID_BASE: { x: 0, y: -halfH, z: z0 },
+      MID_TOP: { x: 0, y: halfH, z: z0 }
     };
     const openingsList = this.params.openings || [];
     openingsList.forEach((op, i) => {
@@ -333,7 +333,7 @@ export class WallBuilder {
       keypointsFull[`OPENING_CENTER_${i}`] = {
         x: pos.x,
         y: pos.y,
-        z: halfL
+        z: z0
       };
     });
 

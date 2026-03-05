@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import type { VisualizationMode } from '../types';
-import type { Bounds3D, SolidWallInstance } from '../wall-generator';
-import { getCentroid, getKeyPoints } from '../wall-generator';
+import type { Bounds3D } from '../wall-generator';
 
 export class WallVisualizer {
   /**
@@ -119,31 +118,36 @@ export class WallVisualizer {
   }
 
   /**
-   * Adds a centroid marker (sphere) as child of wallGroup. Uses getCentroid (local space).
+   * Adds a centroid marker (sphere) as child of the group. Reads userData.modelParams.centroid (local space).
+   * No-ops if modelParams or centroid is missing.
    */
-  static addCentroidMarker(wallGroup: THREE.Group): void {
-    const c = getCentroid(wallGroup as unknown as SolidWallInstance);
+  static addCentroidMarker(group: THREE.Group): void {
+    const mp = group.userData?.modelParams as { centroid?: { x: number; y: number; z: number } } | undefined;
+    if (!mp?.centroid) return;
+    const c = mp.centroid;
     const geometry = new THREE.SphereGeometry(0.06, 16, 16);
     const material = new THREE.MeshBasicMaterial({ color: 0xff00ff });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(c.x, c.y, c.z);
     mesh.name = 'DebugCentroid';
-    wallGroup.add(mesh);
+    group.add(mesh);
   }
 
   /**
-   * Adds keypoint markers (small spheres) for all keypoints from getKeyPoints (9 fixed + OPENING_CENTER_n). Local space.
+   * Adds keypoint markers (small spheres) for all keypointsFull entries. Local space.
+   * No-ops if modelParams or keypointsFull is missing.
    */
-  static addKeypointsMarkers(wallGroup: THREE.Group): void {
-    const kp = getKeyPoints(wallGroup as unknown as SolidWallInstance);
+  static addKeypointsMarkers(group: THREE.Group): void {
+    const mp = group.userData?.modelParams as { keypointsFull?: Record<string, { x: number; y: number; z: number }> } | undefined;
+    if (!mp?.keypointsFull) return;
     const color = 0x00ffff;
     const geometry = new THREE.SphereGeometry(0.04, 12, 12);
     const material = new THREE.MeshBasicMaterial({ color });
-    for (const [id, pos] of Object.entries(kp)) {
+    for (const [id, pos] of Object.entries(mp.keypointsFull)) {
       const m = new THREE.Mesh(geometry.clone(), material.clone());
       m.position.set(pos.x, pos.y, pos.z);
       m.name = `DebugKP_${id}`;
-      wallGroup.add(m);
+      group.add(m);
     }
   }
 

@@ -14,14 +14,10 @@ import { UploadConfiguration } from './core/UploadConfiguration';
 import { ConstructionLoader } from './core/ConstructionLoader';
 import {
   createInstance,
-  getCompletedBoundingBox,
-  getExecutionStateBoundingBox,
-  getExpandedOpeningBoundingBoxes,
   getMaterialPresetColors,
-  getOpeningBoundingBoxes
 } from './wall-generator';
-import type { MaterialId, SolidWallInstance } from './wall-generator';
-import { buildColumn } from './column-generator';
+import type { MaterialId } from './wall-generator';
+import { createInstance as createColumnInstance } from './column-generator';
 import { buildBeam } from './beam-generator';
 import { WallVisualizer } from './ui/WallVisualizer';
 import type { BuildMasonryWallParams, ExtractedWall } from './types';
@@ -408,6 +404,29 @@ function init(): void {
       currentBoundsDebugGroup = null;
     }
 
+    /** Shared debug visualization: centroid, keypoints, bounds. Duck-typed — no-ops if data is missing. */
+    function addDebugVisualization(group: THREE.Group): void {
+      if (!uiController) return;
+      if (uiController.getShowCentroid()) {
+        WallVisualizer.addCentroidMarker(group);
+      }
+      if (uiController.getShowKeypoints()) {
+        WallVisualizer.addKeypointsMarkers(group);
+      }
+      if (uiController.getShowBounds()) {
+        const bounds = group.userData?.bounds as {
+          completed?: { min: { x: number; y: number; z: number }; max: { x: number; y: number; z: number } };
+          execution?: { min: { x: number; y: number; z: number }; max: { x: number; y: number; z: number } };
+          openings?: { min: { x: number; y: number; z: number }; max: { x: number; y: number; z: number } }[];
+          openingsExpanded?: { min: { x: number; y: number; z: number }; max: { x: number; y: number; z: number } }[];
+        } | undefined;
+        if (bounds) {
+          currentBoundsDebugGroup = WallVisualizer.createBoundsDebugGroup(bounds);
+          scene.add(currentBoundsDebugGroup);
+        }
+      }
+    }
+
     // Construction mode - load and display GLB model
     if (generatorMode === 'construction') {
       // Prevent duplicate loading
@@ -582,14 +601,13 @@ function init(): void {
         }
       };
 
-      // Generate column
-      currentWallGroup = buildColumn(buildParams);
+      currentWallGroup = createColumnInstance(undefined, { buildParams });
 
-      // Apply wireframe if enabled
       if (uiController.getWireframeEnabled()) {
         SceneUtils.setWireframeMode(currentWallGroup, true);
       }
 
+      addDebugVisualization(currentWallGroup);
       scene.add(currentWallGroup);
       return;
     }
@@ -630,6 +648,7 @@ function init(): void {
         SceneUtils.setWireframeMode(currentWallGroup, true);
       }
 
+      addDebugVisualization(currentWallGroup);
       scene.add(currentWallGroup);
       return;
     }
@@ -774,23 +793,7 @@ function init(): void {
         );
       }
 
-      // Debug: centroid, keypoints, bounds (app-only, not part of API)
-      if (uiController.getShowCentroid()) {
-        WallVisualizer.addCentroidMarker(currentWallGroup);
-      }
-      if (uiController.getShowKeypoints()) {
-        WallVisualizer.addKeypointsMarkers(currentWallGroup);
-      }
-      if (uiController.getShowBounds()) {
-        const instance = currentWallGroup as unknown as SolidWallInstance;
-        currentBoundsDebugGroup = WallVisualizer.createBoundsDebugGroup({
-          completed: getCompletedBoundingBox(instance),
-          execution: getExecutionStateBoundingBox(instance),
-          openings: getOpeningBoundingBoxes(instance),
-          openingsExpanded: getExpandedOpeningBoundingBoxes(instance)
-        });
-        scene.add(currentBoundsDebugGroup);
-      }
+      addDebugVisualization(currentWallGroup);
     }
 
     scene.add(currentWallGroup);

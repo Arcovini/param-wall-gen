@@ -413,8 +413,8 @@ export function getKeyPoints(instance: SolidWallInstance): KeyPointsMap {
     CORNER_TOP_RIGHT: { x: halfW, y: halfH, z: 0 },
     CENTER_FACE_FRONT: { x: 0, y: 0, z: -halfL },
     CENTER_FACE_BACK: { x: 0, y: 0, z: halfL },
-    MID_BASE: { x: 0, y: -halfH, z: halfL },
-    MID_TOP: { x: 0, y: halfH, z: halfL }
+    MID_BASE: { x: 0, y: -halfH, z: 0 },
+    MID_TOP: { x: 0, y: halfH, z: 0 }
   };
 
   openings.forEach((op, i) => {
@@ -422,7 +422,7 @@ export function getKeyPoints(instance: SolidWallInstance): KeyPointsMap {
     (map as Record<string, Position>)[`OPENING_CENTER_${i}`] = {
       x: op.placement.position.x,
       y: op.placement.position.y,
-      z: halfL
+      z: 0
     };
   });
 

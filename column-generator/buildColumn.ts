@@ -16,7 +16,7 @@ export function buildColumn(params: BuildColumnParams): THREE.Group {
 
   const mesh = new THREE.Mesh(geometry, mat);
   mesh.name = 'ColumnMesh';
-  mesh.position.set(size.w / 2, size.h / 2, 0);
+  mesh.position.set(0, 0, 0);
 
   const group = new THREE.Group();
   group.name = 'Column';
@@ -26,7 +26,7 @@ export function buildColumn(params: BuildColumnParams): THREE.Group {
   group.userData = {
     objectType: 'Column',
     column: params.column,
-    pivotOffset: { x: size.w / 2, y: size.h / 2 }
+    task: params.task ?? { completion: 1 }
   };
 
   return group;

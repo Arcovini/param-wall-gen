@@ -21,7 +21,7 @@ export {
 } from './SolidBeam';
 export type { IFCBeamElement, CreateBeamInstanceParams } from './types';
 
-export { updateInstance, dispose } from './adapters/ThreeSolidBeamAdapter';
+export { updateInstance, dispose } from '../engine-adapter/three-js-adapter';
 
 // ===== Public Types =====
 export type {

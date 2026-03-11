@@ -29,3 +29,7 @@ Fluxo: **construtor → GeometryDescriptor → adaptador**.
 Coluna migrada para o pipeline único:
 
 - **Column** — `buildColumn()` chama `ColumnGeometryBuilder` → `GeometryDescriptor` → `engine-adapter/three-js-adapter` (`create`). Estilo e dispose via `updateInstance` e `dispose` do mesmo adaptador. Sem dependência de `THREE.BoxGeometry` ou adapter específico de coluna.
+
+## Viga (DEC-A3)
+
+- **Beam** — `buildBeam()` chama `BeamGeometryBuilder` → `GeometryDescriptor` → `engine-adapter/three-js-adapter` (`create`); mesh deslocado `(w/2, h/2, l/2)` para manter espaço local (0,0,0)–(w,h,l). Estilo e dispose via o mesmo adaptador genérico.

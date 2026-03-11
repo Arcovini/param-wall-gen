@@ -101,6 +101,7 @@ buildMasonryWall(params)
 - ✅ Removed `actualWallWidth`/`actualWallHeight` and `pivotOffset` from returned group's `userData`; test app computes actual dimensions locally for placeholders.
 - ✅ Privatized `buildMasonryWall` (no longer exported from `wall-generator/index.ts`); single public entry point is `createInstance(ifcElement?, params?)`.
 - ✅ Fixed `objectType` consistency: `createInstance` now always sets `objectType: 'SolidWall'` (previously builds returned `'MasonryWall'` from builder while empty returns used `'SolidWall'`).
+- ✅ **Rendering pipeline (DEC-A3)**: `geometry-description/` (types), `engine-adapter/three-js-adapter` (create from descriptor), `basic-generator` (triangle), dual column paths: UI offers "Column (legacy)" and "Column (DEC-A3)" (column via `ColumnGeometryBuilder` → descriptor → adapter); no removals.
 
 ### Remaining
 

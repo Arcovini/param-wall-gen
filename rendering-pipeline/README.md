@@ -23,3 +23,10 @@ rendering-pipeline/
 | **Adaptadores** | `engine-adapter/` com um adaptador por engine (`three-js-adapter/`, futuramente `unity-adapter/`, etc.) | Consomem `GeometryDescriptor` + pose e produzem objetos da engine (ex.: `THREE.Group`). Conhecem só a engine e o contrato. |
 
 Fluxo: **construtor → GeometryDescriptor → adaptador**.
+
+## Transição (coluna)
+
+Durante a transição, a coluna tem dois caminhos no UI (sem remover o legado):
+
+- **Column (legacy)** — `buildColumn()` direto (THREE.BoxGeometry + MaterialManager).
+- **Column (DEC-A3)** — `ColumnGeometryBuilder` → `GeometryDescriptor` → `engine-adapter/three-js-adapter` create; mesmo `createInstance` com `renderPath: 'dec-a3'`.

@@ -6,7 +6,7 @@
  */
 
 import * as THREE from 'three';
-import { buildColumn } from './buildColumn';
+import { buildColumn, buildColumnFromDescriptor } from './buildColumn';
 import { transformPointByPlacement, quaternionToYaw, localAABBToWorld } from './internal/ColumnPlacement';
 import type {
   Position,
@@ -170,7 +170,8 @@ export function createInstance(
     : buildParams.task?.completion ?? 0;
   buildParams = { ...buildParams, task: { completion: clampedCompletion } };
 
-  const group = buildColumn(buildParams);
+  const useDecA3 = params?.renderPath === 'dec-a3';
+  const group = useDecA3 ? buildColumnFromDescriptor(buildParams) : buildColumn(buildParams);
   const ud = group.userData as SolidColumnUserData;
   ud.objectType = 'SolidColumn';
 

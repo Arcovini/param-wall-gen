@@ -583,7 +583,7 @@ function init(): void {
       return;
     }
 
-    // Column generation mode
+    // Column generation mode (legacy)
     if (generatorMode === 'column') {
       const columnParams = uiController.getColumnParams();
 
@@ -612,6 +612,45 @@ function init(): void {
       };
 
       currentWallGroup = createColumnInstance(undefined, { column: columnDef });
+
+      if (uiController.getWireframeEnabled()) {
+        SceneUtils.setWireframeMode(currentWallGroup, true);
+      }
+
+      addDebugVisualization(currentWallGroup);
+      scene.add(currentWallGroup);
+      return;
+    }
+
+    // Column generation mode (DEC-A3: geometry-description + engine-adapter)
+    if (generatorMode === 'column-dec-a3') {
+      const columnParams = uiController.getColumnParams();
+
+      const columnDef: ColumnParams = {
+        size: {
+          l: columnParams.depth,
+          w: columnParams.width,
+          h: columnParams.height
+        },
+        placement: {
+          parent: null,
+          position: {
+            x: columnParams.positionX,
+            y: columnParams.positionY,
+            z: columnParams.positionZ
+          },
+          direction: { yaw: columnParams.yawDegrees * DEGREES_TO_RADIANS }
+        },
+        material: {
+          color: columnColorInput?.value,
+          colorSigma: parseFloat(columnColorSigmaInput?.value) || 0,
+          texture: columnTextureSelect?.value || undefined,
+          textureRepeatX: parseFloat(columnTextureRepeatXInput?.value) || 1,
+          textureRepeatY: parseFloat(columnTextureRepeatYInput?.value) || 1
+        }
+      };
+
+      currentWallGroup = createColumnInstance(undefined, { column: columnDef, renderPath: 'dec-a3' });
 
       if (uiController.getWireframeEnabled()) {
         SceneUtils.setWireframeMode(currentWallGroup, true);

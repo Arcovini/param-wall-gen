@@ -7,6 +7,8 @@
 import * as THREE from 'three';
 import type { BuildColumnParams } from './types';
 import { createColumnMaterial } from './internal/ColumnMaterialManager';
+import { buildColumnDescriptor } from './ColumnGeometryBuilder';
+import { create as createFromDescriptor } from '../engine-adapter/three-js-adapter';
 
 export function buildColumn(params: BuildColumnParams): THREE.Group {
   const { size, placement, material } = params.column;
@@ -29,5 +31,25 @@ export function buildColumn(params: BuildColumnParams): THREE.Group {
     task: params.task ?? { completion: 1 }
   };
 
+  return group;
+}
+
+/**
+ * Build column via geometry-description + engine-adapter (DEC-A3 path).
+ * Returns same userData shape as buildColumn for SolidColumn API compatibility.
+ */
+export function buildColumnFromDescriptor(params: BuildColumnParams): THREE.Group {
+  const descriptor = buildColumnDescriptor(params);
+  const { placement } = params.column;
+  const group = createFromDescriptor(descriptor, {
+    position: placement.position,
+    rotation: { yaw: placement.direction.yaw }
+  });
+  group.name = 'Column';
+  (group.userData as Record<string, unknown>) = {
+    objectType: 'Column',
+    column: params.column,
+    task: params.task ?? { completion: 1 }
+  };
   return group;
 }

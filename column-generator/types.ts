@@ -201,6 +201,4 @@ export interface CreateColumnInstanceParams {
   column?: Partial<ColumnParams>;
   /** Construction completion 0..1 (0 = projected, 1 = complete). Defaults to 0. */
   completion?: number;
-  /** Render path: legacy (THREE in buildColumn) or dec-a3 (geometry-description + engine-adapter). Default: 'legacy'. */
-  renderPath?: 'legacy' | 'dec-a3';
 }

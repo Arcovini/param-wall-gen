@@ -24,9 +24,8 @@ rendering-pipeline/
 
 Fluxo: **construtor → GeometryDescriptor → adaptador**.
 
-## Transição (coluna)
+## Coluna (DEC-A3)
 
-Durante a transição, a coluna tem dois caminhos no UI (sem remover o legado):
+Coluna migrada para o pipeline único:
 
-- **Column (legacy)** — `buildColumn()` direto (THREE.BoxGeometry + MaterialManager).
-- **Column (DEC-A3)** — `ColumnGeometryBuilder` → `GeometryDescriptor` → `engine-adapter/three-js-adapter` create; mesmo `createInstance` com `renderPath: 'dec-a3'`.
+- **Column** — `buildColumn()` chama `ColumnGeometryBuilder` → `GeometryDescriptor` → `engine-adapter/three-js-adapter` (`create`). Estilo e dispose via `updateInstance` e `dispose` do mesmo adaptador. Sem dependência de `THREE.BoxGeometry` ou adapter específico de coluna.

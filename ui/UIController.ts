@@ -13,7 +13,7 @@ import { ViewControlsController, type ViewMode } from './controller/ViewControls
 export type { OpeningData };
 export type { ColumnParams };
 export type { BeamParams };
-export type GeneratorMode = 'wall' | 'column' | 'column-dec-a3' | 'beam' | 'basic' | 'construction' | 'cavalete' | 'cavalete2';
+export type GeneratorMode = 'wall' | 'column' | 'beam' | 'basic' | 'construction' | 'cavalete' | 'cavalete2';
 
 export class UIController {
   private placeholders: PlaceholdersController;
@@ -93,7 +93,7 @@ export class UIController {
 
   private updateSectionVisibility(): void {
     const isWallMode = this.generatorMode === 'wall';
-    const isColumnMode = this.generatorMode === 'column' || this.generatorMode === 'column-dec-a3';
+    const isColumnMode = this.generatorMode === 'column';
     const isBeamMode = this.generatorMode === 'beam';
     const isBasicMode = this.generatorMode === 'basic';
     const isConstructionMode = this.generatorMode === 'construction';

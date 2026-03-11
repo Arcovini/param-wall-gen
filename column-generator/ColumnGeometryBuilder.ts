@@ -11,7 +11,14 @@ const DEFAULT_COLOR = 0xc0c0b8;
 function columnMaterialToDescriptor(config: ColumnMaterialConfig | undefined): MaterialDescriptor {
   return {
     color: config?.color ?? DEFAULT_COLOR,
-    opacity: 1
+    opacity: 1,
+    roughness: config?.roughness,
+    metalness: config?.metalness,
+    colorSigma: config?.colorSigma,
+    texture: config?.texture,
+    textureFolder: '/column-generator/textures/',
+    textureRepeatX: config?.textureRepeatX,
+    textureRepeatY: config?.textureRepeatY,
   };
 }
 

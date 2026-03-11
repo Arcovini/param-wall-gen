@@ -5,7 +5,14 @@
  */
 
 import * as THREE from 'three';
-import type { GeometryDescriptor, MeshDescriptor } from '../../rendering-descriptors/types';
+import { SRGBColorSpace } from 'three';
+import type { GeometryDescriptor, MeshDescriptor, MaterialDescriptor } from '../../rendering-descriptors/types';
+
+const DEFAULT_ROUGHNESS = 0.9;
+const DEFAULT_METALNESS = 0.1;
+
+const textureCache = new Map<string, THREE.Texture>();
+const textureLoader = new THREE.TextureLoader();
 
 export interface Pose {
   position: { x: number; y: number; z: number };
@@ -24,6 +31,46 @@ function parseColor(value: number | string | undefined): number {
   return parseInt(s, 16);
 }
 
+function gaussianRandom(): number {
+  const u1 = Math.random();
+  const u2 = Math.random();
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+}
+
+function generateVariedColor(baseColor: THREE.Color, sigma: number): THREE.Color {
+  const color = baseColor.clone();
+  const normalizedSigma = sigma / 10;
+  const hsl = { h: 0, s: 0, l: 0 };
+  color.getHSL(hsl, SRGBColorSpace);
+  hsl.h = hsl.h + gaussianRandom() * normalizedSigma * 0.2;
+  hsl.s = Math.max(0, Math.min(1, hsl.s + gaussianRandom() * normalizedSigma * 0.5));
+  hsl.l = Math.max(0, Math.min(1, hsl.l + gaussianRandom() * normalizedSigma));
+  color.setHSL(hsl.h, hsl.s, hsl.l, SRGBColorSpace);
+  return color;
+}
+
+function loadTexture(path: string, repeatX: number, repeatY: number): THREE.Texture {
+  const cacheKey = `${path}|${repeatX}|${repeatY}`;
+  if (!textureCache.has(cacheKey)) {
+    const texture = textureLoader.load(path);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.colorSpace = SRGBColorSpace;
+    texture.repeat.set(repeatX, repeatY);
+    textureCache.set(cacheKey, texture);
+  }
+  return textureCache.get(cacheKey)!;
+}
+
+function resolveMaterialColor(matDesc: MaterialDescriptor): number {
+  const baseHex = parseColor(matDesc.color);
+  const baseColor = new THREE.Color(baseHex);
+  if (matDesc.colorSigma && matDesc.colorSigma > 0) {
+    return generateVariedColor(baseColor, matDesc.colorSigma).getHex();
+  }
+  return baseColor.getHex();
+}
+
 function buildMeshFromDescriptor(meshDesc: MeshDescriptor): THREE.Mesh {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(meshDesc.positions, 3));
@@ -33,14 +80,27 @@ function buildMeshFromDescriptor(meshDesc: MeshDescriptor): THREE.Mesh {
   }
   geometry.computeVertexNormals();
 
-  const color = parseColor(meshDesc.material.color);
-  const opacity = meshDesc.material.opacity ?? 1;
+  const matDesc = meshDesc.material;
+  const color = resolveMaterialColor(matDesc);
+  const opacity = matDesc.opacity ?? 1;
+  const roughness = matDesc.roughness ?? DEFAULT_ROUGHNESS;
+  const metalness = matDesc.metalness ?? DEFAULT_METALNESS;
+
   const material = new THREE.MeshStandardMaterial({
     color,
     opacity,
     transparent: opacity < 1,
-    flatShading: true
+    flatShading: true,
+    roughness,
+    metalness,
   });
+
+  if (matDesc.texture) {
+    const path = (matDesc.textureFolder ?? '') + matDesc.texture;
+    const repeatX = matDesc.textureRepeatX ?? 1;
+    const repeatY = matDesc.textureRepeatY ?? 1;
+    material.map = loadTexture(path, repeatX, repeatY);
+  }
 
   return new THREE.Mesh(geometry, material);
 }

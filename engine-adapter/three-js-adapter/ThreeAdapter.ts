@@ -5,7 +5,7 @@
  */
 
 import * as THREE from 'three';
-import type { GeometryDescriptor, MeshDescriptor } from '../../geometry-description/types';
+import type { GeometryDescriptor, MeshDescriptor } from '../../rendering-descriptors/types';
 
 export interface Pose {
   position: { x: number; y: number; z: number };

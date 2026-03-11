@@ -1,6 +1,6 @@
 /**
  * buildColumn - Main API entry point for column generation.
- * Uses geometry-description + engine-adapter (DEC-A3 pipeline).
+ * Uses rendering-descriptors + engine-adapter (DEC-A3 pipeline).
  */
 
 import * as THREE from 'three';

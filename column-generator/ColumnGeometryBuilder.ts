@@ -1,9 +1,9 @@
 /**
  * Column geometry builder - engine-agnostic descriptor from BuildColumnParams.
- * Outputs GeometryDescriptor (geometry-description) with no Three.js dependency.
+ * Outputs GeometryDescriptor (rendering-descriptors) with no Three.js dependency.
  */
 
-import type { GeometryDescriptor, MaterialDescriptor } from '../geometry-description/types';
+import type { GeometryDescriptor, MaterialDescriptor } from '../rendering-descriptors/types';
 import type { BuildColumnParams, ColumnMaterialConfig } from './types';
 
 const DEFAULT_COLOR = 0xc0c0b8;

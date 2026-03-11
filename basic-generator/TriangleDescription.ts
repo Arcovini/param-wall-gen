@@ -3,7 +3,7 @@
  * No Three.js or other engine imports.
  */
 
-import type { GeometryDescriptor, MaterialDescriptor } from '../geometry-description/types';
+import type { GeometryDescriptor, MaterialDescriptor } from '../rendering-descriptors/types';
 
 /**
  * Creates a minimal triangle descriptor (3 vertices, 1 face) as GeometryDescriptor.

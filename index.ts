@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { ToneMappingMode } from 'postprocessing';
 import { SceneRenderer } from './core/SceneRenderer';
 import { SceneUtils } from './ui/SceneUtils';
-import { UIController } from './ui/UIController';
+import { UIController, type GeneratorMode } from './ui/UIController';
 import { UploadConfiguration } from './core/UploadConfiguration';
 import { ConstructionLoader } from './core/ConstructionLoader';
 import {
@@ -23,6 +23,8 @@ import { WallVisualizer } from './ui/WallVisualizer';
 import type { BuildMasonryWallParams, ExtractedWall } from './types';
 import type { ColumnParams } from './column-generator';
 import type { BeamParams } from './beam-generator';
+import { createTriangleDescription } from './basic-generator/TriangleDescription';
+import { create as createBasicSceneObject } from './engine-adapter/three-js-adapter';
 
 const DEGREES_TO_RADIANS = Math.PI / 180;
 
@@ -387,7 +389,7 @@ function init(): void {
   function updateWall(): void {
     if (!uiController) return;
 
-    const generatorMode = uiController.getGeneratorMode();
+    const generatorMode: GeneratorMode = uiController.getGeneratorMode();
     const viewMode = uiController.getViewMode();
 
     // Remove previous wall/column and bounds debug group if exists
@@ -564,6 +566,20 @@ function init(): void {
           console.error('Failed to load cavalete 2:', error);
         });
 
+      return;
+    }
+
+    // Basic mode (triangle descriptor + adapter)
+    if (generatorMode === 'basic') {
+      const descriptor = createTriangleDescription();
+      currentWallGroup = createBasicSceneObject(descriptor, {
+        position: { x: 0, y: 0, z: 0 },
+        rotation: { yaw: 0 }
+      });
+      if (uiController.getWireframeEnabled()) {
+        SceneUtils.setWireframeMode(currentWallGroup, true);
+      }
+      scene.add(currentWallGroup);
       return;
     }
 

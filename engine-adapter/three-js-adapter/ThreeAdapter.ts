@@ -71,6 +71,39 @@ function resolveMaterialColor(matDesc: MaterialDescriptor): number {
   return baseColor.getHex();
 }
 
+function buildMaterialFromDescriptor(matDesc: MaterialDescriptor): THREE.MeshStandardMaterial {
+  const color = resolveMaterialColor(matDesc);
+  const opacity = matDesc.opacity ?? 1;
+  const roughness = matDesc.roughness ?? DEFAULT_ROUGHNESS;
+  const metalness = matDesc.metalness ?? DEFAULT_METALNESS;
+  const useVertexColors = matDesc.vertexColors === true;
+  const flatShading = matDesc.flatShading ?? true;
+
+  const material = new THREE.MeshStandardMaterial({
+    color: useVertexColors ? 0xffffff : color,
+    opacity,
+    transparent: opacity < 1,
+    flatShading,
+    roughness,
+    metalness,
+    vertexColors: useVertexColors,
+  });
+
+  let texturePath: string | undefined;
+  if (matDesc.texturePath) {
+    texturePath = matDesc.texturePath;
+  } else if (matDesc.texture) {
+    texturePath = (matDesc.textureFolder ?? '') + matDesc.texture;
+  }
+  if (texturePath) {
+    const repeatX = matDesc.textureRepeatX ?? 1;
+    const repeatY = matDesc.textureRepeatY ?? 1;
+    material.map = loadTexture(texturePath, repeatX, repeatY);
+  }
+
+  return material;
+}
+
 function buildMeshFromDescriptor(meshDesc: MeshDescriptor): THREE.Mesh {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.BufferAttribute(meshDesc.positions, 3));
@@ -78,29 +111,22 @@ function buildMeshFromDescriptor(meshDesc: MeshDescriptor): THREE.Mesh {
   if (meshDesc.uvs) {
     geometry.setAttribute('uv', new THREE.BufferAttribute(meshDesc.uvs, 2));
   }
+  if (meshDesc.colors && meshDesc.colors.length > 0) {
+    geometry.setAttribute('color', new THREE.BufferAttribute(meshDesc.colors, 3));
+  }
   geometry.computeVertexNormals();
 
-  const matDesc = meshDesc.material;
-  const color = resolveMaterialColor(matDesc);
-  const opacity = matDesc.opacity ?? 1;
-  const roughness = matDesc.roughness ?? DEFAULT_ROUGHNESS;
-  const metalness = matDesc.metalness ?? DEFAULT_METALNESS;
-
-  const material = new THREE.MeshStandardMaterial({
-    color,
-    opacity,
-    transparent: opacity < 1,
-    flatShading: true,
-    roughness,
-    metalness,
-  });
-
-  if (matDesc.texture) {
-    const path = (matDesc.textureFolder ?? '') + matDesc.texture;
-    const repeatX = matDesc.textureRepeatX ?? 1;
-    const repeatY = matDesc.textureRepeatY ?? 1;
-    material.map = loadTexture(path, repeatX, repeatY);
+  if (meshDesc.groups && meshDesc.groups.length > 0) {
+    geometry.clearGroups();
+    for (const g of meshDesc.groups) {
+      geometry.addGroup(g.start, g.count, g.materialIndex);
+    }
   }
+
+  const materialArray = meshDesc.materials && meshDesc.materials.length > 0
+    ? meshDesc.materials.map((m) => buildMaterialFromDescriptor(m))
+    : [buildMaterialFromDescriptor(meshDesc.material)];
+  const material = materialArray.length === 1 ? materialArray[0] : materialArray;
 
   return new THREE.Mesh(geometry, material);
 }

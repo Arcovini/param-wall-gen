@@ -21,8 +21,6 @@ export {
 } from './SolidColumn';
 export type { IFCColumnElement, CreateColumnInstanceParams } from './types';
 
-export { updateInstance, dispose } from '../engine-adapter/three-js-adapter';
-
 // ===== Public Types =====
 export type {
   Position,

@@ -1,14 +1,12 @@
 /**
- * Column geometry builder - engine-agnostic descriptor from BuildColumnParams.
- * Outputs GeometryDescriptor (rendering-descriptors) with no Three.js dependency.
+ * Column geometry builder - engine-agnostic domain geometry from BuildColumnParams.
  */
 
-import type { GeometryDescriptor, MaterialDescriptor } from '../rendering-descriptors/types';
-import type { BuildColumnParams, ColumnMaterialConfig } from './types';
+import type { BuildColumnParams, ColumnDomainGeometry, ColumnDomainMaterial, ColumnMaterialConfig } from './types';
 
 const DEFAULT_COLOR = 0xc0c0b8;
 
-function columnMaterialToDescriptor(config: ColumnMaterialConfig | undefined): MaterialDescriptor {
+function columnMaterialToDomain(config: ColumnMaterialConfig | undefined): ColumnDomainMaterial {
   return {
     color: config?.color ?? DEFAULT_COLOR,
     opacity: 1,
@@ -23,10 +21,10 @@ function columnMaterialToDescriptor(config: ColumnMaterialConfig | undefined): M
 }
 
 /**
- * Build a box geometry descriptor (positions, indices, uvs, material) from column params.
- * Box is centered at origin; pose is applied by the engine adapter.
+ * Build domain box geometry (positions, indices, uvs, material) from column params.
+ * Box is centered at origin; pose is applied later by integration layer.
  */
-export function buildColumnDescriptor(params: BuildColumnParams): GeometryDescriptor {
+export function buildColumnGeometry(params: BuildColumnParams): ColumnDomainGeometry {
   const { size, material } = params.column;
   const w = size.w;
   const h = size.h;
@@ -55,7 +53,7 @@ export function buildColumnDescriptor(params: BuildColumnParams): GeometryDescri
     0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1
   ]);
 
-  const mat = columnMaterialToDescriptor(material);
+  const mat = columnMaterialToDomain(material);
 
   return {
     meshes: [{ positions, indices, uvs, material: mat }]

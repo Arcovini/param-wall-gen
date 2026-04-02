@@ -47,6 +47,10 @@ export type { IFCProjectElement, MaterialPresetColors } from './SolidWall';
 
 export { dispose } from './adapters/ThreeSolidWallAdapter';
 
+// ===== Debug views (block/row preview for UI) =====
+export { createDebugViewVisualization } from './debugViews';
+export type { DebugViewParams } from './debugViews';
+
 // ===== Public Types =====
 export type {
   Position,

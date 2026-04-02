@@ -17,7 +17,7 @@ import {
   getMaterialPresetColors,
 } from './wall-generator';
 import type { MaterialId } from './wall-generator';
-import { createInstance as createColumnInstance } from './column-generator';
+import { createThreeColumnInstance as createColumnInstance } from './rendering-pipeline/column/createThreeColumnInstance';
 import { createInstance as createBeamInstance } from './beam-generator';
 import { WallVisualizer } from './ui/WallVisualizer';
 import type { BuildMasonryWallParams, ExtractedWall } from './types';
@@ -666,29 +666,18 @@ function init(): void {
     const openings = uiController.getOpenings();
     const completion = params.completionPercentage / 100;
 
-    // Check view mode and create appropriate visualization
+    // Check view mode and create appropriate visualization (public API)
     if (viewMode === 'block' || viewMode === 'row') {
-      // Import BlockGenerator for view mode visualization
-      import('./wall-generator/internal/BlockGenerator').then(({ BlockGenerator }) => {
-        const blockGenerator = new BlockGenerator();
-
-        currentWallGroup = SceneUtils.createViewModeVisualization(
-          viewMode,
-          blockGenerator,
-          {
-            blockWidth: params.blockWidth,
-            blockHeight: params.blockHeight,
-            wallLength: params.wallLength,
-            cementThickness: params.cementThickness
-          }
-        );
-
-        // Position at origin for easier viewing
-        currentWallGroup.position.set(0, params.blockHeight / 2, 0);
-        scene.add(currentWallGroup);
+      currentWallGroup = SceneUtils.createViewModeVisualization(viewMode, {
+        blockWidth: params.blockWidth,
+        blockHeight: params.blockHeight,
+        wallLength: params.wallLength,
+        cementThickness: params.cementThickness
       });
 
-      return; // Exit early for block/row views
+      currentWallGroup.position.set(0, params.blockHeight / 2, 0);
+      scene.add(currentWallGroup);
+      return;
     }
 
     // WALL VIEW and WALL OUTPUT VIEW (both use createInstance)

@@ -1,29 +1,28 @@
 /**
- * buildColumn - Main API entry point for column generation.
- * Uses rendering-descriptors + engine-adapter (DEC-A3 pipeline).
+ * buildColumn - Domain build entry point for column generation.
+ * Produces domain geometry payload and pose without engine dependencies.
  */
 
-import * as THREE from 'three';
-import type { BuildColumnParams } from './types';
-import { buildColumnDescriptor } from './ColumnGeometryBuilder';
-import { create as createFromDescriptor } from '../engine-adapter/three-js-adapter';
+import type { BuildColumnParams, ColumnDomainBuildResult } from './types';
+import { buildColumnGeometry } from './ColumnGeometryBuilder';
 
 /**
- * Build column via GeometryDescriptor + Three adapter.
- * Accepts BuildColumnParams and returns a THREE.Group with same userData shape for SolidColumn API.
+ * Build column domain output from BuildColumnParams.
+ * Rendering adapters consume this payload to create scene objects.
  */
-export function buildColumn(params: BuildColumnParams): THREE.Group {
-  const descriptor = buildColumnDescriptor(params);
+export function buildColumn(params: BuildColumnParams): ColumnDomainBuildResult {
+  const geometry = buildColumnGeometry(params);
   const { placement } = params.column;
-  const group = createFromDescriptor(descriptor, {
-    position: placement.position,
-    rotation: { yaw: placement.direction.yaw }
-  });
-  group.name = 'Column';
-  (group.userData as Record<string, unknown>) = {
-    objectType: 'Column',
-    column: params.column,
-    task: params.task ?? { completion: 1 }
+  return {
+    geometry,
+    pose: {
+      position: placement.position,
+      rotation: { yaw: placement.direction.yaw }
+    },
+    userData: {
+      objectType: 'Column',
+      column: params.column,
+      task: params.task ?? { completion: 1 }
+    }
   };
-  return group;
 }

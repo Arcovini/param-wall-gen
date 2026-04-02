@@ -5,8 +5,6 @@
  * Mirrors the wall-generator Solid Wall API style.
  */
 
-import * as THREE from 'three';
-import { buildColumn } from './buildColumn';
 import { transformPointByPlacement, quaternionToYaw, localAABBToWorld } from './internal/ColumnPlacement';
 import type {
   Position,
@@ -115,18 +113,15 @@ function fillInstanceUserData(
 export function createInstance(
   ifcElement?: IFCColumnElement,
   params?: CreateColumnInstanceParams
-): THREE.Group {
+): SolidColumnInstance {
   let buildParams: BuildColumnParams | null = null;
   let fromIFC = false;
   let ifcGlobalId: string | undefined;
   let position: Position | undefined;
   let rotation: QuaternionLike | undefined;
 
-  const emptyResult = (): THREE.Group => {
-    const empty = new THREE.Group();
-    empty.name = 'SolidColumn_Empty';
-    empty.userData = createEmptySolidColumnUserData();
-    return empty;
+  const emptyResult = (): SolidColumnInstance => {
+    return { userData: createEmptySolidColumnUserData() };
   };
 
   if (ifcElement != null) {
@@ -170,8 +165,7 @@ export function createInstance(
     : buildParams.task?.completion ?? 0;
   buildParams = { ...buildParams, task: { completion: clampedCompletion } };
 
-  const group = buildColumn(buildParams);
-  const ud = group.userData as SolidColumnUserData;
+  const ud = createEmptySolidColumnUserData();
   ud.objectType = 'SolidColumn';
 
   const column = buildParams.column;
@@ -234,7 +228,7 @@ export function createInstance(
     };
   }
 
-  return group;
+  return { userData: ud };
 }
 
 // ----- Bounding boxes -----

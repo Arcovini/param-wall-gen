@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { OpeningBoundsForRow } from '../types';
 import { BlockGenerator, BlockVertices } from './BlockGenerator';
-import { GeometryBuilder } from './utils/GeometryBuilder';
+import { GeometryBuilder, rawToBufferGeometry } from './utils/GeometryBuilder';
 import { MaterialManager } from './MaterialManager';
 
 
@@ -453,7 +453,7 @@ export class RowGenerator {
       }
     }
 
-    return builder.build();
+    return rawToBufferGeometry(builder.buildRaw());
   }
 
   /**

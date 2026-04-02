@@ -7,9 +7,11 @@
  */
 
 import * as THREE from 'three';
-import { buildMasonryWall } from './internal/buildMasonryWall';
+import { buildWall } from './buildWall';
 import { transformPointByPlacement, quaternionToYaw } from './internal/WallPlacement';
-import { MaterialManager } from './internal/MaterialManager';
+import { ifcElementToBuildParams } from './internal/ifcWallMapper';
+import { applyStochasticToBuildParams } from './internal/applyStochastic';
+import { applyMaterialSelection } from './internal/applyMaterialSelection';
 import type {
   Position,
   Bounds3D,
@@ -102,69 +104,6 @@ function hashGlobalId(globalId: string): string {
   return `solid-wall-${Math.abs(h).toString(36)}`;
 }
 
-function sampleNormal(mean: number, stdDev: number): number {
-  const u1 = Math.random();
-  const u2 = Math.random();
-  const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-  return mean + stdDev * z;
-}
-
-function sampleUniform(min: number, max: number): number {
-  return min + Math.random() * (max - min);
-}
-
-/** Sample getStochasticParams() once and add deltas to buildParams.wall dimensions. */
-function applyStochasticToBuildParams(buildParams: BuildMasonryWallParams): void {
-  const params = getStochasticParams();
-  const wall = buildParams.wall;
-  const byName: Record<string, number> = {};
-  for (const p of params) {
-    if (p.distribution === 'normal') {
-      byName[p.name] = sampleNormal(p.mean, p.stdDev);
-    } else if (p.distribution === 'uniform') {
-      const half = (p.stdDev * 2) / 2;
-      byName[p.name] = sampleUniform(p.mean - half, p.mean + half);
-    }
-  }
-  if (byName['thickness_tolerance'] != null) wall.size.l += byName['thickness_tolerance'];
-  if (byName['height_tolerance'] != null) wall.size.h += byName['height_tolerance'];
-  if (byName['mortar_joint_thickness'] != null) wall.cementThickness += byName['mortar_joint_thickness'];
-  if (byName['alignment_deviation'] != null) {
-    wall.placement.position.x += byName['alignment_deviation'];
-    wall.placement.position.z += byName['alignment_deviation'] * 0.5;
-  }
-  if (wall.blockSize && byName['height_tolerance'] != null) {
-    wall.blockSize.h += byName['height_tolerance'] * 0.1;
-  }
-}
-
-/** Apply material family (main + finish) to MaterialManager before build. */
-function applyMaterialSelection(main: MaterialId, _finish?: MaterialId): void {
-  const mm = MaterialManager.getInstance();
-  switch (main) {
-    case 'brick-ceramic':
-      mm.setBrickColor(0xE7A976);
-      mm.setDarkBrickColor(0xC87C4A);
-      mm.setCementColor(0x6C6C6B);
-      mm.setLintelColor(0xE5E5E5);
-      mm.setInfillColor(0xB0B0A8);
-      break;
-    case 'brick-concrete':
-      mm.setBrickColor(0xCFCFCF);
-      mm.setDarkBrickColor(0x9D9D9D);
-      mm.setCementColor(0x6F6F6F);
-      mm.setLintelColor(0x808080);
-      mm.setInfillColor(0x757575);
-      break;
-    default:
-      mm.setBrickColor(0xE7A976);
-      mm.setDarkBrickColor(0xC87C4A);
-      mm.setCementColor(0x6C6C6B);
-      mm.setLintelColor(0xE5E5E5);
-      mm.setInfillColor(0xB0B0A8);
-  }
-}
-
 function createEmptySolidWallUserData(overrides?: Partial<SolidWallUserData>): SolidWallUserData {
   const emptyBounds: WallBounds = {
     completed: { min: { x: 0, y: 0, z: 0 }, max: { x: 0, y: 0, z: 0 } },
@@ -190,35 +129,6 @@ function createEmptySolidWallUserData(overrides?: Partial<SolidWallUserData>): S
     taskIds: [],
     ...overrides
   };
-}
-
-/** Map IFC element to BuildMasonryWallParams (default block/cement when not from IFC) */
-function ifcElementToBuildParams(ifc: IFCProjectElement): BuildMasonryWallParams | null {
-  const length = ifc.length ?? 0;
-  const height = ifc.height ?? 0;
-  const thickness = ifc.thickness ?? 0;
-  if (length <= 0 || height <= 0 || thickness <= 0) return null;
-  const position = ifc.position ?? { x: 0, y: 0, z: 0 };
-  const yaw = ifc.rotation != null ? quaternionToYaw(ifc.rotation) : 0;
-  const openings: OpeningParams[] = (ifc.openings ?? []).map((o) => ({
-    placement: {
-      parent: null,
-      position: o.position ?? { x: 0, y: 0, z: 0 },
-      direction: { yaw: 0 }
-    },
-    size: {
-      l: o.size?.width ?? 0,
-      w: o.size?.depth ?? 0,
-      h: o.size?.height ?? 0
-    }
-  }));
-  const wall: WallParams = {
-    placement: { parent: null, position, direction: { yaw } },
-    size: { l: thickness, w: length, h: height },
-    blockSize: { l: 0.39, h: 0.14, w: 0 },
-    cementThickness: 0.02
-  };
-  return { wall, openings, task: { completion: 0 } };
 }
 
 function completionToConstructionState(completion: number): ConstructionState {
@@ -281,7 +191,7 @@ export function createInstance(
     if (ifcElement.ifcType !== 'IfcWall' || ifcElement.predefinedType !== 'SOLIDWALL') {
       return emptyResult();
     }
-    buildParams = ifcElementToBuildParams(ifcElement);
+    buildParams = ifcElementToBuildParams(ifcElement, quaternionToYaw);
     if (!buildParams) return emptyResult();
 
     fromIFC = true;
@@ -351,11 +261,11 @@ export function createInstance(
   }
 
   if (params?.applyStochastic) {
-    applyStochasticToBuildParams(buildParams);
+    applyStochasticToBuildParams(buildParams, getStochasticParams());
   }
 
   // --- Build geometry ---
-  const group = buildMasonryWall(buildParams);
+  const group = buildWall(buildParams);
   const ud = group.userData as SolidWallUserData;
   ud.objectType = 'SolidWall';
   const wall = buildParams.wall;

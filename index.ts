@@ -25,6 +25,7 @@ import type { ColumnParams } from './column-generator';
 import type { BeamParams } from './beam-generator';
 import { createTriangleDescription } from './basic-generator/TriangleDescription';
 import { create as createBasicSceneObject } from './engine-adapter/three-js-adapter';
+import { buildStairBoundsGroup, buildStairDebugGroup, parseIfcStairGeometry, type StairGeometryData } from './stair-generator';
 
 const DEGREES_TO_RADIANS = Math.PI / 180;
 
@@ -120,6 +121,12 @@ function init(): void {
   // Track the current wall group and optional bounds debug group (app-only)
   let currentWallGroup: THREE.Group | null = null;
   let currentBoundsDebugGroup: THREE.Group | null = null;
+  let stairIfcBuffer: ArrayBuffer | null = null;
+  let stairIfcFilename: string | null = null;
+  let stairParseRequestId = 0;
+  let stairParsedData: StairGeometryData | null = null;
+  let stairIsParsing = false;
+  let stairNeedsCameraAdjust = false;
 
   // 4. Create floor at ground level (starts disabled)
   const floor = SceneUtils.createFloor(10, 10, 0);
@@ -346,6 +353,80 @@ function init(): void {
   const beamTextureSelect = document.getElementById('beam-texture') as HTMLSelectElement;
   const beamTextureRepeatXInput = document.getElementById('beam-texture-repeat-x') as HTMLInputElement;
   const beamTextureRepeatYInput = document.getElementById('beam-texture-repeat-y') as HTMLInputElement;
+  const stairIfcUploadPanel = document.getElementById('stair-ifc-upload-panel');
+  const stairIfcInput = document.getElementById('stair-ifc-input') as HTMLInputElement;
+  const stairIfcStatus = document.getElementById('stair-ifc-status');
+
+  const setStairUploadStatus = (message: string): void => {
+    if (stairIfcStatus) {
+      stairIfcStatus.textContent = message;
+    }
+  };
+
+  stairIfcInput?.addEventListener('change', async () => {
+    const file = stairIfcInput.files?.[0];
+    if (!file) {
+      stairIfcBuffer = null;
+      stairIfcFilename = null;
+      stairParsedData = null;
+      stairIsParsing = false;
+      setStairUploadStatus('Select an IFC file');
+      updateWall();
+      return;
+    }
+
+    stairIfcFilename = file.name;
+    setStairUploadStatus(`Reading ${file.name}...`);
+
+    try {
+      stairIfcBuffer = await file.arrayBuffer();
+      stairParsedData = null;
+      stairIsParsing = true;
+      setStairUploadStatus(`Parsing ${file.name}...`);
+
+      // Let status paint before running heavy IFC parse on main thread.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      const parseRequestId = ++stairParseRequestId;
+      const parsed = await parseIfcStairGeometry(stairIfcBuffer);
+      if (parseRequestId !== stairParseRequestId) {
+        return;
+      }
+
+      stairParsedData = parsed;
+      stairIsParsing = false;
+      stairNeedsCameraAdjust = true;
+      const stairBBoxCount = parsed.boundingBoxes.filter((box) => box.source === 'IfcStair').length;
+      const stairFlightBBoxCount = parsed.boundingBoxes.filter((box) => box.source === 'IfcStairFlight').length;
+      const firstSummary = parsed.stairSummaries[0];
+      const heightText = firstSummary?.totalHeight !== null && firstSummary?.totalHeight !== undefined
+        ? `${firstSummary.totalHeight.toFixed(2)}m`
+        : 'n/a';
+      const planText = firstSummary?.planExtent
+        ? `${firstSummary.planExtent.width.toFixed(2)}x${firstSummary.planExtent.depth.toFixed(2)}m`
+        : 'n/a';
+      const firstFlightWithDims = Array.from(parsed.flightProperties.values()).find(
+        (flight) => flight.riserHeight !== null && flight.treadLength !== null
+      );
+      const riserText = firstFlightWithDims?.riserHeight !== null && firstFlightWithDims?.riserHeight !== undefined
+        ? `${firstFlightWithDims.riserHeight.toFixed(3)}m`
+        : 'n/a';
+      const treadText = firstFlightWithDims?.treadLength !== null && firstFlightWithDims?.treadLength !== undefined
+        ? `${firstFlightWithDims.treadLength.toFixed(3)}m`
+        : 'n/a';
+      const warningSuffix = parsed.warnings.length > 0 ? ` Warnings: ${parsed.warnings.join(' ')}` : '';
+      setStairUploadStatus(
+        `Axis: ${parsed.axisPolylines.length} | FootPrint: ${parsed.footprintPolylines.length} | BBoxes: ${parsed.boundingBoxes.length} (Stair: ${stairBBoxCount}, Flight: ${stairFlightBBoxCount}) | Height: ${heightText} | Plan: ${planText} | Riser: ${riserText} | Tread: ${treadText}.${warningSuffix}`
+      );
+      updateWall();
+    } catch (error) {
+      stairIfcBuffer = null;
+      stairIfcFilename = null;
+      stairParsedData = null;
+      stairIsParsing = false;
+      console.error('Failed to read IFC file:', error);
+      setStairUploadStatus('Failed to read/parse IFC file.');
+    }
+  });
 
   // Add event listeners for all color and texture controls
   [brickColorInput, brickColorSigmaInput, darkBrickColorInput, cementColorInput,
@@ -392,6 +473,8 @@ function init(): void {
     const generatorMode: GeneratorMode = uiController.getGeneratorMode();
     const viewMode = uiController.getViewMode();
 
+    stairIfcUploadPanel?.classList.toggle('hidden', generatorMode !== 'stair');
+
     // Remove previous wall/column and bounds debug group if exists
     if (currentWallGroup) {
       scene.remove(currentWallGroup);
@@ -400,6 +483,10 @@ function init(): void {
     if (currentBoundsDebugGroup) {
       scene.remove(currentBoundsDebugGroup);
       currentBoundsDebugGroup = null;
+    }
+
+    if (generatorMode !== 'stair') {
+      stairParseRequestId += 1;
     }
 
     /** Shared debug visualization: centroid, keypoints, bounds. Duck-typed — no-ops if data is missing. */
@@ -566,6 +653,38 @@ function init(): void {
           console.error('Failed to load cavalete 2:', error);
         });
 
+      return;
+    }
+
+    if (generatorMode === 'stair') {
+      if (!stairIfcBuffer) {
+        setStairUploadStatus('Select an IFC file to extract Axis and FootPrint.');
+        return;
+      }
+
+      if (stairIsParsing) {
+        setStairUploadStatus(`Parsing ${stairIfcFilename ?? 'IFC'}...`);
+        return;
+      }
+
+      if (!stairParsedData) {
+        setStairUploadStatus('No parsed stair data available.');
+        return;
+      }
+
+      currentWallGroup = buildStairDebugGroup(stairParsedData);
+      if (uiController.getWireframeEnabled()) {
+        SceneUtils.setWireframeMode(currentWallGroup, true);
+      }
+      scene.add(currentWallGroup);
+      if (uiController.getShowBounds() && stairParsedData.boundingBoxes.length > 0) {
+        currentBoundsDebugGroup = buildStairBoundsGroup(stairParsedData);
+        scene.add(currentBoundsDebugGroup);
+      }
+      if (stairNeedsCameraAdjust) {
+        stairNeedsCameraAdjust = false;
+        adjustCameraForConstruction(currentWallGroup);
+      }
       return;
     }
 

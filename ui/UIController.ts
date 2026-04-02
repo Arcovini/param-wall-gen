@@ -13,7 +13,7 @@ import { ViewControlsController, type ViewMode } from './controller/ViewControls
 export type { OpeningData };
 export type { ColumnParams };
 export type { BeamParams };
-export type GeneratorMode = 'wall' | 'column' | 'beam' | 'basic' | 'construction' | 'cavalete' | 'cavalete2';
+export type GeneratorMode = 'wall' | 'column' | 'beam' | 'stair' | 'basic' | 'construction' | 'cavalete' | 'cavalete2';
 
 export class UIController {
   private placeholders: PlaceholdersController;
@@ -95,6 +95,7 @@ export class UIController {
     const isWallMode = this.generatorMode === 'wall';
     const isColumnMode = this.generatorMode === 'column';
     const isBeamMode = this.generatorMode === 'beam';
+    const isStairMode = this.generatorMode === 'stair';
     const isBasicMode = this.generatorMode === 'basic';
     const isConstructionMode = this.generatorMode === 'construction';
     const isCavaleteMode = this.generatorMode === 'cavalete';
@@ -132,7 +133,7 @@ export class UIController {
 
     // Toggle materials section (hide in construction/cavalete/basic modes)
     if (this.materialsSection) {
-      this.materialsSection.classList.toggle('hidden', isConstructionMode || isCavaleteMode || isCavalete2Mode || isBasicMode);
+      this.materialsSection.classList.toggle('hidden', isConstructionMode || isCavaleteMode || isCavalete2Mode || isBasicMode || isStairMode);
     }
 
     // Toggle material controls based on generator mode
@@ -145,7 +146,7 @@ export class UIController {
     if (this.beamMaterialsControls) {
       this.beamMaterialsControls.classList.toggle('hidden', !isBeamMode);
     }
-    // basic mode: wall/column/beam param sections already hidden via !isWallMode etc.
+    // non-parametric modes hide wall/column/beam param sections via !isWallMode, !isColumnMode, !isBeamMode.
   }
 
   // Delegate to WallParametersController

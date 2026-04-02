@@ -17,6 +17,7 @@ export function createTriangleDescription(
     0.5, 0, 0,
     0, 1, 0
   ]);
+
   const indices = new Uint32Array([0, 1, 2]);
   const uvs = new Float32Array([0, 0, 1, 0, 0.5, 1]);
 

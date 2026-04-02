@@ -10,6 +10,29 @@
 
 <body>
   <div id="canvas-container">
+    <div id="stair-ifc-upload-panel" class="hidden">
+      <label for="stair-ifc-input" class="stair-upload-title">Stair IFC</label>
+      <input type="file" id="stair-ifc-input" accept=".ifc">
+      <div id="stair-ifc-status">Select an IFC file</div>
+      <div class="stair-ifc-legend">
+        <div class="stair-ifc-legend-title">Legenda IFC</div>
+        <div class="stair-ifc-legend-item">
+          <span class="stair-ifc-legend-swatch stair-ifc-legend-swatch-box"></span>
+          <span>Box azul: BBox do StairFlight (base Axis/FootPrint + altura)</span>
+        </div>
+        <div class="stair-ifc-legend-item">
+          <span class="stair-ifc-legend-swatch stair-ifc-legend-swatch-line"></span>
+          <span>Linha azul: Axis (walking line)</span>
+        </div>
+        <div class="stair-ifc-legend-item">
+          <span class="stair-ifc-legend-swatch stair-ifc-legend-swatch-footprint"></span>
+          <span>Retangulo verde: FootPrint (top view)</span>
+        </div>
+        <div class="stair-ifc-legend-note">
+          Altura do box azul = RiserHeight x NumberOfRiser (Pset_StairFlightCommon).
+        </div>
+      </div>
+    </div>
     <div class="canvas-overlay">
       <div class="control-group wireframe-group" id="wireframe-control">
         <label class="toggle-switch">
@@ -57,6 +80,7 @@
           <option value="wall">Wall</option>
           <option value="column">Column</option>
           <option value="beam">Beam</option>
+          <option value="stair">Stair (IFC Axis/FootPrint)</option>
           <option value="basic">Basic (Triangle)</option>
           <option value="construction">Construction Site</option>
           <option value="cavalete">Cavalete</option>

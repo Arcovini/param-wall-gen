@@ -1,0 +1,513 @@
+ISO-10303-21;
+
+(* ================================================================== *)
+(* EXEMPLO COMPLETO: Escada em U (HALF_TURN_STAIR)                    *)
+(* Pé-direito: 2.80m | 2 lances de 8 espelhos | Patamar intermediário *)
+(* Blondel: 2(17.5) + 28 = 63 cm  ✓                                  *)
+(* ================================================================== *)
+
+HEADER;
+FILE_DESCRIPTION(('ViewDefinition [CoordinationView_V2.0]'),'2;1');
+FILE_NAME('escada_exemplo.ifc','2026-04-01T12:00:00',('Vini'),('Physical-AI'),'IFC4','Exemplo Didático','');
+FILE_SCHEMA(('IFC4'));
+ENDSEC;
+
+DATA;
+
+(* ================================================================== *)
+(* SEÇÃO 1: INFRAESTRUTURA BASE                                       *)
+(* Entidades obrigatórias em todo arquivo IFC                          *)
+(* ================================================================== *)
+
+(* --- Proprietário e aplicação --- *)
+#1=IFCPERSON($,'Vinicio','Developer',$,$,$,$,$);
+#2=IFCORGANIZATION($,'Physical-AI','Desafio Técnico',$,$);
+#3=IFCPERSONANDORGANIZATION(#1,#2,$);
+#4=IFCAPPLICATION(#2,'1.0','ParamWallGen','param-wall-gen');
+
+(* OwnerHistory: quem criou, quando, com qual app *)
+#5=IFCOWNERHISTORY(#3,#4,$,.NOCHANGE.,$,$,$,1711929600);
+
+(* --- Unidades SI (metros, radianos) --- *)
+#10=IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.);
+#11=IFCSIUNIT(*,.AREAUNIT.,$,.SQUARE_METRE.);
+#12=IFCSIUNIT(*,.VOLUMEUNIT.,$,.CUBIC_METRE.);
+#13=IFCSIUNIT(*,.PLANEANGLEUNIT.,$,.RADIAN.);
+#14=IFCUNITASSIGNMENT((#10,#11,#12,#13));
+
+(* --- Contexto geométrico 3D --- *)
+(* RepresentationContext: define o espaço 3D onde toda geometria vive *)
+#20=IFCCARTESIANPOINT((0.,0.,0.));
+#21=IFCDIRECTION((0.,0.,1.));       (* eixo Z = vertical no IFC *)
+#22=IFCDIRECTION((1.,0.,0.));       (* eixo X = horizontal *)
+#23=IFCAXIS2PLACEMENT3D(#20,#21,#22);
+
+(* WorldCoordinateSystem = origem global *)
+#24=IFCGEOMETRICREPRESENTATIONCONTEXT($,'Model',3,1.0E-5,#23,$);
+
+(* SubContextos: um para Body (sólidos 3D), outro para Axis (linhas) *)
+#25=IFCGEOMETRICREPRESENTATIONSUBCONTEXT('Body','Model',*,*,*,*,#24,$,.MODEL_VIEW.,$);
+#26=IFCGEOMETRICREPRESENTATIONSUBCONTEXT('Axis','Model',*,*,*,*,#24,$,.GRAPH_VIEW.,$);
+
+(* ================================================================== *)
+(* SEÇÃO 2: HIERARQUIA ESPACIAL                                       *)
+(* Project > Site > Building > BuildingStorey                          *)
+(* Toda entidade física deve estar contida num storey                  *)
+(* ================================================================== *)
+
+(* --- Projeto --- *)
+#30=IFCPROJECT('0001_PROJ_GUID_HERE',#5,'Exemplo Escada IFC',
+  'Projeto didático mostrando estrutura IFC de escada',
+  $,$,$,(#24),#14);
+
+(* --- Terreno (Site) --- *)
+#31=IFCLOCALPLACEMENT($,#23);
+#32=IFCSITE('0002_SITE_GUID_HERE',#5,'Terreno',$,$,#31,$,$,.ELEMENT.,$,$,$,$,$);
+
+(* --- Edifício --- *)
+#33=IFCLOCALPLACEMENT(#31,#23);
+#34=IFCBUILDING('0003_BLDG_GUID_HERE',#5,'Edificio Residencial',
+  $,$,#33,$,$,.ELEMENT.,$,$,$);
+
+(* --- Pavimento Térreo (cota 0.000) --- *)
+#35=IFCLOCALPLACEMENT(#33,#23);
+#36=IFCBUILDINGSTOREY('0004_STOR_GUID_HERE',#5,'Pavimento Terreo',
+  $,$,#35,$,$,.ELEMENT.,0.0);
+
+(* --- Relações de agregação da hierarquia espacial --- *)
+(* Project contém Site *)
+#40=IFCRELAGGREGATES('0005_AGG1_GUID_HERE',#5,$,$,#30,(#32));
+(* Site contém Building *)
+#41=IFCRELAGGREGATES('0006_AGG2_GUID_HERE',#5,$,$,#32,(#34));
+(* Building contém Storey *)
+#42=IFCRELAGGREGATES('0007_AGG3_GUID_HERE',#5,$,$,#34,(#36));
+
+(* ================================================================== *)
+(* SEÇÃO 3: GEOMETRIA AUXILIAR                                         *)
+(* Pontos, direções e placements reutilizáveis                         *)
+(* ================================================================== *)
+
+(* Origem 2D para perfis *)
+#50=IFCCARTESIANPOINT((0.,0.));
+
+(* Direções padrão *)
+#51=IFCDIRECTION((0.,0.,1.));  (* para cima — direção de extrusão vertical *)
+#52=IFCDIRECTION((0.,1.,0.));  (* para frente — direção de extrusão na largura *)
+#53=IFCDIRECTION((1.,0.,0.));  (* para a direita *)
+
+(* ================================================================== *)
+(* SEÇÃO 4: IfcStair — O CONTÊINER PRINCIPAL                          *)
+(*                                                                     *)
+(* IfcStair é um "assembly": NÃO tem geometria Body própria.           *)
+(* Sua forma 3D é a soma dos componentes agregados (flights + landing) *)
+(* Pode ter representação Axis (linha de caminhada)                    *)
+(*                                                                     *)
+(* Herança: IfcRoot > IfcObjectDefinition > IfcObject > IfcProduct    *)
+(*          > IfcElement > IfcBuildingElement > IfcStair               *)
+(*                                                                     *)
+(* PredefinedType = .HALF_TURN_STAIR.                                  *)
+(*   → 2 lances retos conectados por patamar com giro de 180°         *)
+(* ================================================================== *)
+
+(* Placement da escada: posição (1.0, 0.0, 0.0) relativo ao storey *)
+#100=IFCCARTESIANPOINT((1.,0.,0.));
+#101=IFCAXIS2PLACEMENT3D(#100,#21,#22);
+#102=IFCLOCALPLACEMENT(#35,#101);
+
+(* Representação Axis: linha de caminhada da escada (2D, vista planta) *)
+(* A polyline segue o caminho que uma pessoa percorre ao subir *)
+#103=IFCCARTESIANPOINT((0.6,0.));       (* início: centro do 1º lance *)
+#104=IFCCARTESIANPOINT((0.6,2.24));     (* fim do 1º lance (8 pisos × 0.28m) *)
+#105=IFCCARTESIANPOINT((0.6,3.04));     (* ponto no patamar *)
+#106=IFCCARTESIANPOINT((-0.6,3.04));    (* giro 180° no patamar *)
+#107=IFCCARTESIANPOINT((-0.6,0.8));     (* fim do 2º lance descendo *)
+
+#108=IFCPOLYLINE((#103,#104,#105,#106,#107));
+#109=IFCSHAPEREPRESENTATION(#26,'Axis','Curve2D',(#108));
+#110=IFCPRODUCTDEFINITIONSHAPE($,$,(#109));
+
+(* ----- A ENTIDADE IfcStair ----- *)
+(*                                                                      *)
+(* Parâmetros do construtor EXPRESS:                                     *)
+(*   1. GlobalId          → identificador único (22 chars base64)       *)
+(*   2. OwnerHistory      → quem/quando criou                           *)
+(*   3. Name              → nome legível                                *)
+(*   4. Description       → descrição textual                           *)
+(*   5. ObjectType        → só necessário se PredefinedType=USERDEFINED *)
+(*   6. ObjectPlacement   → posição no espaço 3D                        *)
+(*   7. Representation    → geometria (aqui só Axis, sem Body)          *)
+(*   8. Tag               → identificador no projeto                    *)
+(*   9. PredefinedType    → tipo da escada (enum)                       *)
+
+#111=IFCSTAIR('1000_STAIR_GUID_HERE',#5,
+  'Escada Principal',                         (* Name *)
+  'Escada em U - 2 lances com patamar',       (* Description *)
+  $,                                           (* ObjectType: não usado *)
+  #102,                                        (* ObjectPlacement *)
+  #110,                                        (* Representation: só Axis *)
+  'ESC-01',                                    (* Tag *)
+  .HALF_TURN_STAIR.);                          (* PredefinedType *)
+
+(* Conter a escada no pavimento térreo *)
+#112=IFCRELCONTAINEDINSPATIALSTRUCTURE('1001_CONT_GUID_HERE',#5,
+  'Escada no Terreo',$,
+  (#111),    (* RelatedElements: a escada *)
+  #36);      (* RelatingStructure: o pavimento *)
+
+(* ================================================================== *)
+(* SEÇÃO 5: IfcStairFlight #1 — LANCE INFERIOR                        *)
+(*                                                                     *)
+(* O lance de escada que vai do piso térreo até o patamar.             *)
+(* Possui 8 espelhos (risers) e 7 pisos (treads).                     *)
+(*                                                                     *)
+(* CÁLCULOS (Blondel com pé-direito 2.80m dividido em 2 lances):      *)
+(*   Altura deste lance = 2.80 / 2 = 1.40m                            *)
+(*   nRisers = 1.40 / 0.175 = 8                                       *)
+(*   riserHeight = 1.40 / 8 = 0.175m (17.5 cm)                        *)
+(*   nTreads = 8 - 1 = 7                                              *)
+(*   treadLength = 0.63 - (2 × 0.175) = 0.28m (28 cm)                *)
+(*   Verificação: 2(17.5) + 28 = 63 cm  ✓                             *)
+(*   Comprimento total lance = 7 × 0.28 = 1.96m                       *)
+(*                                                                     *)
+(* Herança: ...IfcBuildingElement > IfcStairFlight                     *)
+(*                                                                     *)
+(* Atributos diretos (posições 9-13):                                  *)
+(*   9.  NumberOfRisers  → 8                                           *)
+(*   10. NumberOfTreads  → 7                                           *)
+(*   11. RiserHeight     → 0.175                                       *)
+(*   12. TreadLength     → 0.28                                        *)
+(*   13. PredefinedType  → .STRAIGHT.                                  *)
+(*                                                                     *)
+(* NOTA: Desde IFC4, atributos 9-12 são DEPRECATED.                   *)
+(* Recomenda-se usar Pset_StairFlightCommon (Seção 8).                 *)
+(* Mantemos ambos aqui por compatibilidade.                            *)
+(* ================================================================== *)
+
+(* Placement do lance 1: na origem da escada (relativo ao IfcStair) *)
+#200=IFCAXIS2PLACEMENT3D(#20,#21,#22);
+#201=IFCLOCALPLACEMENT(#102,#200);
+
+(* ----- GEOMETRIA: Perfil dente-de-serra (SweptSolid) ----- *)
+(*                                                                     *)
+(* Técnica: IfcExtrudedAreaSolid com perfil IfcArbitraryClosedProfileDef*)
+(* O perfil é uma polyline que traça o contorno lateral da escada:     *)
+(*   - sobe verticalmente (espelho)                                    *)
+(*   - avança horizontalmente (piso)                                   *)
+(*   - repete para cada degrau                                         *)
+(*   - fecha retornando pela parte inferior (laje inclinada)           *)
+(*                                                                     *)
+(* O perfil é extrudado na direção Y (largura = 1.20m)                *)
+(*                                                                     *)
+(* Coordenadas do perfil (X = comprimento, Z = altura no IFC):        *)
+(* Ponto 0: (0, 0) — base inferior esquerda                           *)
+
+(* Perfil do lance de 8 degraus *)
+#210=IFCCARTESIANPOINT((0.,0.));         (* P0: base *)
+#211=IFCCARTESIANPOINT((0.,0.175));      (* P1: sobe 1º espelho *)
+#212=IFCCARTESIANPOINT((0.28,0.175));    (* P2: avança 1º piso *)
+#213=IFCCARTESIANPOINT((0.28,0.35));     (* P3: sobe 2º espelho *)
+#214=IFCCARTESIANPOINT((0.56,0.35));     (* P4: avança 2º piso *)
+#215=IFCCARTESIANPOINT((0.56,0.525));    (* P5: sobe 3º espelho *)
+#216=IFCCARTESIANPOINT((0.84,0.525));    (* P6: avança 3º piso *)
+#217=IFCCARTESIANPOINT((0.84,0.70));     (* P7: sobe 4º espelho *)
+#218=IFCCARTESIANPOINT((1.12,0.70));     (* P8: avança 4º piso *)
+#219=IFCCARTESIANPOINT((1.12,0.875));    (* P9: sobe 5º espelho *)
+#220=IFCCARTESIANPOINT((1.40,0.875));    (* P10: avança 5º piso *)
+#221=IFCCARTESIANPOINT((1.40,1.05));     (* P11: sobe 6º espelho *)
+#222=IFCCARTESIANPOINT((1.68,1.05));     (* P12: avança 6º piso *)
+#223=IFCCARTESIANPOINT((1.68,1.225));    (* P13: sobe 7º espelho *)
+#224=IFCCARTESIANPOINT((1.96,1.225));    (* P14: avança 7º piso *)
+#225=IFCCARTESIANPOINT((1.96,1.40));     (* P15: sobe 8º espelho (topo = patamar) *)
+(* A partir daqui, fecha o perfil pela parte inferior (laje) *)
+#226=IFCCARTESIANPOINT((1.96,1.25));     (* P16: desce waistThickness do topo *)
+#227=IFCCARTESIANPOINT((0.,0.));         (* P17: fecha no ponto inicial *)
+(* NOTA: Na prática, P16-P17 seria uma linha inclinada representando *)
+(* a face inferior da laje. Aqui simplificamos para triângulo.       *)
+
+#228=IFCPOLYLINE((#210,#211,#212,#213,#214,#215,#216,#217,#218,
+  #219,#220,#221,#222,#223,#224,#225,#226,#227));
+
+(* IfcArbitraryClosedProfileDef: perfil fechado arbitrário *)
+(*   .AREA. = tipo de perfil (região fechada)              *)
+(*   'PerfilLance1' = nome do perfil                       *)
+(*   #228 = a polyline que define o contorno               *)
+#229=IFCARBITRARYCLOSEDPROFILEDEF(.AREA.,'PerfilLance1',#228);
+
+(* IfcExtrudedAreaSolid: extrusão do perfil *)
+(*   #229 = perfil a extrudar                              *)
+(*   #23  = posição da extrusão (origem)                   *)
+(*   #52  = direção de extrusão (0,1,0) = eixo Y (largura)*)
+(*   1.2  = profundidade de extrusão = largura da escada   *)
+#230=IFCEXTRUDEDAREASOLID(#229,#23,#52,1.2);
+
+(* Representação Body *)
+#231=IFCSHAPEREPRESENTATION(#25,'Body','SweptSolid',(#230));
+#232=IFCPRODUCTDEFINITIONSHAPE($,$,(#231));
+
+(* ----- A ENTIDADE IfcStairFlight #1 ----- *)
+#233=IFCSTAIRFLIGHT('2000_FLT1_GUID_HERE',#5,
+  'Lance Inferior',                            (* Name *)
+  'Lance do terreo ao patamar - 8 espelhos',   (* Description *)
+  $,                                            (* ObjectType *)
+  #201,                                         (* ObjectPlacement *)
+  #232,                                         (* Representation *)
+  'ESC-01-L1',                                  (* Tag *)
+  8,                                            (* NumberOfRisers *)
+  7,                                            (* NumberOfTreads *)
+  0.175,                                        (* RiserHeight (m) *)
+  0.28,                                         (* TreadLength (m) *)
+  .STRAIGHT.);                                  (* PredefinedType *)
+
+(* ================================================================== *)
+(* SEÇÃO 6: IfcSlab (LANDING) — PATAMAR INTERMEDIÁRIO                  *)
+(*                                                                     *)
+(* O patamar é modelado como IfcSlab com PredefinedType = .LANDING.    *)
+(* Fica na cota Z = 1.40m (topo do lance 1)                           *)
+(* Dimensões: 1.20m (largura) × 1.20m (profundidade) × 0.15m (esp.)  *)
+(* ================================================================== *)
+
+(* Placement: deslocado para Z=1.40m (cota do topo do lance 1) *)
+(* e Y=1.96m (fim do comprimento do lance 1) *)
+#300=IFCCARTESIANPOINT((0.,1.96,1.40));
+#301=IFCAXIS2PLACEMENT3D(#300,#21,#22);
+#302=IFCLOCALPLACEMENT(#102,#301);
+
+(* Geometria: retângulo extrudado verticalmente *)
+(* IfcRectangleProfileDef: perfil retangular *)
+(*   .AREA. = tipo de perfil                                 *)
+(*   'PerfilPatamar' = nome                                  *)
+(*   $ = sem posição local (usa default)                     *)
+(*   1.2 = XDim (largura, no eixo X)                        *)
+(*   1.2 = YDim (profundidade, no eixo Y)                   *)
+#303=IFCRECTANGLEPROFILEDEF(.AREA.,'PerfilPatamar',$,1.2,1.2);
+
+(* Extrusão vertical (direção Z) com altura = espessura da laje *)
+#304=IFCEXTRUDEDAREASOLID(#303,#23,#51,0.15);
+
+#305=IFCSHAPEREPRESENTATION(#25,'Body','SweptSolid',(#304));
+#306=IFCPRODUCTDEFINITIONSHAPE($,$,(#305));
+
+(* ----- A ENTIDADE IfcSlab (Patamar) ----- *)
+(* NOTA: Não é IfcStairFlight! Patamares são IfcSlab com tipo LANDING *)
+#307=IFCSLAB('3000_LAND_GUID_HERE',#5,
+  'Patamar Intermediario',                     (* Name *)
+  'Patamar de giro 180 graus',                (* Description *)
+  $,                                            (* ObjectType *)
+  #302,                                         (* ObjectPlacement *)
+  #306,                                         (* Representation *)
+  'ESC-01-PAT',                                (* Tag *)
+  .LANDING.);                                   (* PredefinedType *)
+
+(* ================================================================== *)
+(* SEÇÃO 7: IfcStairFlight #2 — LANCE SUPERIOR                        *)
+(*                                                                     *)
+(* Segundo lance, partindo do patamar (Z=1.40m) até o 1º andar        *)
+(* (Z=2.80m). Mesmas dimensões do lance 1, porém rotacionado 180°.    *)
+(* Em planta, corre paralelo ao lance 1, no sentido oposto.           *)
+(* ================================================================== *)
+
+(* Placement: posição no patamar, rotacionado 180° em torno de Z *)
+(* Posição: X=-1.2 (largura da escada para o lado), Y=3.16m, Z=1.40m *)
+#400=IFCCARTESIANPOINT((-1.2,3.16,1.40));
+#401=IFCDIRECTION((-1.,0.,0.));  (* X invertido = rotação 180° *)
+#402=IFCAXIS2PLACEMENT3D(#400,#21,#401);
+#403=IFCLOCALPLACEMENT(#102,#402);
+
+(* Reutiliza o mesmo perfil dente-de-serra do lance 1 *)
+(* IfcMappedItem permite reutilizar geometria (economia de dados) *)
+(* Mas aqui, para clareza, criamos outro ExtrudedAreaSolid *)
+#410=IFCEXTRUDEDAREASOLID(#229,#23,#52,1.2);
+#411=IFCSHAPEREPRESENTATION(#25,'Body','SweptSolid',(#410));
+#412=IFCPRODUCTDEFINITIONSHAPE($,$,(#411));
+
+(* ----- A ENTIDADE IfcStairFlight #2 ----- *)
+#413=IFCSTAIRFLIGHT('4000_FLT2_GUID_HERE',#5,
+  'Lance Superior',                            (* Name *)
+  'Lance do patamar ao 1o andar - 8 espelhos', (* Description *)
+  $,                                            (* ObjectType *)
+  #403,                                         (* ObjectPlacement *)
+  #412,                                         (* Representation *)
+  'ESC-01-L2',                                  (* Tag *)
+  8,                                            (* NumberOfRisers *)
+  7,                                            (* NumberOfTreads *)
+  0.175,                                        (* RiserHeight (m) *)
+  0.28,                                         (* TreadLength (m) *)
+  .STRAIGHT.);                                  (* PredefinedType *)
+
+(* ================================================================== *)
+(* SEÇÃO 8: AGREGAÇÃO — IfcStair contém seus componentes               *)
+(*                                                                     *)
+(* IfcRelAggregates conecta o contêiner (IfcStair) aos seus           *)
+(* componentes (2× IfcStairFlight + 1× IfcSlab[LANDING]).             *)
+(*                                                                     *)
+(* Esta é a relação mais importante: sem ela, os componentes           *)
+(* ficariam "soltos" no modelo, sem pertencer à escada.               *)
+(*                                                                     *)
+(* Parâmetros:                                                         *)
+(*   1. GlobalId                                                       *)
+(*   2. OwnerHistory                                                   *)
+(*   3. Name                                                           *)
+(*   4. Description                                                    *)
+(*   5. RelatingObject → o IfcStair (#111)                            *)
+(*   6. RelatedObjects → lista de componentes                         *)
+(* ================================================================== *)
+
+#500=IFCRELAGGREGATES('5000_AGST_GUID_HERE',#5,
+  'Decomposicao Escada',
+  'IfcStair agrega 2 lances e 1 patamar',
+  #111,                  (* RelatingObject = IfcStair *)
+  (#233,#307,#413));     (* RelatedObjects = Lance1, Patamar, Lance2 *)
+
+(* ================================================================== *)
+(* SEÇÃO 9: PROPERTY SETS — Dados paramétricos da escada               *)
+(*                                                                     *)
+(* Property Sets são coleções de propriedades associadas a entidades.  *)
+(* São o mecanismo principal para carregar metadados no IFC.           *)
+(*                                                                     *)
+(* Dois Psets são relevantes para escadas:                             *)
+(*   - Pset_StairCommon → aplica-se ao IfcStair                       *)
+(*   - Pset_StairFlightCommon → aplica-se ao IfcStairFlight           *)
+(* ================================================================== *)
+
+(* -------- Pset_StairCommon (no IfcStair) -------- *)
+(*                                                                     *)
+(* Propriedades da escada como um todo:                                *)
+(*   NumberOfRiser     = 16 (total: 8+8 dos dois lances)              *)
+(*   NumberOfTreads    = 14 (total: 7+7)                              *)
+(*   RiserHeight       = 0.175                                        *)
+(*   TreadLength       = 0.28                                         *)
+(*   RequiredHeadroom  = 2.10 (mín. NBR 9077)                        *)
+(*   IsExternal        = FALSE (escada interna)                       *)
+(*   FireExit          = FALSE                                        *)
+(*   HandicapAccessible= FALSE                                        *)
+(*   HasNonSkidSurface = TRUE                                         *)
+(*   FireRating        = 'REI 120' (resistência ao fogo)              *)
+(*   NosingLength      = 0.025 (focinho de 2.5cm)                    *)
+
+#600=IFCPROPERTYSINGLEVALUE('Reference',$,IFCIDENTIFIER('ESC-01'),$);
+#601=IFCPROPERTYSINGLEVALUE('Status',$,IFCLABEL('NEW'),$);
+#602=IFCPROPERTYSINGLEVALUE('NumberOfRiser',$,IFCCOUNTMEASURE(16.),$);
+#603=IFCPROPERTYSINGLEVALUE('NumberOfTreads',$,IFCCOUNTMEASURE(14.),$);
+#604=IFCPROPERTYSINGLEVALUE('RiserHeight',$,IFCPOSITIVELENGTHMEASURE(0.175),$);
+#605=IFCPROPERTYSINGLEVALUE('TreadLength',$,IFCPOSITIVELENGTHMEASURE(0.28),$);
+#606=IFCPROPERTYSINGLEVALUE('NosingLength',$,IFCLENGTHMEASURE(0.025),$);
+#607=IFCPROPERTYSINGLEVALUE('RequiredHeadroom',$,IFCPOSITIVELENGTHMEASURE(2.10),$);
+#608=IFCPROPERTYSINGLEVALUE('HandicapAccessible',$,IFCBOOLEAN(.F.),$);
+#609=IFCPROPERTYSINGLEVALUE('HasNonSkidSurface',$,IFCBOOLEAN(.T.),$);
+#610=IFCPROPERTYSINGLEVALUE('IsExternal',$,IFCBOOLEAN(.F.),$);
+#611=IFCPROPERTYSINGLEVALUE('FireRating',$,IFCLABEL('REI 120'),$);
+#612=IFCPROPERTYSINGLEVALUE('FireExit',$,IFCBOOLEAN(.F.),$);
+#613=IFCPROPERTYSINGLEVALUE('LoadBearing',$,IFCBOOLEAN(.T.),$);
+#614=IFCPROPERTYSINGLEVALUE('WaistThickness',$,IFCPOSITIVELENGTHMEASURE(0.15),$);
+
+#620=IFCPROPERTYSET('6000_PSET_GUID_HERE',#5,
+  'Pset_StairCommon',                          (* Nome padronizado *)
+  $,
+  (#600,#601,#602,#603,#604,#605,#606,#607,
+   #608,#609,#610,#611,#612,#613,#614));
+
+(* Associa Pset_StairCommon ao IfcStair *)
+#621=IFCRELDEFINESBYPROPERTIES('6001_RDEF_GUID_HERE',#5,$,$,
+  (#111),    (* RelatedObjects = IfcStair *)
+  #620);     (* RelatingPropertyDefinition = o PropertySet *)
+
+(* -------- Pset_StairFlightCommon (nos IfcStairFlights) -------- *)
+(*                                                                     *)
+(* Propriedades específicas de cada lance.                             *)
+(* Desde IFC4, ESTE é o local preferido para NumberOfRiser etc.        *)
+(* Os atributos diretos do IfcStairFlight são deprecated.              *)
+
+#630=IFCPROPERTYSINGLEVALUE('Reference',$,IFCIDENTIFIER('ESC-01-L1'),$);
+#631=IFCPROPERTYSINGLEVALUE('NumberOfRiser',$,IFCCOUNTMEASURE(8.),$);
+#632=IFCPROPERTYSINGLEVALUE('NumberOfTreads',$,IFCCOUNTMEASURE(7.),$);
+#633=IFCPROPERTYSINGLEVALUE('RiserHeight',$,IFCPOSITIVELENGTHMEASURE(0.175),$);
+#634=IFCPROPERTYSINGLEVALUE('TreadLength',$,IFCPOSITIVELENGTHMEASURE(0.28),$);
+#635=IFCPROPERTYSINGLEVALUE('NosingLength',$,IFCLENGTHMEASURE(0.025),$);
+#636=IFCPROPERTYSINGLEVALUE('Headroom',$,IFCPOSITIVELENGTHMEASURE(2.20),$);
+#637=IFCPROPERTYSINGLEVALUE('WaistThickness',$,IFCPOSITIVELENGTHMEASURE(0.15),$);
+#638=IFCPROPERTYSINGLEVALUE('WalkingLineOffset',$,IFCPOSITIVELENGTHMEASURE(0.60),$);
+#639=IFCPROPERTYSINGLEVALUE('TreadLengthAtOffset',$,IFCPOSITIVELENGTHMEASURE(0.28),$);
+#640=IFCPROPERTYSINGLEVALUE('TreadLengthAtInnerSide',$,IFCPOSITIVELENGTHMEASURE(0.28),$);
+
+#650=IFCPROPERTYSET('6500_PFLC_GUID_HERE',#5,
+  'Pset_StairFlightCommon',                    (* Nome padronizado *)
+  $,
+  (#630,#631,#632,#633,#634,#635,#636,#637,#638,#639,#640));
+
+(* Associa Pset_StairFlightCommon aos DOIS lances *)
+#651=IFCRELDEFINESBYPROPERTIES('6501_RDEF_GUID_HERE',#5,$,$,
+  (#233,#413),    (* RelatedObjects = Lance1 + Lance2 *)
+  #650);          (* RelatingPropertyDefinition *)
+
+(* ================================================================== *)
+(* SEÇÃO 10: QUANTIDADES BASE — Qto_StairFlightBaseQuantities          *)
+(*                                                                     *)
+(* Quantidades calculadas para orçamento/medição.                      *)
+(* Aplica-se ao IfcStairFlight (não existe Qto para IfcStair).        *)
+(*                                                                     *)
+(* 3 quantidades padrão:                                               *)
+(*   Length     = comprimento na linha de caminhada                    *)
+(*   GrossVolume = volume bruto do lance                               *)
+(*   NetVolume   = volume líquido (descontando aberturas)              *)
+(* ================================================================== *)
+
+#700=IFCQUANTITYLENGTH('Length','Comprimento na linha de caminhada',$,2.47,$);
+(* 2.47m = √(1.96² + 1.40²) — comprimento inclinado do lance *)
+
+#701=IFCQUANTITYVOLUME('GrossVolume','Volume bruto do lance',$,0.353,$);
+(* Volume aprox. = área do perfil × largura = 0.294m² × 1.2m *)
+
+#702=IFCQUANTITYVOLUME('NetVolume','Volume liquido',$,0.353,$);
+
+#710=IFCELEMENTQUANTITY('7000_QTO__GUID_HERE',#5,
+  'Qto_StairFlightBaseQuantities',             (* Nome padronizado *)
+  $,$,
+  (#700,#701,#702));
+
+(* Associa quantidades ao lance 1 *)
+#711=IFCRELDEFINESBYPROPERTIES('7001_RDEF_GUID_HERE',#5,$,$,
+  (#233),    (* RelatedObjects = Lance 1 *)
+  #710);     (* RelatingPropertyDefinition *)
+
+(* ================================================================== *)
+(* SEÇÃO 11: MATERIAL                                                  *)
+(*                                                                     *)
+(* Associa material (concreto armado) a todos os componentes           *)
+(* da escada. Em IFC, materiais são associados via IfcRelAssociates.   *)
+(* ================================================================== *)
+
+#800=IFCMATERIAL('Concreto Armado fck=25MPa',$,$);
+
+(* Associa material aos componentes da escada *)
+#801=IFCRELASSOCIATESMATERIAL('8000_MATL_GUID_HERE',#5,$,$,
+  (#233,#307,#413),  (* Elementos: Lance1, Patamar, Lance2 *)
+  #800);             (* Material *)
+
+(* ================================================================== *)
+(* SEÇÃO 12: IfcStairType (OPCIONAL)                                   *)
+(*                                                                     *)
+(* Define um "tipo" reutilizável de escada.                            *)
+(* Quando múltiplas escadas compartilham as mesmas propriedades,       *)
+(* usa-se IfcStairType + IfcRelDefinesByType.                          *)
+(*                                                                     *)
+(* PredefinedType no IfcStairType é OBRIGATÓRIO (diferente do IfcStair *)
+(* onde é opcional). Se ambos tiverem PredefinedType, o do Type vence. *)
+(* ================================================================== *)
+
+#900=IFCSTAIRTYPE('9000_STYP_GUID_HERE',#5,
+  'Tipo Escada U Residencial',                 (* Name *)
+  'Escada em U padrao com 2 lances de 8 degraus', (* Description *)
+  $,                                            (* ApplicableOccurrence *)
+  $,                                            (* HasPropertySets *)
+  $,                                            (* RepresentationMaps *)
+  $,                                            (* Tag *)
+  $,                                            (* ElementType *)
+  .HALF_TURN_STAIR.);                          (* PredefinedType: OBRIGATÓRIO *)
+
+(* Associa o tipo à instância *)
+#901=IFCRELDEFINESBYTYPE('9001_RTYP_GUID_HERE',#5,$,$,
+  (#111),    (* RelatedObjects = a instância IfcStair *)
+  #900);     (* RelatingType = o IfcStairType *)
+
+ENDSEC;
+END-ISO-10303-21;

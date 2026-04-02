@@ -1,0 +1,495 @@
+{
+  "description": "Rough Concrete Floor",
+  "variants": [
+    {
+      "description": "Dense Patterned Rough Concrete",
+      "type": "element_material",
+      "repeat": true,
+      "base_color": {
+        "type": "CMYK",
+        "c": {
+          "mean": 0.08,
+          "std_dev": 0.01
+        },
+        "m": {
+          "mean": 0.06,
+          "std_dev": 0.01
+        },
+        "y": {
+          "mean": 0.08,
+          "std_dev": 0.01
+        },
+        "k": {
+          "mean": 0.65,
+          "std_dev": 0.02
+        }
+      },
+      "metalness": {
+        "mean": 0.0,
+        "std_dev": 0.0
+      },
+      "roughness": {
+        "mean": 0.85,
+        "std_dev": 0.0
+      },
+      "opacity": 1.0,
+      "transparent": false,
+      "texture": {
+        "width": {
+          "mean": 2.0,
+          "std_dev": 0.0
+        },
+        "height": {
+          "mean": 2.0,
+          "std_dev": 0.0
+        },
+        "scale": {
+          "mean": 1.0,
+          "std_dev": 0.08
+        },
+        "albedo": "rough_concrete_dense_pattern.jpg"
+      }
+    },
+    {
+      "description": "Dense Patterned Rough Concrete - Yellowish",
+      "type": "element_material",
+      "repeat": true,
+      "base_color": {
+        "type": "CMYK",
+        "c": {
+          "mean": 0.08,
+          "std_dev": 0.01
+        },
+        "m": {
+          "mean": 0.06,
+          "std_dev": 0.01
+        },
+        "y": {
+          "mean": 0.08,
+          "std_dev": 0.01
+        },
+        "k": {
+          "mean": 0.65,
+          "std_dev": 0.02
+        }
+      },
+      "metalness": {
+        "mean": 0.0,
+        "std_dev": 0.0
+      },
+      "roughness": {
+        "mean": 0.85,
+        "std_dev": 0.0
+      },
+      "opacity": 1.0,
+      "transparent": false,
+      "texture": {
+        "width": {
+          "mean": 2.0,
+          "std_dev": 0.0
+        },
+        "height": {
+          "mean": 2.0,
+          "std_dev": 0.0
+        },
+        "scale": {
+          "mean": 1.0,
+          "std_dev": 0.08
+        },
+        "albedo": "rough_concrete_dense_pattern_yellowish.jpg"
+      }
+    },
+    {
+      "description": "Light Smooth Rough Concrete",
+      "type": "element_material",
+      "repeat": true,
+      "base_color": {
+        "type": "CMYK",
+        "c": {
+          "mean": 0.03,
+          "std_dev": 0.01
+        },
+        "m": {
+          "mean": 0.03,
+          "std_dev": 0.01
+        },
+        "y": {
+          "mean": 0.03,
+          "std_dev": 0.01
+        },
+        "k": {
+          "mean": 0.6,
+          "std_dev": 0.01
+        }
+      },
+      "metalness": {
+        "mean": 0.0,
+        "std_dev": 0.0
+      },
+      "roughness": {
+        "mean": 0.85,
+        "std_dev": 0.0
+      },
+      "opacity": 1.0,
+      "transparent": false,
+      "texture": {
+        "width": {
+          "mean": 1.5,
+          "std_dev": 0.0
+        },
+        "height": {
+          "mean": 1.0,
+          "std_dev": 0.0
+        },
+        "scale": {
+          "mean": 1.0,
+          "std_dev": 0.02
+        },
+        "albedo": "rough_concrete_light_smooth.jpg"
+      }
+    },
+    {
+      "description": "Light Smooth Rough Concrete - Yellowish",
+      "type": "element_material",
+      "repeat": true,
+      "base_color": {
+        "type": "CMYK",
+        "c": {
+          "mean": 0.03,
+          "std_dev": 0.01
+        },
+        "m": {
+          "mean": 0.03,
+          "std_dev": 0.01
+        },
+        "y": {
+          "mean": 0.03,
+          "std_dev": 0.01
+        },
+        "k": {
+          "mean": 0.6,
+          "std_dev": 0.01
+        }
+      },
+      "metalness": {
+        "mean": 0.0,
+        "std_dev": 0.0
+      },
+      "roughness": {
+        "mean": 0.85,
+        "std_dev": 0.0
+      },
+      "opacity": 1.0,
+      "transparent": false,
+      "texture": {
+        "width": {
+          "mean": 1.5,
+          "std_dev": 0.0
+        },
+        "height": {
+          "mean": 1.0,
+          "std_dev": 0.0
+        },
+        "scale": {
+          "mean": 1.0,
+          "std_dev": 0.02
+        },
+        "albedo": "rough_concrete_light_smooth_yellowish.jpg"
+      }
+    },
+    {
+      "description": "Marks Rough Concrete",
+      "type": "element_material",
+      "repeat": true,
+      "base_color": {
+        "type": "CMYK",
+        "c": {
+          "mean": 0.03,
+          "std_dev": 0.01
+        },
+        "m": {
+          "mean": 0.03,
+          "std_dev": 0.01
+        },
+        "y": {
+          "mean": 0.03,
+          "std_dev": 0.01
+        },
+        "k": {
+          "mean": 0.6,
+          "std_dev": 0.01
+        }
+      },
+      "metalness": {
+        "mean": 0.0,
+        "std_dev": 0.0
+      },
+      "roughness": {
+        "mean": 0.85,
+        "std_dev": 0.0
+      },
+      "opacity": 1.0,
+      "transparent": false,
+      "texture": {
+        "width": {
+          "mean": 1.5,
+          "std_dev": 0.0
+        },
+        "height": {
+          "mean": 1.0,
+          "std_dev": 0.0
+        },
+        "scale": {
+          "mean": 1.0,
+          "std_dev": 0.02
+        },
+        "albedo": "rough_concrete_marks.jpg"
+      }
+    },
+    {
+      "description": "Marks Rough Concrete - Yellowish",
+      "type": "element_material",
+      "repeat": true,
+      "base_color": {
+        "type": "CMYK",
+        "c": {
+          "mean": 0.03,
+          "std_dev": 0.01
+        },
+        "m": {
+          "mean": 0.03,
+          "std_dev": 0.01
+        },
+        "y": {
+          "mean": 0.03,
+          "std_dev": 0.01
+        },
+        "k": {
+          "mean": 0.6,
+          "std_dev": 0.01
+        }
+      },
+      "metalness": {
+        "mean": 0.0,
+        "std_dev": 0.0
+      },
+      "roughness": {
+        "mean": 0.85,
+        "std_dev": 0.0
+      },
+      "opacity": 1.0,
+      "transparent": false,
+      "texture": {
+        "width": {
+          "mean": 1.5,
+          "std_dev": 0.0
+        },
+        "height": {
+          "mean": 1.0,
+          "std_dev": 0.0
+        },
+        "scale": {
+          "mean": 1.0,
+          "std_dev": 0.02
+        },
+        "albedo": "rough_concrete_marks_yellowish.jpg"
+      }
+    },
+    {
+      "description": "Rough Concrete std 1x1 - Moist Dark",
+      "type": "element_material",
+      "repeat": true,
+      "base_color": {
+        "type": "CMYK",
+        "c": {
+          "mean": 0.12,
+          "std_dev": 0.01
+        },
+        "m": {
+          "mean": 0.1,
+          "std_dev": 0.01
+        },
+        "y": {
+          "mean": 0.1,
+          "std_dev": 0.01
+        },
+        "k": {
+          "mean": 0.75,
+          "std_dev": 0.02
+        }
+      },
+      "metalness": {
+        "mean": 0.0,
+        "std_dev": 0.0
+      },
+      "roughness": {
+        "mean": 0.88,
+        "std_dev": 0.0
+      },
+      "opacity": 1.0,
+      "transparent": false,
+      "texture": {
+        "width": {
+          "mean": 1.0,
+          "std_dev": 0.0
+        },
+        "height": {
+          "mean": 1.0,
+          "std_dev": 0.0
+        },
+        "scale": {
+          "mean": 1.0,
+          "std_dev": 0.08
+        },
+        "albedo": "rough_concrete_moist_dark.jpg"
+      }
+    },
+    {
+      "description": "Rough Concrete std 1x1 - Moist Dark - Yellowish",
+      "type": "element_material",
+      "repeat": true,
+      "base_color": {
+        "type": "CMYK",
+        "c": {
+          "mean": 0.12,
+          "std_dev": 0.01
+        },
+        "m": {
+          "mean": 0.1,
+          "std_dev": 0.01
+        },
+        "y": {
+          "mean": 0.1,
+          "std_dev": 0.01
+        },
+        "k": {
+          "mean": 0.75,
+          "std_dev": 0.02
+        }
+      },
+      "metalness": {
+        "mean": 0.0,
+        "std_dev": 0.0
+      },
+      "roughness": {
+        "mean": 0.88,
+        "std_dev": 0.0
+      },
+      "opacity": 1.0,
+      "transparent": false,
+      "texture": {
+        "width": {
+          "mean": 1.0,
+          "std_dev": 0.0
+        },
+        "height": {
+          "mean": 1.0,
+          "std_dev": 0.0
+        },
+        "scale": {
+          "mean": 1.0,
+          "std_dev": 0.08
+        },
+        "albedo": "rough_concrete_moist_dark_yellowish.jpg"
+      }
+    },
+    {
+      "description": "Rough Concrete std 1x1 - Speckled Smooth",
+      "type": "element_material",
+      "repeat": true,
+      "base_color": {
+        "type": "CMYK",
+        "c": {
+          "mean": 0.06,
+          "std_dev": 0.01
+        },
+        "m": {
+          "mean": 0.05,
+          "std_dev": 0.01
+        },
+        "y": {
+          "mean": 0.06,
+          "std_dev": 0.01
+        },
+        "k": {
+          "mean": 0.55,
+          "std_dev": 0.02
+        }
+      },
+      "metalness": {
+        "mean": 0.0,
+        "std_dev": 0.0
+      },
+      "roughness": {
+        "mean": 0.85,
+        "std_dev": 0.0
+      },
+      "opacity": 1.0,
+      "transparent": false,
+      "texture": {
+        "width": {
+          "mean": 1.0,
+          "std_dev": 0.0
+        },
+        "height": {
+          "mean": 1.0,
+          "std_dev": 0.0
+        },
+        "scale": {
+          "mean": 1.0,
+          "std_dev": 0.0
+        },
+        "albedo": "rough_concrete_speckled_smooth.jpg"
+      }
+    },
+    {
+      "description": "Rough Concrete std 1x1 - Speckled Smooth - Yellowish",
+      "type": "element_material",
+      "repeat": true,
+      "base_color": {
+        "type": "CMYK",
+        "c": {
+          "mean": 0.06,
+          "std_dev": 0.01
+        },
+        "m": {
+          "mean": 0.05,
+          "std_dev": 0.01
+        },
+        "y": {
+          "mean": 0.06,
+          "std_dev": 0.01
+        },
+        "k": {
+          "mean": 0.55,
+          "std_dev": 0.02
+        }
+      },
+      "metalness": {
+        "mean": 0.0,
+        "std_dev": 0.0
+      },
+      "roughness": {
+        "mean": 0.85,
+        "std_dev": 0.0
+      },
+      "opacity": 1.0,
+      "transparent": false,
+      "texture": {
+        "width": {
+          "mean": 1.0,
+          "std_dev": 0.0
+        },
+        "height": {
+          "mean": 1.0,
+          "std_dev": 0.0
+        },
+        "scale": {
+          "mean": 1.0,
+          "std_dev": 0.0
+        },
+        "albedo": "rough_concrete_speckled_smooth_yellowish.jpg"
+      }
+    }
+  ]
+}
